@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkSetupChannels, formatSetupReport, markSettingsMcpLoaded, resetSettingsMcpLoadedForTests, type SetupChannel } from '../src/setup-check.ts'
+import { checkSetupChannels, formatSetupReport, launchBlockage, markSettingsMcpLoaded, resetSettingsMcpLoadedForTests, type SetupChannel } from '../src/setup-check.ts'
 import * as ToolPatent from '../src/index.ts'
 
 /** Per-test probe state the mocked process boundaries read. */
@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   dockerVersion: true,
   uv: true,
   uvx: true,
+  wheelTool: false,
   images: new Map<string, boolean | null>(),
   files: new Map<string, boolean>(),
   fileText: new Map<string, string>(),
@@ -25,6 +26,12 @@ vi.mock('node:child_process', () => ({
       return ready
         ? Promise.resolve({ stdout: `${command} 0.5`, stderr: '' })
         : Promise.reject(Object.assign(new Error('enoent'), { code: 'ENOENT' }))
+    }
+    if (command === 'uv' && args[0] === 'tool' && args[1] === 'list') {
+      return Promise.resolve({
+        stdout: state.wheelTool ? 'deepseek-harness-patent-services v0.1.0\n  - patent-services\n' : '',
+        stderr: '',
+      })
     }
     if (command === 'docker' && args[0] === 'image' && args[1] === 'inspect') {
       const image = args[2] ?? ''
@@ -67,6 +74,7 @@ afterEach(() => {
   state.dockerVersion = true
   state.uv = true
   state.uvx = true
+  state.wheelTool = false
   state.images = new Map()
   state.files = new Map()
   state.fileText = new Map()
@@ -139,8 +147,17 @@ describe('checkSetupChannels', () => {
 
   it('accepts wheel mode through DSH_PATENT_SERVICES', async () => {
     process.env.DSH_PATENT_SERVICES = '1'
+    state.wheelTool = true
     const channels = await checkSetupChannels()
     expect(channels.find(c => c.gates === 'MCP 服务')?.status).toBe('ok')
+  })
+
+  it('fails wheel mode through DSH_PATENT_SERVICES when the wheel is not installed', async () => {
+    process.env.DSH_PATENT_SERVICES = '1'
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('uv tool install')
   })
 
   it('fails docker, skips the image probes, and falls through to drawio discovery', async () => {
@@ -294,6 +311,7 @@ describe('settings-file awareness', () => {
 
   it('accepts capitalized yaml booleans for mcp_enabled', async () => {
     state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: True\nmcp_wheel: true\n')
+    state.wheelTool = true
     markSettingsMcpLoaded()
     const channels = await checkSetupChannels()
     expect(channels.find(c => c.gates === 'MCP 服务')?.line).toContain('mcp_wheel')
@@ -303,6 +321,54 @@ describe('settings-file awareness', () => {
     state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\n')
     const channels = await checkSetupChannels()
     expect(channels.find(c => c.gates === 'MCP 服务')?.status).toBe('fail')
+  })
+
+  it('fails the settings wheel mode when the wheel is not installed as a uv tool', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_wheel: true\n')
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('uv tool install')
+    expect(mcp?.line).toContain('未发布 PyPI')
+  })
+
+  it('accepts the settings wheel mode when the wheel is installed as a uv tool', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_wheel: true\n')
+    state.wheelTool = true
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('ok')
+    expect(mcp?.line).toContain('已装载')
+  })
+
+  it('treats a falsy mcp_project_dir as unset and falls through to the wheel key', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_project_dir: false\nmcp_wheel: true\n')
+    state.wheelTool = true
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('ok')
+    expect(mcp?.line).toContain('mcp_wheel')
+  })
+
+  it('rejects a relative DSH_PATENT_SERVICES_DIR in the env mode', async () => {
+    process.env.DSH_PATENT_SERVICES_DIR = 'relative/checkout'
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('绝对路径')
+  })
+})
+
+describe('launchBlockage', () => {
+  it('rejects a relative source dir and a dir without pyproject, passes a valid one, never blocks wheel mode', () => {
+    expect(launchBlockage({ mode: 'wheel', command: 'uvx', args: [] })).toBeNull()
+    expect(launchBlockage({ mode: 'source', command: 'uv', args: [], projectDir: 'relative/path' })).toContain('绝对路径')
+    expect(launchBlockage({ mode: 'source', command: 'uv', args: [], projectDir: 'G:/nope' })).toContain('pyproject.toml')
+    state.files.set('G:/ok/pyproject.toml', true)
+    expect(launchBlockage({ mode: 'source', command: 'uv', args: [], projectDir: 'G:/ok' })).toBeNull()
   })
 })
 
@@ -332,10 +398,19 @@ describe('the plugin loads the MCP client from the settings file', () => {
   }
 
   it('loads uv with the settings project dir when nothing else enabled the row', async () => {
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
     const calls = await mount({ yaml: 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n' })
     expect(calls).toHaveLength(1)
     expect(calls[0]?.config).toMatchObject({ transport: 'stdio', serverName: 'patent', command: 'uv' })
     expect(calls[0]?.config.args).toEqual(['run', '--project', 'G:/src/patent-services', 'python', '-m', 'patent_services'])
+  })
+
+  it('refuses to spawn a relative project dir and records the readable cause', async () => {
+    const calls = await mount({ yaml: 'mcp_enabled: true\nmcp_project_dir: src/patent-services\n' })
+    expect(calls).toHaveLength(0)
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.line).toContain('绝对路径')
   })
 
   it('loads uvx for the wheel mode', async () => {
@@ -355,11 +430,11 @@ describe('the plugin loads the MCP client from the settings file', () => {
   })
 
   it('survives a failed MCP mount and hands the cause to the setup check', async () => {
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
     await mount({
       yaml: 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n',
       pluginError: 'duplicate server name: patent',
     })
-    state.files.set('G:/src/patent-services/pyproject.toml', true)
     const channels = await checkSetupChannels()
     const mcp = channels.find(c => c.gates === 'MCP 服务')
     expect(mcp?.status).toBe('fail')

@@ -181,7 +181,29 @@ $wsPath = Join-Path $profileDir "pnpm-workspace.yaml"
 $ws = ""
 if (Test-Path $wsPath) { $ws = [System.IO.File]::ReadAllText($wsPath) }
 if ($ws -match "overrides:") {
-  Write-Host "   overrides block already present — leaving as is (delete it to re-resolve after a version bump)"
+  # The tarball file names carry versions, so an existing block must be
+  # refreshed in place on every run — leaving it would pin the previous
+  # release's tarball names and break `dsh plugin install` after an upgrade.
+  $refreshTargets = [ordered]@{
+    "'@deepseek-ai/dsh-tool-patent'" = "file:$distForward/$toolTgz"
+    "'@deepseek-ai/dsh-command-patent-review'" = "file:$distForward/$commandTgz"
+    "'@deepseek-ai/schemastery'" = "file:$distForward/$smTgz"
+    "'@deepseek-ai/cosmokit'" = "file:$distForward/$ckTgz"
+  }
+  $replaced = 0
+  foreach ($key in $refreshTargets.Keys) {
+    $pattern = "(?m)^  $key`: .*$"
+    if ($ws -match $pattern) {
+      $ws = $ws -replace $pattern, "  $key`: '$($refreshTargets[$key])'"
+      $replaced += 1
+    }
+  }
+  [System.IO.File]::WriteAllText($wsPath, $ws, (New-Object System.Text.UTF8Encoding($false)))
+  if ($replaced -eq 4) {
+    Write-Host "   refreshed 4 override lines to the current tarballs"
+  } else {
+    Write-Host "   WARN: refreshed $replaced of 4 override lines — review $wsPath by hand" -ForegroundColor Yellow
+  }
 } else {
   [System.IO.File]::WriteAllText($wsPath, ($ws.TrimEnd() + "`n" + $overrides),
     (New-Object System.Text.UTF8Encoding($false)))

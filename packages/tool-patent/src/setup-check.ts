@@ -198,12 +198,34 @@ export function mcpFromSettings(): McpLaunch | null {
   const settings = readSettings()
   if (!isTruthy(settings.get('mcp_enabled'))) return null
   const dir = settings.get('mcp_project_dir')
-  if (dir !== undefined && dir.length > 0) {
+  if (dir !== undefined && dir.length > 0 && !isFalsy(dir)) {
     return { mode: 'source', command: 'uv', args: ['run', '--project', dir, 'python', '-m', 'patent_services'], projectDir: dir }
   }
   const wheel = settings.get('mcp_wheel')
   if (wheel !== undefined && wheel.length > 0 && !isFalsy(wheel)) {
     return { mode: 'wheel', command: 'uvx', args: ['--from', 'deepseek-harness-patent-services', 'patent-services'] }
+  }
+  return null
+}
+
+/**
+ * The config-shape problems that make a settings-file launch unspawnable:
+ * a relative project dir (uv would resolve it against the dsh process's
+ * working directory — the desktop app's install dir, not the user's) or a
+ * directory without a pyproject.toml. The loader runs this before spawning
+ * so the load-failure state carries a readable cause instead of uv's raw
+ * error; the check reuses it for the same messages.
+ * @param launch - the resolved settings-file launch.
+ * @returns the blocking reason, or null when the launch shape is spawnable.
+ */
+export function launchBlockage(launch: McpLaunch): string | null {
+  if (launch.mode !== 'source') return null
+  const dir = launch.projectDir ?? ''
+  if (!isAbsolutePath(dir)) {
+    return `mcp_project_dir 需写绝对路径（当前：${dir}）——相对路径按 dsh 进程的工作目录解析，会指错位置`
+  }
+  if (!existsSync(join(dir, 'pyproject.toml'))) {
+    return `mcp_project_dir 指向的目录缺 pyproject.toml（${dir}）——改为指向 python/patent-services 检出`
   }
   return null
 }
@@ -248,6 +270,22 @@ async function commandExists(candidate: string): Promise<boolean> {
   }
 }
 
+/**
+ * Whether the patent-services wheel is installed as a uv tool — the real
+ * precondition of wheel mode: the package is not on PyPI, so `uvx --from`
+ * only resolves against a tool uv installed locally. False on any probe
+ * failure too: an unprovable precondition is reported as not met, never as
+ * a green light.
+ */
+async function wheelToolInstalled(): Promise<boolean> {
+  try {
+    const { stdout } = await run('uv', ['tool', 'list'], { timeout: 15_000, windowsHide: true })
+    return stdout.split(/\r?\n/).some(line => line.startsWith('deepseek-harness-patent-services'))
+  } catch {
+    return false
+  }
+}
+
 /** Whether a docker image is present locally; null when the probe failed. */
 async function imagePresent(image: string): Promise<boolean | null> {
   try {
@@ -285,7 +323,9 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
   const servicesWheel = process.env.DSH_PATENT_SERVICES
   if (servicesDir !== undefined && servicesDir.length > 0) {
     const manifest = join(servicesDir, 'pyproject.toml')
-    if (!existsSync(manifest)) {
+    if (!isAbsolutePath(servicesDir)) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 需写绝对路径（当前：${servicesDir}）——相对路径按 dsh 进程的工作目录解析，会指错位置；改为绝对路径后重启进程。` })
+    } else if (!existsSync(manifest)) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 指向的目录缺 pyproject.toml（${servicesDir}）——改为指向 python/patent-services 检出后重启进程。` })
     } else if (!uvReady) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（源码模式）：目录有效但未检出 uv——MCP 行由 uv 拉起，安装 uv（https://docs.astral.sh/uv/）后重启进程复检。' })
@@ -293,9 +333,13 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
       channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 已设且目录与 uv 有效——MCP 工具应已装载（调用报错时按报错指引处理）。' })
     }
   } else if (servicesWheel !== undefined && servicesWheel.length > 0) {
-    channels.push(uvxReady
-      ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设——MCP 工具经 uvx 运行已安装的包。' }
-      : { status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设但未检出 uvx——安装 uv（自带 uvx）后重启进程复检。' })
+    if (!uvxReady) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设但未检出 uvx——安装 uv（自带 uvx）后重启进程复检。' })
+    } else if (!(await wheelToolInstalled())) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：未检出已安装的 patent-services 包——wheel 模式生效前提是先装本地 wheel（该包未发布 PyPI，uvx 只能运行 uv 已装的工具）：uv tool install <分发目录>/deepseek_harness_patent_services-*.whl，装完重启进程复检。' })
+    } else {
+      channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设——MCP 工具经 uvx 运行已安装的包。' })
+    }
   } else if (homePatchEnablesMcp()) {
     channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式·home patch）：~/.dsh/cordis.patch.yml 已启用 mcp-patent-services 行——MCP 工具按该行的 command/args 运行。' })
   } else {
@@ -303,11 +347,9 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
     if (launch === null) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务未启用——导出/渲染/实验/检索的 MCP 工具全部不可见。启用方式（首选，单文件）：在 ~/.dsh/patent-services.yaml 写 mcp_enabled: true 加 mcp_project_dir: <patent-services 源码目录的绝对路径>（安装 wheel 的机器写 mcp_wheel: true），并确保 PATH 上有 uv/uvx；保存后重启 dsh 进程生效（桌面端：重启整个桌面壳，仅新开会话无效），复检应显示「已装载」。脚本化场景也可设环境变量 DSH_PATENT_SERVICES_DIR/DSH_PATENT_SERVICES。本工具不受影响。' })
     } else if (launch.mode === 'source') {
-      const dir = launch.projectDir ?? ''
-      if (!isAbsolutePath(dir)) {
-        channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（配置文件模式）：mcp_project_dir 需写绝对路径（当前：${dir}）——相对路径按 dsh 进程的工作目录解析，会指错位置。` })
-      } else if (!existsSync(join(dir, 'pyproject.toml'))) {
-        channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（配置文件模式）：mcp_project_dir 指向的目录缺 pyproject.toml（${dir}）——改为指向 python/patent-services 检出。` })
+      const blockage = launchBlockage(launch)
+      if (blockage !== null) {
+        channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（配置文件模式）：${blockage}。` })
       } else if (!uvReady) {
         channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uv——源码模式的 MCP 行由 uv 拉起，安装 uv（https://docs.astral.sh/uv/）后重启进程复检。' })
       } else {
@@ -317,6 +359,8 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
       }
     } else if (!uvxReady) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uvx——wheel 模式的 MCP 行由 uvx 拉起，安装 uv（自带 uvx）后重启进程复检。' })
+    } else if (!(await wheelToolInstalled())) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：mcp_wheel 已启用但未检出已安装的 patent-services 包——wheel 模式生效前提是先装本地 wheel（该包未发布 PyPI，uvx 只能运行 uv 已装的工具）：uv tool install <分发目录>/deepseek_harness_patent_services-*.whl，装完重启进程复检。' })
     } else {
       channels.push(mcpLoadVerdict(
         '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_wheel 装载 MCP 工具。',

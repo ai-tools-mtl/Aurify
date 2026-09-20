@@ -20,7 +20,7 @@ import { ABSTRACT_MAX_CHARS, lintClaims } from './claims-lint.ts'
 import { lintProse } from './prose-lint.ts'
 import * as McpClient from '@deepseek-ai/dsh-mcp-client'
 import { assessLoopState, type LoopState } from './loop.ts'
-import { checkSetupChannels, formatSetupReport, homePatchEnablesMcp, markSettingsMcpLoaded, mcpFromSettings, noteSettingsMcpLoadError } from './setup-check.ts'
+import { checkSetupChannels, formatSetupReport, homePatchEnablesMcp, launchBlockage, markSettingsMcpLoaded, mcpFromSettings, noteSettingsMcpLoadError } from './setup-check.ts'
 
 export { computeCoverage } from './coverage.ts'
 export type { Coverage, DimensionOutline } from './coverage.ts'
@@ -499,19 +499,28 @@ export async function apply(ctx: Context): Promise<void> {
     && !homePatchEnablesMcp()) {
     const launch = mcpFromSettings()
     if (launch !== null) {
-      try {
-        await ctx.plugin(McpClient, {
-          transport: 'stdio',
-          serverName: 'patent',
-          command: launch.command,
-          args: [...launch.args],
-        })
-        markSettingsMcpLoaded()
-      } catch (error: unknown) {
-        // A failed optional row must never take the host-plane tools down
-        // with it: record the cause so the setup check can report it, and
-        // let apply() finish registering the loop and setup tools.
-        noteSettingsMcpLoadError(error)
+      // Config-shape problems are rejected before the spawn: a relative
+      // project dir would make uv resolve against the process working
+      // directory, and the raw spawn error says nothing a user can act on.
+      // The same readable cause then feeds the load-failure report state.
+      const blockage = launchBlockage(launch)
+      if (blockage !== null) {
+        noteSettingsMcpLoadError(new Error(blockage))
+      } else {
+        try {
+          await ctx.plugin(McpClient, {
+            transport: 'stdio',
+            serverName: 'patent',
+            command: launch.command,
+            args: [...launch.args],
+          })
+          markSettingsMcpLoaded()
+        } catch (error: unknown) {
+          // A failed optional row must never take the host-plane tools down
+          // with it: record the cause so the setup check can report it, and
+          // let apply() finish registering the loop and setup tools.
+          noteSettingsMcpLoadError(error)
+        }
       }
     }
   }
