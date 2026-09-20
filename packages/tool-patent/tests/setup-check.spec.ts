@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkSetupChannels, formatSetupReport, launchBlockage, markSettingsMcpLoaded, resetSettingsMcpLoadedForTests, type SetupChannel } from '../src/setup-check.ts'
+import { checkSetupChannels, formatSetupReport, launchBlockage, markSettingsMcpLoaded, resetSettingsMcpLoadedForTests, settingsCorruption, type SetupChannel } from '../src/setup-check.ts'
 import * as ToolPatent from '../src/index.ts'
 
 /** Per-test probe state the mocked process boundaries read. */
@@ -351,6 +351,26 @@ describe('settings-file awareness', () => {
     const mcp = channels.find(c => c.gates === 'MCP 服务')
     expect(mcp?.status).toBe('ok')
     expect(mcp?.line).toContain('mcp_wheel')
+  })
+
+  it('names a corrupted settings line and drops its key from the reader', async () => {
+    const corruptYaml = ['mcp_enabled: true', 'mcp_project_dir: G:\x02-Sandbox\\patent-services', ''].join('\n')
+    state.fileText.set('/fake-home/patent-services.yaml', corruptYaml)
+    const channels = await checkSetupChannels()
+    const corruption = channels.find(c => c.gates === '配置文件')
+    expect(corruption?.status).toBe('fail')
+    expect(corruption?.line).toContain('控制字符')
+    expect(corruption?.line).toContain('第 2 行')
+    // The corrupt key is gone from the reader, so the enabled row falls to the
+    // no-backend failure instead of spawning a garbage path.
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+  })
+
+  it('reports no corruption for a clean settings file', () => {
+    const cleanYaml = ['mcp_enabled: true', 'mcp_project_dir: G:/src/patent-services', ''].join('\n')
+    state.fileText.set('/fake-home/patent-services.yaml', cleanYaml)
+    expect(settingsCorruption()).toBeNull()
   })
 
   it('rejects a relative DSH_PATENT_SERVICES_DIR in the env mode', async () => {

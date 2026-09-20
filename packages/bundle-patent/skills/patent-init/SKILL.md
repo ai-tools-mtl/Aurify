@@ -11,7 +11,7 @@ description: 专利交底书新项目的点子评估与「五方对齐」访谈�
 
 ## 点子评估（访谈前，先判断再动笔）
 
-用户抛来的小点子先过价值判断——用户的表述是待检验的起点，不是最终答案。开始前先做**环境自检**：调用 `patent_setup_check` 工具（宿主侧工具，MCP 服务未启用时也能调用——它正是用来发现这一情况的）一次性检查 MCP 服务行、检索通道、docker 渲染/实验、镜像与命令策略——受限项如实告知用户并给配置方法（能由你执行的配置直接做，如 docker pull 预热；需要用户操作的给出一句话步骤），配置后复检。注意生效语义：MCP 行在进程启动时装载，`~/.dsh/patent-services.yaml` 写好后必须重启 dsh 进程（桌面端：重启整个桌面壳）才出现工具——自检报告区分「已装载」与「待重启」，显示「待重启」时告知用户重启、不要当作工具可用；其余通道（docker、镜像、检索）改完即生效无需重启。检索通道不可达时先说明对评估与查新的影响再继续。全程与用户的对话使用简体中文：
+用户抛来的小点子先过价值判断——用户的表述是待检验的起点，不是最终答案。开始前先做**环境自检**：调用 `patent_setup_check` 工具（宿主侧工具，MCP 服务未启用时也能调用——它正是用来发现这一情况的）一次性检查 MCP 服务行、检索通道、docker 渲染/实验、镜像与命令策略——受限项如实告知用户并给配置方法（能由你执行的配置直接做，如 docker pull 预热；需要用户操作的给出一句话步骤），配置后复检。**MCP 未启用时你可以直接代写配置**：用写文件工具在 `~/.dsh/patent-services.yaml` 写两行——`mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（路径原样直写，不要经 shell echo/转义——`G:\02-…` 里的 `\02` 会被某层折叠成控制字符，python 侧会拒读整个文件；自检的「配置文件损坏」行会点名这种坏行）。写完请用户完整重启桌面壳（MCP 行在进程启动时装载，仅新开会话无效），重启后调 `patent_setup_check` 复检——报告区分「已装载」与「待重启」，显示「已装载」前不要把 MCP 工具当可用；其余通道（docker、镜像、检索）改完即生效无需重启。**检索通道不可达时的评估边界**：可以先拆特征、可以先进入访谈收集维度，但三档结论必须等检索可用后才能给——没有检索证据的评估结论不成立（见 patent-research 的纪律），向用户说明这一顺序。全程与用户的对话使用简体中文：
 
 1. **拆特征**：从点子里提取 2~3 个核心技术特征（做什么、靠什么关键手段做到）。
 2. **检索现有专利**：按 patent-research skill 用特征词多轮检索（`search_cn_patents`），初筛命中的最接近几篇逐篇用 web_fetch 读明细（摘要 + 权利要求 1）。
@@ -52,7 +52,7 @@ description: 专利交底书新项目的点子评估与「五方对齐」访谈�
 
 ```text
 <project>/
-  patent.yml               # formatVersion: 1; name; field; status: init|drafting|review|application|done
+  patent.yml               # formatVersion: 1; name; status: init|drafting|review|application|done（审查阈值 reviewThreshold、审查轮次 reviewPasses 为后续可选键）
   brief.md                 # 开头是评估节（三档结论+证据+选定方向+风险标注），后接五方对齐摘要（按维度分节）
   chapters/                # 八个基础章节文件，空章建占位；涉及实验/量化效果的项目另有 09-verification.md 实验验证章（实验成形时建，不必空占位）
     01-name.md 02-field.md 03-background.md 04-problem.md
@@ -60,7 +60,7 @@ description: 专利交底书新项目的点子评估与「五方对齐」访谈�
   figures/                 # 附图目录：最外层只放最终插入文档的 .png；可编辑源在 figures/source/（.drawio、.html 等），中间产物在 figures/tmp/
   review/                  # 审查报告
   exports/                 # 导出的 docx/pdf
-  reference/               # 参考材料：对比文件清单 prior-art.md、解析的参考文献
+  reference/               # 参考材料：对比文件清单 prior-art.md、检索历史账本 search-history.md（search_cn_patents 带 project_dir 时自动追加）、解析的参考文献
 ```
 
 建档完成后向用户说明目录结构，然后按 patent-chapters skill 开始起草。

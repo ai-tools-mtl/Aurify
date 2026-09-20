@@ -15,7 +15,7 @@ description: 交底书与申请文件的导出、交付物更新、Word 解析�
 4. **就地向已交付 docx 插图或补内容**（用户明确要求且不接受重新导出时）：先说明将修改用户文件并自动留 `.bak`，插图遵守 patent-figure-design 的插图纪律（图N 在图下方居中、编号对应 08 章附图说明、图注轻改写）。
 5. **解析 Word 材料**：代理机构模板、已授权交底书、参考文献用 `parse_disclosure_docx(path, output_path?)` 转三层编号 Markdown，存项目 `reference/` 后再引用。
 6. **写背景技术找先例**：用 `search_patent_archive(query, archive_dir)` 检索历史项目工作区或 `reference/`（中文分词 + BM25），命中结果给出处再融入正文。
-7. **工具不可用时**（本会话未启用 MCP 服务）：明说"当前会话没有启用专利导出服务"，并给出启用方法——首选单文件：在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（或 `mcp_wheel: true`）——插件在进程启动时装载 MCP，保存后必须重启 dsh 进程才生效（桌面端：重启整个桌面壳，仅新开会话无效）；脚本化场景也可设环境变量 `DSH_PATENT_SERVICES_DIR`/`DSH_PATENT_SERVICES`。**不要**退回临时脚本拼改。配置变更后调 `patent_setup_check`（宿主侧工具）复验各通道——它区分「已装载」与「待重启」，显示「已装载」前不要当作工具可用。面向用户的回复一律简体中文。
+7. **工具不可用时**（本会话未启用 MCP 服务）：明说"当前会话没有启用专利导出服务"，并**直接代写配置**——用写文件工具在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（路径原样直写，不要经 shell echo/转义——`G:\02-…` 里的 `\02` 会被某层折叠成控制字符，python 侧会拒读整个文件），然后请用户完整重启桌面壳（插件在进程启动时装载 MCP，仅新开会话无效）；走已安装 wheel 的机器改写 `mcp_wheel: true`——它的前提是先 `uv tool install <分发目录>/deepseek_harness_patent_services-*.whl`（该包未发布 PyPI，uvx 只能运行 uv 已装的工具，自检的 wheel 行会点名）。**不要**退回临时脚本拼改。配置变更后调 `patent_setup_check`（宿主侧工具）复验各通道——它区分「已装载」与「待重启」，显示「已装载」前不要当作工具可用；报告「配置文件损坏」行时按其指名的行号用编辑器重写该行。面向用户的回复一律简体中文。
 
 ## 工具清单（MCP 前缀 mcp__patent__）
 

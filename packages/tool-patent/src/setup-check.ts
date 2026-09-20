@@ -34,7 +34,13 @@ export function readSettings(): Map<string, string> {
   if (!existsSync(path)) return map
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z_][\w-]*):\s*(.+?)\s*$/.exec(line)
-    if (match !== null) map.set(match[1] as string, scalarValue(match[2] as string))
+    if (match !== null) {
+      // A value with control characters is a corrupted line (escape-folded
+      // path), not a setting: python's loader rejects the whole file over it,
+      // so honoring it here would fork the two planes' truth.
+      const value = match[2] as string
+      if (!CONTROL_CHARACTERS.test(value)) map.set(match[1] as string, scalarValue(value))
+    }
   }
   return map
 }
@@ -76,6 +82,37 @@ function isFalsy(value: string | undefined): boolean {
 /** Windows (drive-letter or UNC) or POSIX absolute — platform independent. */
 function isAbsolutePath(dir: string): boolean {
   return /^([A-Za-z]:[\\/]|\\\\|\/)/.test(dir)
+}
+
+/**
+ * Control characters no value line may carry: python's yaml loader rejects
+ * the whole settings file over one, so every runtime knob dies with it. The
+ * classic cause is a path whose `\02` some shell layer folded into a literal
+ * `0x02` byte (`G:\02-Sandbox` written through echo/heredoc escape
+ * processing) — invisible in most editors, fatal to the python plane.
+ */
+const CONTROL_CHARACTERS = /[\x00-\x08\x0B\x0C\x0E-\x1F]/
+
+/**
+ * The first settings-file line carrying a control character, when there is
+ * one — the corruption report behind both the reader's line skip and the
+ * setup check's dedicated fail row.
+ * @returns the human diagnosis naming the line, or null when the file is clean.
+ */
+export function settingsCorruption(): string | null {
+  const path = join(dshHome(), 'patent-services.yaml')
+  if (!existsSync(path)) return null
+  const lines = readFileSync(path, 'utf8').split(/\r?\n/)
+  for (const [index, line] of lines.entries()) {
+    if (!CONTROL_CHARACTERS.test(line)) continue
+    return (
+      `~/.dsh/patent-services.yaml 第 ${index + 1} 行含控制字符`
+      + '——常见成因是路径里的 \\02 被某层转义折叠（G:\\02-Sandbox 变成 G: 后跟一个 0x02 字节），'
+      + '编辑器里几乎不可见，但 python 侧解析器会因此拒绝整个文件、全部运行时开关同时失效。'
+      + '用编辑器或写文件工具重写该行，重启 dsh 进程后复检。'
+    )
+  }
+  return null
 }
 
 /**
@@ -237,7 +274,7 @@ export interface SetupChannel {
   /** The user-facing verdict line (Chinese), fix included when the status is not `ok`. */
   line: string
   /** Which capability the channel gates, for the summary line. */
-  gates: 'MCP 服务' | '附图渲染与实验' | '附图渲染' | '查新检索' | ''
+  gates: 'MCP 服务' | '附图渲染与实验' | '附图渲染' | '查新检索' | '配置文件' | ''
 }
 
 /** Seconds one docker probe may take. */
@@ -316,6 +353,14 @@ async function searchReachable(): Promise<boolean> {
  */
 export async function checkSetupChannels(): Promise<SetupChannel[]> {
   const channels: SetupChannel[] = []
+
+  // A corrupt settings file is its own channel: the python plane refuses the
+  // whole file (every runtime knob dies) while the line reader still sees the
+  // clean lines, so the divergence must be named, not left to inference.
+  const corruption = settingsCorruption()
+  if (corruption !== null) {
+    channels.push({ status: 'fail', gates: '配置文件', line: `❌ 配置文件损坏：${corruption}` })
+  }
 
   const uvReady = await commandExists('uv')
   const uvxReady = await commandExists('uvx')
