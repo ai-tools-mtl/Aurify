@@ -35,7 +35,7 @@ Determinism claim: the same input file and the same collected scores render the 
 
 ## Configuration
 
-`scoringPasses` (integer 1-5, default 2): independent scoring passes per dimension. Two gives a self-consistency signal at twice the child count; one is the cheap mode.
+`scoringPasses` (integer 1-5, default 2): independent scoring passes per dimension. Two gives a self-consistency signal at twice the child count; one is the cheap mode. A project overrides the profile-wide value with `reviewPasses: 1-5` in its patent.yml (the same project-beats-profile relationship `reviewThreshold` has with the default bar).
 
 `reviewTemperature` (number 0-2, default 0.2): the sampling temperature pinned on every scoring child's requests through the workflow's per-child temperature override. Scoring is a mechanical rubric application, so the default sits near deterministic; engines whose `agent()` predates the temperature option are detected at call time and the child degrades to the provider default instead of failing.
 

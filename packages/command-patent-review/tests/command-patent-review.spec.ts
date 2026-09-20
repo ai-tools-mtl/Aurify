@@ -335,4 +335,23 @@ describe('the /patent-review command', () => {
     expect(result.kind).toBe('success')
     expect(startedArgsContainer.args.reviewerTemperature).toBe(0.3)
   })
+
+  it('overrides the profile pass count with patent.yml reviewPasses for that project', async () => {
+    const project = join(root, 'passes-project')
+    await mkdir(join(project, 'chapters'), { recursive: true })
+    await writeFile(join(project, 'patent.yml'), 'formatVersion: 1\nname: 少轮次\nstatus: drafting\nreviewPasses: 1\n', 'utf8')
+    await writeFile(join(project, 'chapters', '03-background.md'), '背景技术内容', 'utf8')
+    const { handler, startedArgsContainer } = mount({ stopReason: 'completed', value: OUTCOME })
+    const result = await handler('passes-project/chapters')
+    expect(result.kind).toBe('success')
+    expect(startedArgsContainer.args.passes).toBe(1)
+    await rm(project, { recursive: true, force: true })
+  })
+
+  it('keeps the profile pass count for projects without a reviewPasses override', async () => {
+    const { handler, startedArgsContainer } = mount({ stopReason: 'completed', value: OUTCOME }, { scoringPasses: 3 })
+    const result = await handler('chapters/03-background.md')
+    expect(result.kind).toBe('success')
+    expect(startedArgsContainer.args.passes).toBe(3)
+  })
 })

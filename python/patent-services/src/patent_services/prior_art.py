@@ -23,6 +23,8 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from datetime import datetime
+from pathlib import Path
 
 #: Seconds one search request may run before failing loud.
 SEARCH_TIMEOUT_SECONDS = 30
@@ -135,6 +137,41 @@ def search_cn_patents(query: str, limit: int = 10, since_year: int | None = None
         del _SEARCH_CACHE[oldest]
     _SEARCH_CACHE[cache_key] = (time.monotonic(), result)
     return result
+
+
+#: Where the search-history ledger lives inside a patent project: every
+#: successful discovery search appends its query and hits here, so a network
+#: outage still leaves the model the numbers it already found (the in-process
+#: cache dies with the process; the ledger is the durable half).
+SEARCH_LEDGER_NAME = "search-history.md"
+
+
+def append_search_ledger(project_dir: str, query: str, result: str) -> Path:
+    """Append one successful search to the project's search-history ledger.
+
+    Args:
+        project_dir: the patent project directory (must exist); the ledger
+            lands under its ``reference/`` folder, created when missing.
+        query: the query text the caller issued.
+        result: the formatted result text (header, hits, hint) verbatim.
+
+    Returns:
+        The ledger file's path.
+
+    Raises:
+        ValueError: the project directory does not exist.
+    """
+    root = Path(project_dir)
+    if not root.is_dir():
+        raise ValueError(f"项目目录不存在：{project_dir}（不落账本，本次检索未记录）")
+    reference = root / "reference"
+    reference.mkdir(exist_ok=True)
+    ledger = reference / SEARCH_LEDGER_NAME
+    stamp = datetime.now().isoformat(timespec="seconds")
+    entry = f"## {stamp} ｜ 检索词：{query}\n\n{result}\n\n"
+    with ledger.open("a", encoding="utf-8") as handle:
+        handle.write(entry)
+    return ledger
 
 
 def _fetch_json(url: str) -> object:

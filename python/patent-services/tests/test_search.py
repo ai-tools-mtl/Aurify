@@ -76,3 +76,35 @@ def test_tokenize_drops_short_tokens():
     tokens = tokenize("一种 多分区 控制").split()
     assert "控制" in tokens
     assert "一" not in tokens
+
+
+def test_repeated_searches_reuse_the_token_cache(tmp_path, monkeypatch):
+    """The rolling re-searches of an interview must not re-tokenize unchanged
+    files: the second query over the same archive hits the per-path cache,
+    and only a rewritten file re-pays the tokenization."""
+    from patent_services import search as search_module
+
+    (tmp_path / "a.md").write_text("# 项目甲\n\n多分区植物补光灯的节能控制方法。\n", encoding="utf-8")
+    (tmp_path / "b.md").write_text("# 项目乙\n\n分布式锁的互斥访问控制。\n", encoding="utf-8")
+    search_module._TOKEN_CACHE.clear()
+    calls = []
+    original = search_module.tokenize
+
+    def counting_tokenize(text):
+        calls.append(text)
+        return original(text)
+
+    monkeypatch.setattr(search_module, "tokenize", counting_tokenize)
+
+    def file_tokenizations():
+        # Queries also pass through tokenize; only file bodies start with '#'.
+        return [text for text in calls if text.startswith("#")]
+
+    search_archive("植物补光灯", str(tmp_path))
+    assert len(file_tokenizations()) == 2
+    search_archive("分布式锁", str(tmp_path))
+    assert len(file_tokenizations()) == 2  # unchanged files: zero new tokenizations
+    (tmp_path / "a.md").write_text("# 项目甲\n\n多分区植物补光灯的动态调光方法。\n", encoding="utf-8")
+    search_archive("调光", str(tmp_path))
+    assert len(file_tokenizations()) == 3  # only the rewritten file re-tokenized
+    search_module._TOKEN_CACHE.clear()

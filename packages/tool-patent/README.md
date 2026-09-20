@@ -53,7 +53,7 @@ The parsed claims are deliberately excluded from the model-visible result: the m
 
 ## Setup check
 
-`patent_setup_check` probes every optional channel — the MCP services row (its enabling env vars, the one check an MCP-served tool could never run), docker and its two images, the native draw.io CLI, the patents.google.com reachability, the experiment command policy, the proxy variables — and returns one Chinese verdict line per channel with the fix for whatever is missing. Host-plane on purpose: the tool stays available while the MCP row is disabled, so it is what names that missing row; a broken channel is a report row, never an exception. The patent-init skill runs it as step zero of every new project.
+`patent_setup_check` probes every optional channel — the MCP services row (its `~/.dsh/patent-services.yaml` mcp keys, home-patch row, or enabling env vars; the one check an MCP-served tool could never run), docker and its two images, the native draw.io CLI, the patents.google.com reachability, the experiment command policy, the proxy variables — and returns one Chinese verdict line per channel with the fix for whatever is missing. Host-plane on purpose: the tool stays available while the MCP row is disabled, so it is what names that missing row; a broken channel is a report row, never an exception. The same settings keys also drive the plugin's own MCP load: when nothing else enabled the static row, `apply` reads `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` and loads the mcp client with `ctx.plugin` — one file carries every preference. The patent-init skill runs the check as step zero of every new project.
 
 ## Loop semantics
 
@@ -109,6 +109,6 @@ Append-only; newly visible content follows the reusable request prefix.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The scorer is a port of TianGong's `brief_dimensions.py`; the tolerance and the heuristic enumeration count are ported asset semantics, not deployment tunables. The lint rules track CNIPA statutory format minimums (C1-C5, A1), not substantive examination. The loop assessor deliberately trusts only disk artifacts — a stage whose artifacts are missing stays pending no matter what the conversation claims — and every escape hatch is itself a disk file.
+The scorer is a port of TianGong's `brief_dimensions.py`; the tolerance and the heuristic enumeration count are ported asset semantics, not deployment tunables. The lint rules track CNIPA statutory format minimums (C1-C6, A1-A2), not substantive examination. The loop assessor deliberately trusts only disk artifacts — a stage whose artifacts are missing stays pending no matter what the conversation claims — and every escape hatch is itself a disk file.
 
 </details>

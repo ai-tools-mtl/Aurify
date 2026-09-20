@@ -23,7 +23,8 @@ experiments/
 
 - 实验脚本只写进 `experiments/<slug>/`，**不得**散落在项目根、chapters/ 或 figures/ 下。
 - `requirements.txt` 只列镜像预装栈之外的依赖；预装栈见 `run_experiment` 工具说明（numpy/scipy/pandas/matplotlib/openpyxl）。
-- `command` 参数只接受带普通参数的单个 `python`/`python3` 调用（如 `python run.py`、`python -m pytest -q`），不得携带 shell 运算符（`;` `&` `|` `` ` `` `$` `(` `)` `<` `>`）——它在整个项目的读写挂载上执行，白名单是硬约束；确需非 Python 命令（Node、C++ 等）时，请用户设置 `DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1` 后再用，并在实验 README 里写明理由。
+- `command` 参数只接受带普通参数的单个 `python`/`python3` 调用（如 `python run.py`、`python -m pytest -q`），不得携带 shell 运算符（`;` `&` `|` `` ` `` `$` `(` `)` `<` `>`）——它在整个项目的读写挂载上执行，白名单是硬约束（`python -c` 内联代码同样被拒——正式出数的代码必须落在实验目录里，运行记录的代码指纹才有可锚定的版本）；确需非 Python 命令（Node、C++ 等）时，请用户设置 `DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1` 后再用，并在实验 README 里写明理由。
+- `requirements.txt` 默认只装轮子（`--only-binary`）：源码发行包会在安装时执行其 setup.py，是任意代码面。极少数只有源码包的依赖，请用户在 `~/.dsh/patent-services.yaml` 设 `experiment_pip_allow_source: true` 后重跑，并在实验 README 里写明是哪个包、为什么必须用它。
 
 ## 执行通道
 

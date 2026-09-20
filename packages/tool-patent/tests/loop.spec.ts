@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { assessLoopState } from '../src/loop.ts'
+import { assessLoopState, readManifest } from '../src/loop.ts'
 import { sourceFingerprint } from '../src/fingerprint.ts'
 import * as ToolPatent from '../src/index.ts'
 
@@ -418,7 +418,7 @@ describe('patent_loop tool and patent-loop command registration', () => {
         for (const step of iterator) drained.push(step)
       },
     }
-    ToolPatent.apply(ctx as never)
+    void ToolPatent.apply(ctx as never)
     expect(tool).toBeDefined()
     expect(handler).toBeInstanceOf(Function)
     return {
@@ -469,5 +469,20 @@ describe('patent_loop tool and patent-loop command registration', () => {
     const result = await handler({ rawInput: 'done-project', agent })
     expect(result.text).toContain('已成稿')
     expect(followups).toHaveLength(0)
+  })
+})
+
+describe('readManifest', () => {
+  it('parses the shared manifest fields including the review-passes override', async () => {
+    const dir = await scratch('manifest')
+    await writeFile(join(dir, 'patent.yml'), `${MANIFEST}reviewThreshold: 85\nreviewPasses: 1\n`, 'utf8')
+    expect(await readManifest(dir)).toEqual({ name: '测试存储装置', status: 'drafting', reviewThreshold: 85, reviewPasses: 1 })
+  })
+
+  it('drops an out-of-range reviewPasses and returns undefined without patent.yml', async () => {
+    const dir = await scratch('manifest-range')
+    await writeFile(join(dir, 'patent.yml'), `${MANIFEST}reviewPasses: 9\n`, 'utf8')
+    expect(await readManifest(dir)).toEqual({ name: '测试存储装置', status: 'drafting' })
+    expect(await readManifest(join(root, 'no-such-project'))).toBeUndefined()
   })
 })

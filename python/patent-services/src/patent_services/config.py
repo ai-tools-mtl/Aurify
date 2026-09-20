@@ -22,6 +22,7 @@ CONFIG_NAME = "patent-services.yaml"
 #: The enabling keys this module serves: env name → file key.
 OPTION_KEYS = {
     "DSH_EXPERIMENT_ALLOW_ANY_COMMAND": "experiment_allow_any_command",
+    "DSH_EXPERIMENT_PIP_ALLOW_SOURCE": "experiment_pip_allow_source",
     "DSH_PATENT_EXPERIMENT_IMAGE": "experiment_image",
     "DSH_DRAWIO_BIN": "drawio_bin",
     "DSH_DRAWIO_DOCKER_IMAGE": "drawio_docker_image",

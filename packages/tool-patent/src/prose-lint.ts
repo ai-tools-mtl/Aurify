@@ -38,8 +38,8 @@ export interface ProseLintResult {
 /** Filler transition phrases the skill bans outright (rule 1, 必删). */
 const CLICHES = [
   '更为关键的是', '需要指出的是', '需特别指出', '换言之', '换句话说',
-  '值得注意的是', '值得一提的是', '这意味着', '这表明', '综上所述',
-  '总而言之', '不难发现', '可以看出',
+  '值得注意的是', '值得一提的是', '需要注意的是', '这意味着', '这表明', '综上所述',
+  '总而言之', '不难发现', '可以看出', '众所周知', '毋庸置疑', '不可否认',
 ]
 
 /** A sentence longer than this must be split (rule 2). */

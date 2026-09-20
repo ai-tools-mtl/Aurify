@@ -91,6 +91,21 @@ describe('lintClaims', () => {
     ])
     expect(lintClaims(CLEAN).violations).toEqual([])
   })
+
+  it('flags a drawing reference inside a claim as C6', () => {
+    const text = '1. 一种控制方法，如图1所示，其特征在于执行分区调光。'
+    expect(lintClaims(text).violations).toEqual([
+      expect.objectContaining({ claim: 1, rule: 'C6', severity: 'error' }),
+    ])
+  })
+
+  it('flags promotional wording in the abstract as A2 and passes a technical abstract', () => {
+    const promotional = '本发明提供一种国际领先的调光方法，效果最佳。'
+    const violations = lintClaims(CLEAN, promotional).violations
+    expect(violations).toEqual([expect.objectContaining({ rule: 'A2', severity: 'warning' })])
+    expect(violations[0]?.message).toContain('国际领先')
+    expect(lintClaims(CLEAN, '本发明提供一种分区调光方法，可降低能耗。').violations).toEqual([])
+  })
 })
 
 describe('countAbstractChars', () => {

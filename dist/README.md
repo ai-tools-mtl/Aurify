@@ -1,6 +1,6 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-版本：0.1.6-alpha.1（2026-09-20 打包，对应源码仓提交 eee1a74a79；tarball=eee1a74a79 态 TS + wheel=feb50a15c3 态 python）。本版新增：环境自检诚实化——patent_setup_check 区分「已装载/待重启」、重启语义改为进程级（桌面端整壳重启）、yaml 解析对齐（引号/注释/大小写布尔）、uv/uvx 探测与源码目录校验；此前新增：drawio 几何自查（渲染硬门）、实验验证章 09-verification、中文优先回复纪律、配置文件化偏好（~/.dsh/patent-services.yaml）。
+版本：0.1.6-alpha.1（2026-09-20 打包，对应源码仓提交 d04f14094d；tarball=d04f14094d 态 TS + wheel=d04f14094d 态 python）。本版新增：权利要求 lint 扩规则（C6 禁引附图、A2 摘要宣传语）、prose lint 扩套话词、审查 pass 数项目级可配（patent.yml reviewPasses）、检索历史账本（search_cn_patents 带 project_dir 落 reference/search-history.md）、归档检索分词缓存、实验命令禁 python -c、requirements 默认仅装轮子（experiment_pip_allow_source 逃生）、安装器合并写入防抹已有档案；此前新增：环境自检诚实化——patent_setup_check 区分「已装载/待重启」、重启语义改为进程级（桌面端整壳重启）、yaml 解析对齐（引号/注释/大小写布尔）、uv/uvx 探测与源码目录校验；此前新增：drawio 几何自查（渲染硬门）、实验验证章 09-verification、中文优先回复纪律、配置文件化偏好（~/.dsh/patent-services.yaml）。
 
 这是 DeepSeek Harness（dsh）的专利交底书撰写插件「点金」——不是每块石头都值得点，先验金，再点金。丢一个技术点子，它先检索中国专利给出「值不值得写」的评估（可以反驳它），确认方向后走完五方对齐访谈、八章交底书撰写、附图与仿真实验、确定性审查、docx/PDF 导出，以及可选的 Python 导出/渲染/检索/查新服务。
 

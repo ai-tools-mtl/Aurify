@@ -23,6 +23,7 @@ import type {} from '@deepseek-ai/dsh-workflow'
 import { isReviewOutcome, renderReport, summarize, type ReviewOutcome } from './review.ts'
 import { REVIEW_SCRIPT } from './script.ts'
 import { sourceFingerprint } from '@deepseek-ai/dsh-tool-patent/fingerprint'
+import { readManifest } from '@deepseek-ai/dsh-tool-patent'
 
 export { isReviewOutcome, renderReport, summarize } from './review.ts'
 export { REVIEW_SCRIPT } from './script.ts'
@@ -233,6 +234,11 @@ async function executeReview(
   const reportRoot = (await findEnclosingProject(resolve(projectRoot, target))) ?? projectRoot
   const resolvedTarget = resolve(projectRoot, target)
   const consistency = await readConsistencyInputs(reportRoot, resolvedTarget)
+  // A per-project pass count overrides the profile-wide default: interview
+  // heavy projects can drop to one pass, contested ones raise it — the same
+  // override relationship patent.yml's reviewThreshold has with the default bar.
+  const manifest = await readManifest(reportRoot)
+  const passes = manifest?.reviewPasses ?? config.scoringPasses
   // Whole-project scope: the resolved target IS the project root. The loop's
   // score gate only accepts reports stamped with this scope.
   const scope: 'project' | 'partial' = resolvedTarget === resolve(reportRoot) ? 'project' : 'partial'
@@ -244,7 +250,7 @@ async function executeReview(
       fileLabel: file.label,
       fileContent: file.content,
       dimensions: rubric.dimensions,
-      passes: config.scoringPasses,
+      passes,
       reviewerTemperature: config.reviewTemperature,
       ...consistency === undefined ? {} : { consistency },
     },

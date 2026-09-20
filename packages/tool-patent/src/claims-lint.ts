@@ -8,7 +8,9 @@
  * The rules are statutory-format minimums, not substantive examination:
  * numbering (C1), dependent-claim backward reference (C2), citation form
  * (C3), the multiple-dependent-reference base restriction (C4), the two-part
- * form hint for independent claims (C5), and the abstract length cap (A1).
+ * form hint for independent claims (C5), the ban on drawing references
+ * inside claims (C6), the abstract length cap (A1), and the abstract
+ * promotional-wording hint (A2).
  * @module
  */
 
@@ -49,6 +51,12 @@ export interface ClaimsLintResult {
 
 /** Abstract hard cap in characters (细则: 说明书摘要不超过 300 个字). */
 export const ABSTRACT_MAX_CHARS = 300
+
+/** Drawing references are banned inside claims (细则): the claims must stand on wording alone. */
+const DRAWING_REFERENCE = /如\s*附?\s*图\s*(?:\d+|所示)/
+
+/** Promotional wording the abstract must not carry (细则: 不得使用商业性宣传用语); hint-level because context decides. */
+const PROMOTIONAL_WORDS = ['最先进', '国际领先', '业内领先', '首创', '最佳', '最好', '最优', '完美']
 
 const CLAIM_MARKER = /(?:^|\n)\s*(\d+)[.、．]\s*/g
 const SINGLE_CITATION = /^根据权利要求(\d+)所述的/
@@ -167,6 +175,14 @@ export function lintClaims(claimsText: string, abstractText?: string): ClaimsLin
         message: '独立权利要求未使用两部分式（未出现"其特征在于"）；改进型发明应当采用前序部分+特征部分写法。',
       })
     }
+    if (DRAWING_REFERENCE.test(claim.text)) {
+      violations.push({
+        claim: claim.number,
+        rule: 'C6',
+        severity: 'error',
+        message: '权利要求中引用了附图（如图N所示）——权利要求应当用文字独立表述，附图引用只属于说明书。',
+      })
+    }
   })
   if (abstractText !== undefined) {
     const chars = countAbstractChars(abstractText)
@@ -175,6 +191,14 @@ export function lintClaims(claimsText: string, abstractText?: string): ClaimsLin
         rule: 'A1',
         severity: 'error',
         message: `说明书摘要 ${chars} 字，超过 ${ABSTRACT_MAX_CHARS} 字上限。`,
+      })
+    }
+    const promotional = PROMOTIONAL_WORDS.filter(word => abstractText.includes(word))
+    if (promotional.length > 0) {
+      violations.push({
+        rule: 'A2',
+        severity: 'warning',
+        message: `摘要含商业性宣传用语（${promotional.join('、')}）——摘要只写技术内容，宣传性评价删掉或改为客观限定。`,
       })
     }
   }

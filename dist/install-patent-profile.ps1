@@ -105,31 +105,66 @@ if ($newProfile) {
 }
 
 # 4. package.json: the bundle as a DIRECTORY dependency + the three-layer bundle stack.
+#    MERGE, never overwrite: an existing profile may carry other plugins'
+#    dependencies and bundle entries (the desktop's own profiles do), and a
+#    re-run must not wipe them. Our entries are ensured present; everything
+#    else is preserved as is.
 Step "Writing package.json (bundle dir dependency + bundle stack)"
-$manifest = @{
-  name = "dsh-profile-$Name"
-  private = $true
-  dependencies = @{
-    "@mtl-academic/dsh-patent" = "file:$($bundleDir -replace '\\','/')"
+$bundleDep = "file:$($bundleDir -replace '\\','/')"
+$manifest = $null
+$manifestPath = Join-Path $profileDir "package.json"
+if (Test-Path $manifestPath) {
+  try { $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json } catch { $manifest = $null }
+}
+if ($null -eq $manifest) { $manifest = [pscustomobject]@{} }
+if (-not $manifest.PSObject.Properties["name"]) { $manifest | Add-Member name "dsh-profile-$Name" }
+if (-not $manifest.PSObject.Properties["private"]) { $manifest | Add-Member private $true }
+if (-not $manifest.PSObject.Properties["dependencies"] -or $null -eq $manifest.dependencies) {
+  $manifest | Add-Member dependencies ([pscustomobject]@{})
+}
+$existingDeps = $manifest.dependencies.PSObject.Properties
+if ($existingDeps["@mtl-academic/dsh-patent"]) {
+  $existingDeps["@mtl-academic/dsh-patent"].Value = $bundleDep
+} else {
+  $manifest.dependencies | Add-Member "@mtl-academic/dsh-patent" $bundleDep
+}
+$ourBundles = @("@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app")
+$dsh = $manifest.PSObject.Properties["dsh"].Value
+$profile = if ($dsh -and $dsh.profile) { $dsh.profile } else { $null }
+$stack = if ($profile -and $profile.bundles) { @($profile.bundles) } else { @() }
+# Layer order is semantic: base and web-app are the foundation — pulled out
+# of wherever they sit and re-fronted in this fixed order — and the patent
+# bundle layers last (its patch re-enables the workflow engine the web layer
+# disables). Every other entry keeps its existing relative order, including
+# anything deliberately layered after patent.
+$stack = @($stack | Where-Object { $ourBundles -notcontains $_ })
+$stack = $ourBundles + $stack
+if ($stack -notcontains "@mtl-academic/dsh-patent") { $stack += "@mtl-academic/dsh-patent" }
+if ($null -eq $profile) {
+  $profile = [pscustomobject]@{ bundles = $stack }
+  if ($dsh) {
+    if ($dsh.PSObject.Properties["profile"]) { $dsh.profile = $profile } else { $dsh | Add-Member profile $profile }
+  } else {
+    $manifest | Add-Member dsh ([pscustomobject]@{ profile = $profile })
   }
-  dsh = @{
-    profile = @{
-      bundles = @("@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@mtl-academic/dsh-patent")
-      patchReload = "live"
-    }
-  }
+} else {
+  $profile.bundles = $stack
 }
 $manifestJson = $manifest | ConvertTo-Json -Depth 8
 # Force UTF-8 without BOM: Windows PowerShell defaults would mangle the file
 # for downstream readers and flip line endings for the pnpm layer.
-[System.IO.File]::WriteAllText((Join-Path $profileDir "package.json"), $manifestJson,
+[System.IO.File]::WriteAllText($manifestPath, $manifestJson,
   (New-Object System.Text.UTF8Encoding($false)))
-Write-Host "   wrote bundles: dsh-base + dsh-web-app + @mtl-academic/dsh-patent"
+Write-Host "   ensured bundles: dsh-base + dsh-web-app + @mtl-academic/dsh-patent (existing entries preserved)"
 
 # 5. pnpm-workspace.yaml overrides: the internal packages are not on npm yet;
 #    pnpm 11 reads overrides from this yaml (package.json#pnpm is ignored).
+#    The file: values are single-quoted — an unquoted path containing a space
+#    would break the yaml parse on the next pnpm run.
 Step "Writing pnpm-workspace.yaml overrides"
-$distForward = $DistDir -replace '\\','/'
+$distForward = ($DistDir -replace '\\','/') -replace "'", "''"
+$toolTgz = $tarballs['tool']; $commandTgz = $tarballs['command']
+$smTgz = $tarballs['schemastery']; $ckTgz = $tarballs['cosmokit']
 $overrides = @"
 
 # Aurify plugin: the internal packages are resolved from local tarballs until
@@ -137,10 +172,10 @@ $overrides = @"
 # line; the bundle was built against the vendored fork). Remove this block
 # after publication.
 overrides:
-  '@deepseek-ai/dsh-tool-patent': file:$distForward/$($tarballs['tool'])
-  '@deepseek-ai/dsh-command-patent-review': file:$distForward/$($tarballs['command'])
-  '@deepseek-ai/schemastery': file:$distForward/$($tarballs['schemastery'])
-  '@deepseek-ai/cosmokit': file:$distForward/$($tarballs['cosmokit'])
+  '@deepseek-ai/dsh-tool-patent': 'file:$distForward/$toolTgz'
+  '@deepseek-ai/dsh-command-patent-review': 'file:$distForward/$commandTgz'
+  '@deepseek-ai/schemastery': 'file:$distForward/$smTgz'
+  '@deepseek-ai/cosmokit': 'file:$distForward/$ckTgz'
 "@
 $wsPath = Join-Path $profileDir "pnpm-workspace.yaml"
 $ws = ""
@@ -170,6 +205,10 @@ function Test-HasPersona($patchPath) {
 $targetPatch = Join-Path $profileDir "cordis.patch.yml"
 if ($PersonaFrom -eq "") {
   Write-Host "== Skipping persona (PersonaFrom is empty)"
+} elseif (Test-HasPersona $targetPatch) {
+  # Never overwrite a persona the profile already carries — a -Force copy from
+  # a reference profile would also wipe any other rows this patch holds.
+  Write-Host "== Persona already present in $targetPatch — leaving as is"
 } else {
   Step "Installing persona"
   $shipped = Join-Path $DistDir "persona.patch.yml"
@@ -190,12 +229,8 @@ if ($PersonaFrom -eq "") {
     $copied = $true
   }
   if (-not $copied) {
-    if (Test-HasPersona $targetPatch) {
-      Write-Host "   persona already present — leaving as is"
-    } else {
-      Write-Host "   WARN: no persona source found. Copy the persona text from the bundle README" -ForegroundColor Yellow
-      Write-Host "   ('The persona lives in the profile' section) into $targetPatch." -ForegroundColor Yellow
-    }
+    Write-Host "   WARN: no persona source found. Copy the persona text from the bundle README" -ForegroundColor Yellow
+    Write-Host "   ('The persona lives in the profile' section) into $targetPatch." -ForegroundColor Yellow
   }
 }
 

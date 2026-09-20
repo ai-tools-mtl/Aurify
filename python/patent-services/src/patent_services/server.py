@@ -38,6 +38,7 @@ from .parsing import parse_docx, parse_docx_to_file
 # Aliased: a tool function defined with the same name as its implementation
 # shadows it at module level, and a body calling `search_cn_patents(...)`
 # would then resolve to itself — RecursionError on every call.
+from .prior_art import append_search_ledger
 from .prior_art import search_cn_patents as _search_cn_patents_impl
 from .render import render_figure, render_html_figure as _render_html_figure_impl
 from .search import search_archive
@@ -227,8 +228,8 @@ def run_experiment(project_dir: str, experiment: str, command: str = "python run
             project_dir: the patent project directory (absolute path recommended).
             experiment: the experiment slug (a single directory name under ``experiments/``).
             command: one python invocation with plain arguments to run there (default
-                ``python run.py``); shell operators are rejected unless the user sets
-                DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1.
+                ``python run.py``); shell operators and ``python -c`` inline code are
+                rejected unless the user sets DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1.
             timeout_seconds: wall-clock budget, 30-7200 (default 1800).
 
     Returns:
@@ -261,7 +262,7 @@ def search_patent_archive(query: str, archive_dir: str, limit: int = 8) -> str:
 
 @mcp.tool()
 @fail_loud
-def search_cn_patents(query: str, limit: int = 10, since_year: int | None = None) -> str:
+def search_cn_patents(query: str, limit: int = 10, since_year: int | None = None, project_dir: str | None = None) -> str:
     """Discover Chinese patents on Google Patents for prior-art and background research.
 
     Pass the core technical feature words in Chinese (synonyms broaden the
@@ -272,16 +273,27 @@ def search_cn_patents(query: str, limit: int = 10, since_year: int | None = None
     or from a fetched detail page — never invent one. The host needs network
     access to patents.google.com (a system proxy is the usual route); an
     unreachable endpoint fails loud with guidance instead of an empty result.
+    Pass the patent project's directory as project_dir and every successful
+    search is also appended to its reference/search-history.md ledger — the
+    durable record that survives restarts and network outages.
 
     Args:
         query: free-text query in Chinese (or mixed).
         limit: maximum hits, 1-10 (default 10).
         since_year: when given, only results filed in or after this year.
+        project_dir: when given, the patent project directory that receives
+            the search-history ledger entry (must exist; omit when searching
+            outside any project).
 
     Returns:
-        One line per hit plus the detail-page reading hint.
+        One line per hit plus the detail-page reading hint, and the ledger
+        path when project_dir was honored.
     """
-    return _search_cn_patents_impl(query, limit, since_year)
+    result = _search_cn_patents_impl(query, limit, since_year)
+    if project_dir is not None:
+        ledger = append_search_ledger(project_dir, query, result)
+        result += f"\n（检索已记录到 {ledger}）"
+    return result
 
 
 def main() -> None:

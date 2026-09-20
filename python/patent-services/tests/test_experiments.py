@@ -228,3 +228,45 @@ def test_command_policy_escape_hatch_env(tmp_path, monkeypatch):
         lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""),
     )
     assert run_experiment(str(tmp_path), "sim", command="bash run.sh && python run.py")
+
+
+@pytest.mark.parametrize("command", ["python -c 'print(1)'", "python3 -c print(1)"])
+def test_command_policy_rejects_inline_code(tmp_path, monkeypatch, command):
+    monkeypatch.delenv("DSH_EXPERIMENT_ALLOW_ANY_COMMAND", raising=False)
+    monkeypatch.setattr("shutil.which", lambda name: "docker.exe" if name == "docker" else None)
+    (tmp_path / "experiments" / "sim").mkdir(parents=True)
+    with pytest.raises(ValueError, match="python -c"):
+        run_experiment(str(tmp_path), "sim", command=command)
+
+
+def _capturing_run(sink):
+    def _run(cmd, **kwargs):
+        sink.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+    return _run
+
+
+def test_requirements_install_defaults_to_wheels_only(tmp_path, monkeypatch):
+    monkeypatch.delenv("DSH_EXPERIMENT_PIP_ALLOW_SOURCE", raising=False)
+    monkeypatch.delenv("DSH_EXPERIMENT_ALLOW_ANY_COMMAND", raising=False)
+    monkeypatch.setattr("shutil.which", lambda name: "docker.exe" if name == "docker" else None)
+    experiment = tmp_path / "experiments" / "sim"
+    experiment.mkdir(parents=True)
+    (experiment / "requirements.txt").write_text("numpy\n", encoding="utf-8")
+    sink: list = []
+    monkeypatch.setattr(subprocess, "run", _capturing_run(sink))
+    assert run_experiment(str(tmp_path), "sim")
+    assert "--only-binary :all:" in sink[-1][-1]
+
+
+def test_requirements_install_allows_source_with_the_opt_in(tmp_path, monkeypatch):
+    monkeypatch.setenv("DSH_EXPERIMENT_PIP_ALLOW_SOURCE", "1")
+    monkeypatch.delenv("DSH_EXPERIMENT_ALLOW_ANY_COMMAND", raising=False)
+    monkeypatch.setattr("shutil.which", lambda name: "docker.exe" if name == "docker" else None)
+    experiment = tmp_path / "experiments" / "sim"
+    experiment.mkdir(parents=True)
+    (experiment / "requirements.txt").write_text("numpy\n", encoding="utf-8")
+    sink: list = []
+    monkeypatch.setattr(subprocess, "run", _capturing_run(sink))
+    assert run_experiment(str(tmp_path), "sim")
+    assert "--only-binary" not in sink[-1][-1]

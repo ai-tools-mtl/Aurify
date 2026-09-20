@@ -167,3 +167,26 @@ def test_identical_query_hits_the_in_process_cache(monkeypatch):
     assert "CN110123456A" in first
     assert "缓存命中" in second
     prior_art._SEARCH_CACHE.clear()
+
+
+def test_search_ledger_appends_entries_under_reference(tmp_path):
+    """Every successful discovery search leaves a durable line in the project's
+    reference/search-history.md — the outage-proof record the in-process
+    cache cannot provide."""
+    from patent_services.prior_art import append_search_ledger
+
+    first = append_search_ledger(str(tmp_path), "分区补光灯", "共 328 条命中：\nCN110123456A ｜ 标题")
+    second = append_search_ledger(str(tmp_path), "多分区 调光", "共 12 条命中：\nCN111xxx ｜ 标题")
+    assert first == second == tmp_path / "reference" / "search-history.md"
+    text = first.read_text(encoding="utf-8")
+    assert "检索词：分区补光灯" in text
+    assert "检索词：多分区 调光" in text
+    assert "CN110123456A" in text
+    assert text.index("分区补光灯") < text.index("多分区 调光")
+
+
+def test_search_ledger_rejects_a_missing_project_directory(tmp_path):
+    from patent_services.prior_art import append_search_ledger
+
+    with pytest.raises(ValueError, match="项目目录不存在"):
+        append_search_ledger(str(tmp_path / "nowhere"), "任意", "结果")

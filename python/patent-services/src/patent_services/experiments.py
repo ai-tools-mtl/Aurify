@@ -56,6 +56,11 @@ DOCKER_IMAGE_ENV = "DSH_PATENT_EXPERIMENT_IMAGE"
 #: human who wants full shell freedom opts in explicitly.
 ALLOW_ANY_COMMAND_ENV = "DSH_EXPERIMENT_ALLOW_ANY_COMMAND"
 
+#: Environment variable admitting source distributions in requirements.txt.
+#: The default installs wheels only: an sdist runs its setup.py at install
+#: time, which is arbitrary code the fetched-content path can reach.
+PIP_ALLOW_SOURCE_ENV = "DSH_EXPERIMENT_PIP_ALLOW_SOURCE"
+
 #: Shell operators a validated command may never carry: the runner accepts
 #: ``python <args>``, not a pipeline. Each character is a separate escape
 #: route (chaining, substitution, redirection), so one shared deny set.
@@ -64,8 +69,9 @@ FORBIDDEN_COMMAND_CHARS = ";&|`$()<>\n\r\t"
 COMMAND_GUIDANCE = (
     "run_experiment 的 command 只接受单个 python 调用"
     "（如 python run.py、python3 -m pytest -q），不得携带 shell 运算符"
-    "（; & | ` $ ( ) < > 或换行）。确需其他命令时由用户设置"
-    f" {ALLOW_ANY_COMMAND_ENV}=1 显式放行。"
+    "（; & | ` $ ( ) < > 或换行），也不得用 python -c 内联代码——"
+    "正式出数的代码必须落在实验目录里，运行记录的指纹才有可锚定的代码版本。"
+    f"确需其他命令时由用户设置 {ALLOW_ANY_COMMAND_ENV}=1 显式放行。"
 )
 
 #: Shipped Dockerfile building the runner image (CJK fonts on top of the
@@ -121,15 +127,17 @@ def validate_command(command: str) -> None:
     whole project read-write, so a free-form string is an arbitrary-code
     surface the model can reach (directly, or through injected instructions
     in fetched patent pages). The default policy narrows it to what the
-    documented flow needs — one python call, no shell operators;
+    documented flow needs — one python call, no shell operators, no
+    ``python -c`` inline code (which bypasses the run ledger's code
+    fingerprint: numbers would cite a code version that exists nowhere);
     :data:`ALLOW_ANY_COMMAND_ENV` is the human escape hatch.
 
     Args:
         command: the caller-supplied command.
 
     Raises:
-        ValueError: the command is not a single python invocation, or it
-            carries shell operators.
+        ValueError: the command is not a single python invocation, it carries
+            shell operators, or it inlines code with ``python -c``.
     """
     if config_value(ALLOW_ANY_COMMAND_ENV) == "1":
         return
@@ -139,6 +147,8 @@ def validate_command(command: str) -> None:
         char in stripped for char in FORBIDDEN_COMMAND_CHARS
     ):
         raise ValueError(f"命令不被接受：{command!r}。{COMMAND_GUIDANCE}")
+    if len(words) > 1 and words[1] == "-c":
+        raise ValueError(f"python -c 内联代码不被接受：{command!r}。{COMMAND_GUIDANCE}")
 
 
 def run_experiment(
@@ -185,7 +195,14 @@ def run_experiment(
     validate_command(command)
     image = config_value(DOCKER_IMAGE_ENV) or DEFAULT_EXPERIMENT_IMAGE
     ensure_image(image)
-    script = f'if [ -f requirements.txt ]; then pip install --no-input -q -r requirements.txt; fi; {command}'
+    # Wheels only by default: an sdist executes its setup.py at install time,
+    # which would turn requirements.txt into an arbitrary-code surface the
+    # fetched-content path can reach. A human flips the key for the rare
+    # source-only package (the pip error names the culprit).
+    pip_policy = "--only-binary :all:" if config_value(PIP_ALLOW_SOURCE_ENV) != "1" else ""
+    script = (
+        f'if [ -f requirements.txt ]; then pip install --no-input -q {pip_policy} -r requirements.txt; fi; {command}'
+    )
     started = _datetime.datetime.now().astimezone()
     timed_out = False
     try:

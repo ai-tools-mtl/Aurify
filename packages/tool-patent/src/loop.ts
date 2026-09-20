@@ -151,25 +151,37 @@ async function mtimeOf(path: string): Promise<number> {
   }
 }
 
+/** The manifest fields other packages key on; the loop itself reads only the threshold. */
+export interface PatentManifest {
+  name?: string
+  status?: string
+  reviewThreshold?: number
+  reviewPasses?: number
+}
+
 /**
- * Parse the manifest fields the loop keys on (`name`, `status`, and the
- * optional `reviewThreshold` score bar) without pulling in a YAML dependency —
+ * Parse the manifest fields the plugin keys on (`name`, `status`, the
+ * optional `reviewThreshold` score bar, and the optional `reviewPasses`
+ * per-dimension scoring-pass count) without pulling in a YAML dependency —
  * patent.yml is model-generated with a flat, known shape.
  * @param root - the project directory.
  * @returns the manifest fields, or undefined when the file is missing.
  */
-async function readManifest(root: string): Promise<{ name?: string; status?: string; reviewThreshold?: number } | undefined> {
+export async function readManifest(root: string): Promise<PatentManifest | undefined> {
   const text = await readText(join(root, 'patent.yml'))
   if (text === undefined) return undefined
-  const fields: { name?: string; status?: string; reviewThreshold?: number } = {}
+  const fields: PatentManifest = {}
   for (const line of text.split(/\r?\n/)) {
-    const match = /^(name|status|reviewThreshold):\s*(.+?)\s*$/.exec(line)
+    const match = /^(name|status|reviewThreshold|reviewPasses):\s*(.+?)\s*$/.exec(line)
     const key = match?.[1]
     const value = match?.[2]
     if (key === undefined || value === undefined) continue
     if (key === 'reviewThreshold') {
       const threshold = Number(value)
       if (Number.isFinite(threshold) && threshold >= 0 && threshold <= 100) fields.reviewThreshold = threshold
+    } else if (key === 'reviewPasses') {
+      const passes = Number(value)
+      if (Number.isInteger(passes) && passes >= 1 && passes <= 5) fields.reviewPasses = passes
     } else {
       fields[key as 'name' | 'status'] = value
     }

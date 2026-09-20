@@ -30,6 +30,8 @@ export { lintProse } from './prose-lint.ts'
 export type { ProseLintResult, ProseViolation } from './prose-lint.ts'
 export { assessLoopState } from './loop.ts'
 export type { LoopGap, LoopStage, LoopState } from './loop.ts'
+export { readManifest } from './loop.ts'
+export type { PatentManifest } from './loop.ts'
 export { checkSetupChannels, formatSetupReport } from './setup-check.ts'
 export type { SetupChannel } from './setup-check.ts'
 
@@ -209,8 +211,10 @@ export async function apply(ctx: Context): Promise<void> {
     description: 'Lint a drafted Chinese patent application claims section (and optional abstract) '
       + 'against the CNIPA format minimums: consecutive numbering (C1), dependent claims citing only '
       + 'earlier claims (C2), citation form (C3), the multiple-dependent base restriction (C4), the '
-      + 'two-part form hint for independent claims (C5), and the abstract length cap (A1, '
-      + `${ABSTRACT_MAX_CHARS} characters). Send the claims text (and the abstract when drafting it); `
+      + 'two-part form hint for independent claims (C5), the ban on drawing references inside claims '
+      + '(C6), the abstract length cap (A1, '
+      + `${ABSTRACT_MAX_CHARS} characters), and the abstract promotional-wording hint (A2). `
+      + 'Send the claims text (and the abstract when drafting it); '
       + 'use the error/warning split to decide what must be fixed before export.',
     parameters: {
       claims: {

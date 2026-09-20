@@ -10,6 +10,13 @@ describe('lintProse', () => {
     expect(result.violations[0]?.excerpt).toContain('值得注意的是')
   })
 
+  it('flags the extended filler set (需要注意的是/众所周知/毋庸置疑/不可否认)', () => {
+    for (const phrase of ['需要注意的是', '众所周知', '毋庸置疑', '不可否认']) {
+      const result = lintProse(`分区调度器按负载分配光配额。${phrase}，该策略由中央节点统一执行。`)
+      expect(result.summary.cliches, phrase).toBe(1)
+    }
+  })
+
   it('flags sentences over 150 characters', () => {
     const long = '该系统' + '通过校验模块完成数据核验，'.repeat(14) + '并输出结果。'
     expect(long.length).toBeGreaterThan(150)
