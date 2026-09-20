@@ -126,6 +126,6 @@ None; the cards and the overview tab add nothing to the request prefix.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The MCP services row is disabled via a `!!js` expression over `DSH_PATENT_SERVICES_DIR`, so composition and dumps stay honest about the opt-in. The vendored `diagram-design` skill is a byte-for-byte upstream copy with documented deviations in its `VENDORED.md`; update it by re-copying after an upstream pull.
+The MCP services row is disabled via a `!!js` truthiness expression over the two opt-in env vars — an empty string counts as unset, matching the settings-file loader and the setup check — so composition and dumps stay honest about the opt-in. The vendored `diagram-design` skill is a byte-for-byte upstream copy with documented deviations in its `VENDORED.md`; update it by re-copying after an upstream pull.
 
 </details>

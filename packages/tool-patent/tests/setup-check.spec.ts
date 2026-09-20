@@ -310,7 +310,7 @@ describe('the plugin loads the MCP client from the settings file', () => {
   interface ToolShape { name: string }
   interface PluginCall { module: unknown; config: Record<string, unknown> }
 
-  async function mount(options: { env?: Record<string, string>; yaml?: string }): Promise<PluginCall[]> {
+  async function mount(options: { env?: Record<string, string>; yaml?: string; pluginError?: string }): Promise<PluginCall[]> {
     const calls: PluginCall[] = []
     const registered: ToolShape[] = []
     for (const [k, v] of Object.entries(options.env ?? {})) vi.stubEnv(k, v)
@@ -318,7 +318,10 @@ describe('the plugin loads the MCP client from the settings file', () => {
     const ctx = {
       tools: { register: vi.fn((d: ToolShape) => { registered.push(d); return () => {} }) },
       commands: { register: vi.fn(() => () => {}) },
-      plugin: vi.fn(async (module: unknown, config: Record<string, unknown>) => { calls.push({ module, config }) }),
+      plugin: vi.fn(async (module: unknown, config: Record<string, unknown>) => {
+        if (options.pluginError !== undefined) throw new Error(options.pluginError)
+        calls.push({ module, config })
+      }),
       effect: (callback: () => Generator): void => {
         for (const step of callback()) void step
       },
@@ -349,6 +352,20 @@ describe('the plugin loads the MCP client from the settings file', () => {
   it('treats an empty-string env opt-in as unset and still loads from the settings file', async () => {
     const calls = await mount({ env: { DSH_PATENT_SERVICES_DIR: '', DSH_PATENT_SERVICES: '' }, yaml: 'mcp_enabled: true\nmcp_wheel: true\n' })
     expect(calls).toHaveLength(1)
+  })
+
+  it('survives a failed MCP mount and hands the cause to the setup check', async () => {
+    await mount({
+      yaml: 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n',
+      pluginError: 'duplicate server name: patent',
+    })
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('装载失败')
+    expect(mcp?.line).toContain('duplicate server name: patent')
+    expect(mcp?.line).toContain('重启 dsh 进程')
   })
 
   it('stays silent when the env opt-in already enabled the static row', async () => {

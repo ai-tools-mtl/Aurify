@@ -79,6 +79,23 @@ function isAbsolutePath(dir: string): boolean {
 }
 
 /**
+ * The mounted-or-pending verdict for a validated settings-file launch: a
+ * recorded load failure wins — it explains why the tools are absent without
+ * any restart — then the boot marker decides between live and pending.
+ * @param okLine - the loaded verdict line.
+ * @param pendingLine - the pending-restart verdict line.
+ * @returns the channel for the current boot state.
+ */
+function mcpLoadVerdict(okLine: string, pendingLine: string): SetupChannel {
+  if (settingsMcpLoadErrorMessage !== undefined) {
+    return { status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（配置文件模式）：装载失败——${settingsMcpLoadErrorMessage}。修复后重启 dsh 进程复检（桌面端：重启整个桌面壳，仅新开会话无效）。` }
+  }
+  return settingsMcpLoaded()
+    ? { status: 'ok', gates: 'MCP 服务', line: okLine }
+    : { status: 'fail', gates: 'MCP 服务', line: pendingLine }
+}
+
+/**
  * Resolve one option: environment variable first, then the settings file.
  * @param envName - the option's environment variable name.
  * @param fileKey - its settings-file key.
@@ -135,9 +152,23 @@ export interface McpLaunch {
  */
 let settingsMcpLoadedThisBoot = false
 
+/** The cause the settings-file MCP load failed with this boot, if it did. */
+let settingsMcpLoadErrorMessage: string | undefined
+
 /** Record that this boot loaded the MCP client from the settings file. */
 export function markSettingsMcpLoaded(): void {
   settingsMcpLoadedThisBoot = true
+}
+
+/**
+ * Record that the settings-file MCP load failed this boot. apply() catches
+ * the mount error so a broken optional row never takes the host-plane tools
+ * down with it; the check turns the cause into a report row instead.
+ * @param error - whatever `ctx.plugin(McpClient, …)` rejected with.
+ */
+export function noteSettingsMcpLoadError(error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error)
+  settingsMcpLoadErrorMessage = message.replace(/\s+/g, ' ').trim().slice(0, 200)
 }
 
 /** Whether this boot loaded the MCP client from the settings file.
@@ -147,9 +178,10 @@ export function settingsMcpLoaded(): boolean {
   return settingsMcpLoadedThisBoot
 }
 
-/** Clear the boot marker (test isolation only). */
+/** Clear the boot marker and load-error cause (test isolation only). */
 export function resetSettingsMcpLoadedForTests(): void {
   settingsMcpLoadedThisBoot = false
+  settingsMcpLoadErrorMessage = undefined
 }
 
 /**
@@ -279,16 +311,16 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
       } else if (!uvReady) {
         channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uv——源码模式的 MCP 行由 uv 拉起，安装 uv（https://docs.astral.sh/uv/）后重启进程复检。' })
       } else {
-        channels.push(settingsMcpLoaded()
-          ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_project_dir 装载 MCP 工具。' }
-          : { status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式·待重启）：~/.dsh/patent-services.yaml 已配置（mcp_project_dir），但本进程启动时未装载——配置写入晚于进程启动。重启 dsh 进程后生效（桌面端：重启整个桌面壳，仅新开会话无效）；重启后复检应显示「已装载」。' })
+        channels.push(mcpLoadVerdict(
+          '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_project_dir 装载 MCP 工具。',
+          '❌ MCP 服务（配置文件模式·待重启）：~/.dsh/patent-services.yaml 已配置（mcp_project_dir），但本进程启动时未装载——配置写入晚于进程启动。重启 dsh 进程后生效（桌面端：重启整个桌面壳，仅新开会话无效）；重启后复检应显示「已装载」。'))
       }
     } else if (!uvxReady) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uvx——wheel 模式的 MCP 行由 uvx 拉起，安装 uv（自带 uvx）后重启进程复检。' })
     } else {
-      channels.push(settingsMcpLoaded()
-        ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_wheel 装载 MCP 工具。' }
-        : { status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式·待重启）：~/.dsh/patent-services.yaml 已配置（mcp_wheel），但本进程启动时未装载——配置写入晚于进程启动。重启 dsh 进程后生效（桌面端：重启整个桌面壳，仅新开会话无效）；重启后复检应显示「已装载」。' })
+      channels.push(mcpLoadVerdict(
+        '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_wheel 装载 MCP 工具。',
+        '❌ MCP 服务（配置文件模式·待重启）：~/.dsh/patent-services.yaml 已配置（mcp_wheel），但本进程启动时未装载——配置写入晚于进程启动。重启 dsh 进程后生效（桌面端：重启整个桌面壳，仅新开会话无效）；重启后复检应显示「已装载」。'))
     }
   }
 

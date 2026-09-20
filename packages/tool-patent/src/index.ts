@@ -20,7 +20,7 @@ import { ABSTRACT_MAX_CHARS, lintClaims } from './claims-lint.ts'
 import { lintProse } from './prose-lint.ts'
 import * as McpClient from '@deepseek-ai/dsh-mcp-client'
 import { assessLoopState, type LoopState } from './loop.ts'
-import { checkSetupChannels, formatSetupReport, homePatchEnablesMcp, markSettingsMcpLoaded, mcpFromSettings } from './setup-check.ts'
+import { checkSetupChannels, formatSetupReport, homePatchEnablesMcp, markSettingsMcpLoaded, mcpFromSettings, noteSettingsMcpLoadError } from './setup-check.ts'
 
 export { computeCoverage } from './coverage.ts'
 export type { Coverage, DimensionOutline } from './coverage.ts'
@@ -495,13 +495,20 @@ export async function apply(ctx: Context): Promise<void> {
     && !homePatchEnablesMcp()) {
     const launch = mcpFromSettings()
     if (launch !== null) {
-      await ctx.plugin(McpClient, {
-        transport: 'stdio',
-        serverName: 'patent',
-        command: launch.command,
-        args: [...launch.args],
-      })
-      markSettingsMcpLoaded()
+      try {
+        await ctx.plugin(McpClient, {
+          transport: 'stdio',
+          serverName: 'patent',
+          command: launch.command,
+          args: [...launch.args],
+        })
+        markSettingsMcpLoaded()
+      } catch (error: unknown) {
+        // A failed optional row must never take the host-plane tools down
+        // with it: record the cause so the setup check can report it, and
+        // let apply() finish registering the loop and setup tools.
+        noteSettingsMcpLoadError(error)
+      }
     }
   }
 }

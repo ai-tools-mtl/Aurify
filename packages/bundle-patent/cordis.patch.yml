@@ -41,7 +41,12 @@
     #   package (or resolves a locally built one) and runs its console script.
     - id: mcp-patent-services
       name: '@deepseek-ai/dsh-mcp-client'
-      disabled: !!js "process.env.DSH_PATENT_SERVICES_DIR === undefined && process.env.DSH_PATENT_SERVICES === undefined"
+      # Truthiness on purpose: an empty-string env var counts as unset — the
+      # same semantics the tool-patent settings-file loader and the setup
+      # check apply. An `=== undefined` form here would enable a broken row
+      # (empty project dir) beside the settings-file client and fail loud on
+      # the duplicate server name.
+      disabled: !!js "!process.env.DSH_PATENT_SERVICES_DIR && !process.env.DSH_PATENT_SERVICES"
       config:
         serverName: patent
         transport: stdio

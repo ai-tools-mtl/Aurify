@@ -131,6 +131,6 @@ patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>
 
-MCP services 行通过作用在 `DSH_PATENT_SERVICES_DIR` 上的 `!!js` 表达式禁用，组合与 dump 对这个 opt-in 保持诚实。vendor 的 `diagram-design` skill 是逐字节的上游副本，偏离项记录在其 `VENDORED.md`；更新方式是上游 pull 后重新拷贝。
+MCP services 行通过作用在两个 opt-in 环境变量上的 `!!js` 真值表达式禁用——空字符串视为未设，与 settings-file 装载器和环境自检的语义一致——组合与 dump 对这个 opt-in 保持诚实。vendor 的 `diagram-design` skill 是逐字节的上游副本，偏离项记录在其 `VENDORED.md`；更新方式是上游 pull 后重新拷贝。
 
 </details>
