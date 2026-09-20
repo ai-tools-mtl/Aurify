@@ -26,6 +26,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from . import experiments
+from .figures import format_findings, lint_drawio_source
 from .export import (
     _export_summary,
     disclosure_absent_warning,
@@ -148,6 +149,10 @@ def render_drawio_figure(source: str, fmt: str = "png") -> str:
     back to the docker exporter image (DSH_DRAWIO_DOCKER_IMAGE, default
     q771103517/dsh-patent:latest — published to Docker Hub, so a missing
     image auto-pulls; buildable from the shipped Dockerfile.drawio).
+    A geometry lint runs first and a finding of severity error (waypoint
+    inside a box, shared bend) refuses the render with the fix list —
+    call lint_drawio_figure while drawing to catch the geometry before
+    the render; warnings (missing anchors, shared corridors) ride along.
 
     Args:
         source: the .drawio file path.
@@ -157,6 +162,28 @@ def render_drawio_figure(source: str, fmt: str = "png") -> str:
         The written image's path.
     """
     return render_figure(source, fmt)
+
+
+@mcp.tool()
+@fail_loud
+def lint_drawio_figure(source: str) -> str:
+    """Lint one drawio figure source for geometry faults, before any render.
+
+    Checks the XML directly against the figure-design skill's drawing
+    disciplines: edges without explicit anchors (the auto-router's random
+    bends), waypoints clipped inside the boxes they route around, bends
+    shared by several edges (the overlapping-segment fault), and parallel
+    runs sharing one corridor. Findings of severity error block
+    render_drawio_figure; run this while drawing so the geometry is fixed
+    at the source, then render and pass the visual acceptance gate.
+
+    Args:
+        source: the .drawio file path.
+
+    Returns:
+        One line per finding with its fix, or the clean verdict.
+    """
+    return format_findings(lint_drawio_source(source))
 
 
 @mcp.tool()
@@ -196,11 +223,13 @@ def run_experiment(project_dir: str, experiment: str, command: str = "python run
     Dockerfile.experiment) ships numpy/scipy/pandas/matplotlib/openpyxl and
     CJK fonts for Chinese matplotlib labels.
 
-    Args:
-        project_dir: the patent project directory (absolute path recommended).
-        experiment: the experiment slug (a single directory name under ``experiments/``).
-        command: the shell command to run in the experiment directory (default ``python run.py``).
-        timeout_seconds: wall-clock budget, 30-7200 (default 1800).
+        Args:
+            project_dir: the patent project directory (absolute path recommended).
+            experiment: the experiment slug (a single directory name under ``experiments/``).
+            command: one python invocation with plain arguments to run there (default
+                ``python run.py``); shell operators are rejected unless the user sets
+                DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1.
+            timeout_seconds: wall-clock budget, 30-7200 (default 1800).
 
     Returns:
         The run's output tail plus the run log's path.

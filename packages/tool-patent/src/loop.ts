@@ -5,7 +5,8 @@
  * tool, execute the stage per its skills, call again — but the completion
  * verdict ("成稿交底书") belongs to this assessor, which reads only disk
  * facts (manifest, brief, chapters, experiment run log, figure files, review
- * reports, the exported docx), never the model's own claim of being done.
+ * reports, the prior-art ledger, the exported docx), never the model's own
+ * claim of being done.
  * @module dsh-tool-patent/loop
  */
 
@@ -24,6 +25,14 @@ const CHAPTER_FILES = [
   '01-name.md', '02-field.md', '03-background.md', '04-problem.md',
   '05-solution.md', '06-effect.md', '07-key-points.md', '08-drawings.md',
 ] as const
+
+/**
+ * The verification chapter, required only while the project carries real
+ * experiment work (a quantified effect chapter or an experiments/ tree): the
+ * five-part evidence story — what it targets, the common approach, where it
+ * falls short, how this invention solves it, the measured outcome.
+ */
+const VERIFICATION_FILE = '09-verification.md'
 
 /** A chapter counts as drafted once its trimmed body reaches this length. */
 const CHAPTER_MIN_CHARS = 20
@@ -67,6 +76,17 @@ function revisionPriorities(report: string | undefined): string[] {
 
 /** The degradation marker the research skill writes when the search is unreachable. */
 const PRIOR_ART_UNAVAILABLE = /查新不可用/
+
+/** A Chinese publication number in prose or the ledger: `CN117891234A`, `CN 212345678 U`. */
+const PUBLICATION_NUMBER = /\bCN\s?\d{7,9}\s?[ABUYS][0-9]?\b/g
+
+/** Normalize a matched number (`CN 117891234 A` → `CN117891234A`) for comparison. */
+function normalizePublicationNumber(match: string): string {
+  return match.replace(/\s+/g, '').toUpperCase()
+}
+
+/** The standing note every directive carries while the prior-art debt is open. */
+const PRIOR_ART_DEBT_NOTE = '注意：本项目带着未清偿的查新降级债（审查达标线临时放宽 10 分）——检索通道恢复后按 patent-research 补检索 reference/prior-art.md、删除「查新不可用」标记，并把审查分数审回未放宽的达标线。'
 
 /** One pending requirement found by the assessment pass. */
 export interface LoopGap {
@@ -271,6 +291,43 @@ async function undeclaredReferences(root: string, declared: Set<number>): Promis
 }
 
 /**
+ * Compare the publication numbers the prose cites against the prior-art
+ * ledger. Every 公开号 in brief.md or chapters/ must trace to an entry in
+ * reference/prior-art.md — the recorded search results — so a cited number
+ * the ledger never saw (typically written from memory) stays a chapters-stage
+ * gap instead of reaching the review with an untraceable citation.
+ * @param root - the project directory.
+ * @returns the prior-art gap details, empty when every citation is ledgered
+ * (or nothing cites a publication number at all).
+ */
+async function priorArtGaps(root: string): Promise<string[]> {
+  const cited = new Set<string>()
+  const files = [join(root, 'brief.md')]
+  const chaptersDir = join(root, 'chapters')
+  if (await exists(chaptersDir)) {
+    for (const entry of (await readdir(chaptersDir)).sort()) {
+      if (entry.endsWith('.md')) files.push(join(chaptersDir, entry))
+    }
+  }
+  for (const path of files) {
+    const body = await readText(path)
+    if (body === undefined) continue
+    for (const match of body.matchAll(PUBLICATION_NUMBER)) cited.add(normalizePublicationNumber(match[0]))
+  }
+  if (cited.size === 0) return []
+  const ledger = await readText(join(root, 'reference', 'prior-art.md'))
+  if (ledger === undefined) {
+    return ['正文引用了公开号，但 reference/prior-art.md（出处账本）不存在——按 patent-research 技能把检索到的对比文件逐条记入账本']
+  }
+  const recorded = new Set([...ledger.matchAll(PUBLICATION_NUMBER)].map(match => normalizePublicationNumber(match[0])))
+  const missing = [...cited].filter(number => !recorded.has(number))
+  if (missing.length > 0) {
+    return [`正文引用的公开号未见于 reference/prior-art.md：${missing.join('、')}——按 patent-research 技能检索核实后记入账本；检索不到佐证的引用从正文删除，禁止凭记忆写号`]
+  }
+  return []
+}
+
+/**
  * Whether the experiments stage is satisfied: a run log exists under any
  * experiment directory (official numbers recorded), or the project declared
  * experiments not applicable via `experiments/README.md`.
@@ -287,6 +344,32 @@ async function experimentsGap(root: string): Promise<string | undefined> {
   const readme = await readText(join(experimentsDir, 'README.md'))
   if (readme !== undefined && /无需实验|不适用/.test(readme)) return undefined
   return 'experiments/ 下既无任何 results/run-log.md（正式运行记录）也无"无需实验"声明'
+}
+
+/** Whether the experiments tree exists with anything in it. */
+async function experimentsPresent(root: string): Promise<boolean> {
+  const experimentsDir = join(root, 'experiments')
+  if (!await exists(experimentsDir)) return false
+  return (await readdir(experimentsDir)).length > 0
+}
+
+/**
+ * The verification chapter's own gate: a project with real experiment work
+ * (quantified effects or an experiments/ tree) must carry
+ * chapters/09-verification.md — the disclosure's evidence story. Drafted
+ * like any other chapter: present and beyond the placeholder threshold.
+ * @param root - the project directory.
+ * @param required - whether the project carries experiment work at all.
+ * @returns the verification gap details, empty when satisfied or N/A.
+ */
+async function verificationGaps(root: string, required: boolean): Promise<string[]> {
+  if (!required) return []
+  const body = await readText(join(root, 'chapters', VERIFICATION_FILE))
+  if (body === undefined) {
+    return [`缺章节文件 chapters/${VERIFICATION_FILE}（实验验证章）——按 patent-chapters 的五要素结构撰写：针对什么事情、普遍的解决方式、遇到的问题、本专利如何解决、解决效果`]
+  }
+  if (body.trim().length < CHAPTER_MIN_CHARS) return [`chapters/${VERIFICATION_FILE} 为占位/空白`]
+  return []
 }
 
 /**
@@ -449,12 +532,14 @@ const STAGE_DIRECTIVES: Readonly<Record<Exclude<LoopStage, 'done'>, { directive:
     mayNeedUser: true,
   },
   chapters: {
-    directive: '章节未齐。加载 patent-chapters 技能，按 brief.md 撰写缺失章节；正文应用 patent-de-ai 与 patent-writing-quality，有益效果章应用 patent-effect-contrast；章节只保留正文，起草注释进会话或 review/。',
+    directive: '章节未齐。加载 patent-chapters 技能，按 brief.md 撰写缺失章节；正文应用 patent-de-ai 与 patent-writing-quality，有益效果章应用 patent-effect-contrast；章节只保留正文，起草注释进会话或 review/。'
+      + '涉及实验或量化效果的项目同时撰写 chapters/09-verification.md 实验验证章（五要素：针对什么事情、普遍的解决方式、遇到的问题、本专利如何解决、解决效果——效果数据待实验转正后回填，先成章）。',
     skills: ['patent-chapters', 'patent-de-ai', 'patent-writing-quality', 'patent-effect-contrast'],
     mayNeedUser: false,
   },
   experiments: {
     directive: '有益效果章含量化数据，但 experiments/ 缺少正式运行记录。加载 patent-experiment 技能：公开数据集优先、无公开集按真实场景标定仿真；正式出数一律 run_experiment 工具（docker），进正文的结果数据必须配结果图（出图脚本入实验目录，黑白、中文标注、subagent 验收）。'
+      + '实验转正后把结果与关键数字回填 chapters/09-verification.md 实验验证章——章里引用的每个数字都能溯源到一条运行记录。'
       + '确认本项目无需实验时，在 experiments/README.md 写明「无需实验：<理由>」后继续。',
     skills: ['patent-experiment'],
     mayNeedUser: false,
@@ -510,8 +595,17 @@ export async function assessLoopState(projectDir: string): Promise<LoopState> {
       for (const detail of missingBriefSections(brief)) gaps.push({ stage: 'align', detail })
     }
     for (const detail of await chapterGaps(root)) gaps.push({ stage: 'chapters', detail })
+    for (const detail of await priorArtGaps(root)) gaps.push({ stage: 'chapters', detail })
     const effect = await readText(join(root, 'chapters', '06-effect.md'))
-    if (effect !== undefined && QUANTITATIVE.test(effect)) {
+    const quantified = effect !== undefined && QUANTITATIVE.test(effect)
+    // The verification chapter is a chapters-stage gate and precedes the
+    // experiments stage in pipeline order, so it slots in before the run-log
+    // requirement: the evidence story gets drafted with the chapters, then
+    // the experiment numbers fill it in.
+    for (const detail of await verificationGaps(root, quantified || await experimentsPresent(root))) {
+      gaps.push({ stage: 'chapters', detail })
+    }
+    if (quantified) {
       const experiments = await experimentsGap(root)
       if (experiments !== undefined) gaps.push({ stage: 'experiments', detail: experiments })
     }
@@ -543,6 +637,10 @@ export async function assessLoopState(projectDir: string): Promise<LoopState> {
   const current = stage === 'done'
     ? { directive: DONE_DIRECTIVE, skills: [] as string[], mayNeedUser: false }
     : STAGE_DIRECTIVES[stage]
+  // The relaxed-threshold debt follows the project through every stage —
+  // including done, where a delivered disclosure would otherwise present
+  // itself as fully clean while the prior-art search never actually ran.
+  const directive = degraded ? `${current.directive}\n${PRIOR_ART_DEBT_NOTE}` : current.directive
   return {
     projectRoot: root,
     projectName,
@@ -550,7 +648,7 @@ export async function assessLoopState(projectDir: string): Promise<LoopState> {
     stage,
     complete: stage === 'done',
     gaps,
-    directive: current.directive,
+    directive,
     skills: current.skills,
     mayNeedUser: current.mayNeedUser,
     priorArtDegraded: degraded,

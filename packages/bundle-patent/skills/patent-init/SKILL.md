@@ -11,7 +11,7 @@ description: 专利交底书新项目的点子评估与「五方对齐」访谈�
 
 ## 点子评估（访谈前，先判断再动笔）
 
-用户抛来的小点子先过价值判断——用户的表述是待检验的起点，不是最终答案：
+用户抛来的小点子先过价值判断——用户的表述是待检验的起点，不是最终答案。开始前先做**环境自检**：调用 `patent_setup_check` 工具（宿主侧工具，MCP 服务未启用时也能调用——它正是用来发现这一情况的）一次性检查 MCP 服务行、检索通道、docker 渲染/实验、镜像与命令策略——受限项如实告知用户并给配置方法（能由你执行的配置直接做，如 docker pull 预热；需要用户操作的给出一句话步骤），配置后复检；检索通道不可达时先说明对评估与查新的影响再继续。全程与用户的对话使用简体中文：
 
 1. **拆特征**：从点子里提取 2~3 个核心技术特征（做什么、靠什么关键手段做到）。
 2. **检索现有专利**：按 patent-research skill 用特征词多轮检索（`search_cn_patents`），初筛命中的最接近几篇逐篇用 web_fetch 读明细（摘要 + 权利要求 1）。
@@ -54,7 +54,7 @@ description: 专利交底书新项目的点子评估与「五方对齐」访谈�
 <project>/
   patent.yml               # formatVersion: 1; name; field; status: init|drafting|review|application|done
   brief.md                 # 开头是评估节（三档结论+证据+选定方向+风险标注），后接五方对齐摘要（按维度分节）
-  chapters/                # 八个章节文件，空章建占位
+  chapters/                # 八个基础章节文件，空章建占位；涉及实验/量化效果的项目另有 09-verification.md 实验验证章（实验成形时建，不必空占位）
     01-name.md 02-field.md 03-background.md 04-problem.md
     05-solution.md 06-effect.md 07-key-points.md 08-drawings.md
   figures/                 # 附图目录：最外层只放最终插入文档的 .png；可编辑源在 figures/source/（.drawio、.html 等），中间产物在 figures/tmp/

@@ -52,11 +52,11 @@ export interface ProjectView {
   readonly projectStatus: string | null
   /** brief.md exists at the root. */
   readonly brief: boolean
-  /** The eight chapter files, in chapter order, present and non-empty. */
+  /** The chapter files in chapter order: the fixed eight, plus 09-verification.md while the project carries experiment work. */
   readonly chapters: readonly ProjectFile[]
-  /** draftedCount: present chapters with content; total: the fixed eight. */
+  /** draftedCount: present chapters with content; total: the fixed eight, plus one while the verification chapter is required. */
   readonly drafted: number
-  readonly total: 8
+  readonly total: number
   /** Application documents present under application/. */
   readonly application: { readonly claims: boolean; readonly description: boolean; readonly abstract: boolean }
   /** Review reports (.md) under review/, by name. */
@@ -85,6 +85,9 @@ export interface ProjectExtras {
 }
 
 const CHAPTER_TOTAL = 8
+
+/** The verification chapter, shown and counted only while experiment work requires it (mirror of loop.ts). */
+const VERIFICATION_FILE = '09-verification.md'
 
 /** One 附图说明 caption line: `图1 为本发明所述方法的流程总览图；` */
 const FIGURE_CAPTION = /图(\d+)\s*[为是][:：]?\s*([^；。\n]+)/gu
@@ -150,6 +153,7 @@ const DEGRADED_DELTA = 10
  */
 function buildLoopSummary(
   draftedCount: number,
+  chapterTotal: number,
   briefText: string | null | undefined,
   effectText: string | null | undefined,
   drawingsText: string | null,
@@ -207,7 +211,7 @@ function buildLoopSummary(
 
   const stage: LoopStageGuess = !briefAligned
     ? 'align'
-    : draftedCount < 8
+    : draftedCount < chapterTotal
       ? 'chapters'
       : !experimentsDone
         ? 'experiments'
@@ -245,10 +249,18 @@ export function buildProjectView(
 ): ProjectView {
   const rootNames = new Set((root?.entries ?? []).map(entry => entry.name))
   const isProject = rootNames.has('patent.yml') || rootNames.has('chapters')
-  const chapterFiles = (chapters?.entries ?? [])
+  const listed = (chapters?.entries ?? [])
     .filter(entry => entry.type === 'file' && entry.name.toLowerCase().endsWith('.md'))
     .map(entry => (entry.size === undefined ? { name: entry.name } : { name: entry.name, size: entry.size }))
-    .slice(0, CHAPTER_TOTAL)
+  // The verification chapter is conditional (mirror of loop.ts): it joins the
+  // fixed eight only when the project carries experiment work — quantified
+  // effects, or the chapter itself already present.
+  const verification = listed.find(file => file.name === VERIFICATION_FILE)
+  const chapterFiles = verification === undefined
+    ? listed.slice(0, CHAPTER_TOTAL)
+    : [...listed.filter(file => file.name !== VERIFICATION_FILE).slice(0, CHAPTER_TOTAL), verification]
+  const quantitative = extras.effectText !== undefined && extras.effectText !== null && QUANTITATIVE.test(extras.effectText)
+  const total = quantitative || verification !== undefined ? CHAPTER_TOTAL + 1 : CHAPTER_TOTAL
   const drafted = chapterFiles.filter(file => (file.size ?? 0) > 0).length
   const applicationNames = new Set(fileNames(application, '.md'))
   const statusMatch = patentYml === null ? null : /^status:\s*["']?([\w-]+)["']?\s*$/mu.exec(patentYml)
@@ -260,7 +272,7 @@ export function buildProjectView(
     brief: rootNames.has('brief.md'),
     chapters: chapterFiles,
     drafted,
-    total: CHAPTER_TOTAL,
+    total,
     application: {
       claims: applicationNames.has('claims.md'),
       description: applicationNames.has('description.md'),
@@ -270,6 +282,7 @@ export function buildProjectView(
     figures: buildFigures(figures, drawingsText),
     loop: buildLoopSummary(
       drafted,
+      total,
       extras.briefText,
       extras.effectText,
       drawingsText,

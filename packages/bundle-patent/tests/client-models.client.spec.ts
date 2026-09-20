@@ -158,9 +158,14 @@ describe('buildProjectView', () => {
   })
 
   it('derives the coarse loop stage from the second-phase reads', () => {
-    const eightChapters = listing(Array.from({ length: 8 }, (_, index) => ({
-      name: `0${index + 1}-name.md`, type: 'file' as const, size: 300,
-    })))
+    // The quantified effect text below requires the verification chapter, so
+    // the listing carries all nine.
+    const eightChapters = listing([
+      ...Array.from({ length: 8 }, (_, index) => ({
+        name: `0${index + 1}-name.md`, type: 'file' as const, size: 300,
+      })),
+      { name: '09-verification.md', type: 'file' as const, size: 300 },
+    ])
     const projectRoot = listing([
       { name: 'patent.yml', type: 'file', size: 120 },
       { name: 'brief.md', type: 'file', size: 800 },

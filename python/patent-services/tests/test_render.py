@@ -277,3 +277,46 @@ def test_render_html_figure_without_browser_fails_loud(tmp_path, monkeypatch):
     source.write_text("<html></html>", encoding="utf-8")
     with pytest.raises(RuntimeError, match="Edge 或 Chrome"):
         render_html_figure(str(source))
+
+
+TWO_BOXES = (
+    '<mxCell id="A" value="登记表" vertex="1" parent="1">'
+    '<mxGeometry x="40" y="40" width="120" height="60" as="geometry"/></mxCell>'
+    '<mxCell id="B" value="判定器" vertex="1" parent="1">'
+    '<mxGeometry x="40" y="240" width="120" height="60" as="geometry"/></mxCell>'
+)
+
+
+def _drawio(edges: str) -> str:
+    return (
+        '<mxfile><diagram><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>'
+        + TWO_BOXES + edges + "</root></mxGraphModel></diagram></mxfile>"
+    )
+
+
+ANCHORED = "edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"
+
+
+def test_render_refuses_geometry_errors_before_the_cli(drawio_env, tmp_path):
+    # 拐点 (100,70) 深入 A 框 (40,40)-(160,100) 内：error 拒渲染，CLI 根本不跑。
+    source = tmp_path / "fig-bad.drawio"
+    source.write_text(_drawio(
+        f'<mxCell id="E1" style="{ANCHORED}" edge="1" parent="1" source="A" target="B">'
+        '<mxGeometry relative="1" as="geometry"><Array as="points">'
+        '<mxPoint x="100" y="70"/></Array></mxGeometry></mxCell>'
+    ), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="几何自查未过"):
+        render_figure(str(source))
+    assert not (tmp_path / "fig-bad.png").exists()
+
+
+def test_render_succeeds_and_appends_geometry_warnings(drawio_env, tmp_path):
+    source = tmp_path / "fig-loose.drawio"
+    source.write_text(_drawio(
+        f'<mxCell id="E1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" '
+        'source="A" target="B"><mxGeometry relative="1" as="geometry"/></mxCell>'
+    ), encoding="utf-8")
+    result = render_figure(str(source))
+    assert result.splitlines()[0].endswith("fig-loose.png")
+    assert "unanchored-edge" not in result  # warning 附注按人话写，不透出内部名
+    assert "显式锚点" in result

@@ -92,10 +92,20 @@ describe('assessLoopState stage machine', () => {
   it('names experiments for quantified effects with no run log, and accepts the not-applicable marker', async () => {
     const dir = await fullProject('no-experiments')
     await writeFile(join(dir, 'chapters', '06-effect.md'), `# 有益效果\n\n丢失从 226 个降至 0，调用减少 22%。${BODY}`, 'utf8')
-    expect((await assessLoopState(dir)).stage).toBe('experiments')
+    // Quantified effects also require the verification chapter — a chapters gap.
+    const verification = await assessLoopState(dir)
+    expect(verification.gaps.some(gap => gap.detail.includes('09-verification'))).toBe(true)
+    expect(verification.stage).toBe('chapters')
 
     await mkdir(join(dir, 'experiments'), { recursive: true })
     await writeFile(join(dir, 'experiments', 'README.md'), '无需实验：纯界面布局方法，无量化效果主张。\n', 'utf8')
+    // The 无需实验 declaration satisfies the run-log requirement, but the
+    // quantified claims still need their evidence story — the verification
+    // chapter argues from public data or reasoning instead of run records.
+    const state = await assessLoopState(dir)
+    expect(state.stage).toBe('chapters')
+    expect(state.gaps.some(gap => gap.detail.includes('09-verification'))).toBe(true)
+    await writeFile(join(dir, 'chapters', '09-verification.md'), `# 实验验证\n\n${BODY}`, 'utf8')
     expect((await assessLoopState(dir)).stage).toBe('figures')
   })
 
@@ -104,7 +114,17 @@ describe('assessLoopState stage machine', () => {
     await writeFile(join(dir, 'chapters', '06-effect.md'), `# 有益效果\n\n丢失从 226 个降至 0。${BODY}`, 'utf8')
     await mkdir(join(dir, 'experiments', 'sim', 'results'), { recursive: true })
     await writeFile(join(dir, 'experiments', 'sim', 'results', 'run-log.md'), '| 时间 | 退出码 |\n', 'utf8')
+    // The experiments tree alone (even before the effect chapter quantifies)
+    // requires the verification chapter.
+    expect((await assessLoopState(dir)).gaps.some(gap => gap.detail.includes('09-verification'))).toBe(true)
+    await writeFile(join(dir, 'chapters', '09-verification.md'), `# 实验验证\n\n${BODY}`, 'utf8')
     expect((await assessLoopState(dir)).stage).toBe('figures')
+  })
+
+  it('never requires the verification chapter for a project without experiment work', async () => {
+    const dir = await fullProject('no-verification-needed')
+    const state = await assessLoopState(dir)
+    expect(state.gaps.some(gap => gap.detail.includes('09-verification'))).toBe(false)
   })
 
   it('names figures for undeclared, missing, or surplus figure files', async () => {
@@ -211,6 +231,59 @@ describe('assessLoopState stage machine', () => {
     await writeFile(join(dir, 'chapters', '06-effect.md'), `# 有益效果\n\n静默丢失归零（对比见图9）。${BODY}`, 'utf8')
     const state = await assessLoopState(dir)
     expect(state.gaps.some(gap => gap.detail.includes('正文引用了图9，但 08 章未声明'))).toBe(true)
+  })
+
+  it('flags prose publication numbers missing from the prior-art ledger', async () => {
+    // A citation with no ledger file at all names the ledger itself.
+    const noLedger = await fullProject('prior-art-absent')
+    await writeFile(join(noLedger, 'brief.md'), FULL_BRIEF.replace('CN101', '见 CN 212345678 U'), 'utf8')
+    const absent = await assessLoopState(noLedger)
+    expect(absent.stage).toBe('chapters')
+    expect(absent.gaps.some(gap => gap.detail.includes('reference/prior-art.md') && gap.detail.includes('不存在'))).toBe(true)
+
+    // A ledger that never saw the cited number names the number itself.
+    const dir = await fullProject('prior-art-missing')
+    await writeFile(join(dir, 'chapters', '03-background.md'), `# 背景技术\n\n最接近的现有技术：CN117891234A 采用分层缓存。${BODY}`, 'utf8')
+    await mkdir(join(dir, 'reference'), { recursive: true })
+    await writeFile(join(dir, 'reference', 'prior-art.md'), '| 公开号 | 标题 |\n| --- | --- |\n| CN109876543B | 一种无关装置 |', 'utf8')
+    const state = await assessLoopState(dir)
+    expect(state.stage).toBe('chapters')
+    expect(state.gaps.some(gap => gap.detail.includes('CN117891234A') && gap.detail.includes('prior-art.md'))).toBe(true)
+  })
+
+  it('accepts prose publication numbers recorded in the prior-art ledger', async () => {
+    const dir = await fullProject('prior-art-ok')
+    await writeFile(join(dir, 'chapters', '03-background.md'), `# 背景技术\n\nCN117891234A 采用分层缓存。${BODY}`, 'utf8')
+    await mkdir(join(dir, 'reference'), { recursive: true })
+    await writeFile(join(dir, 'reference', 'prior-art.md'), '| 公开号 | 标题 |\n| --- | --- |\n| CN 117891234 A | 一种分层缓存系统 |', 'utf8')
+    const state = await assessLoopState(dir)
+    expect(state.gaps.some(gap => gap.detail.includes('公开号'))).toBe(false)
+  })
+
+  it('carries the prior-art debt note on the directive while degraded, including at done', async () => {
+    const scaffold = async (name: string): Promise<string> => {
+      const dir = await fullProject(name)
+      await writeFile(join(dir, 'chapters', '08-drawings.md'), `# 附图说明\n\n图1 为流程总览图。\n${BODY}`, 'utf8')
+      await mkdir(join(dir, 'figures'), { recursive: true })
+      await writeFile(join(dir, 'figures', '图1.png'), 'png', 'utf8')
+      await mkdir(join(dir, 'review'), { recursive: true })
+      await writeFile(join(dir, 'review', 'project.review.md'), '总分 81\n', 'utf8')
+      await mkdir(join(dir, 'exports'), { recursive: true })
+      await writeFile(join(dir, 'exports', '测试存储装置-交底书.docx'), 'docx', 'utf8')
+      return dir
+    }
+    const clean = await scaffold('debt-clean')
+    const cleanState = await assessLoopState(clean)
+    expect(cleanState.complete).toBe(true)
+    expect(cleanState.directive).not.toContain('查新降级债')
+
+    const debt = await scaffold('debt-open')
+    await mkdir(join(debt, 'reference'), { recursive: true })
+    await writeFile(join(debt, 'reference', 'prior-art.md'), '查新不可用：代理未开启，待补查\n', 'utf8')
+    const debtState = await assessLoopState(debt)
+    expect(debtState.complete).toBe(true)
+    expect(debtState.priorArtDegraded).toBe(true)
+    expect(debtState.directive).toContain('未清偿的查新降级债')
   })
 
   it('reopens the export stage when a source file is newer than the exported docx', async () => {

@@ -49,7 +49,7 @@ kind: "package-reference"
 <a id="export-shape"></a>
 ## 导出形态
 
-函数插件：只导出 `name` / `inject` / `Config` / `apply`，禁止 default export。多余的 `export default` 会被 Loader 的 `unwrapExports` 折叠模块并丢掉 `inject`（见 deepseek-harness monorepo 文档的 postmortem `docs/postmortem/0001`）。
+函数插件：只导出 `name` / `inject` / `Config` / `apply`，禁止 default export。多余的 `export default` 会被 Loader 的 `unwrapExports` 折叠模块并丢掉 `inject`（见 [docs/postmortem/0001](../../../docs/postmortem/0001-acp-default-export-drops-inject.zh.md)）。
 
 <a id="model-experience"></a>
 ## Model Experience

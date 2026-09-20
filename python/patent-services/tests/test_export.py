@@ -297,11 +297,16 @@ def test_review_gate_warning_mirrors_the_loop_score_gate(tmp_path):
     reference = project / "reference"
     reference.mkdir()
     (reference / "prior-art.md").write_text("查新不可用：网络不可达，待补查\n", encoding="utf-8")
-    # 90 clears the relaxed bar of 85 but not the configured 95.
-    assert review_gate_warning(project) == ""
+    # 90 clears the relaxed bar of 85 but not the configured 95 — the export
+    # passes, yet the unrefreshed prior-art debt still travels with it.
+    assert "查新降级债" in review_gate_warning(project)
     (review / "later.review.md").write_text("总分 80\n\n> 审查范围：整项（项目根）\n", encoding="utf-8")
     assert "已放宽 10 分" in review_gate_warning(project)
     assert "低于达标线 85" in review_gate_warning(project)
+    # A clean pass above the configured bar without the marker warns nothing.
+    (reference / "prior-art.md").unlink()
+    (review / "later.review.md").write_text("总分 96\n\n> 审查范围：整项（项目根）\n", encoding="utf-8")
+    assert review_gate_warning(project) == ""
 
 
 def test_disclosure_absent_warning_keeps_the_default_deliverable_visible(tmp_path):

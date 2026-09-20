@@ -1,6 +1,6 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-版本：0.1.6-alpha.1（2026-09-19 打包，对应源码仓提交 5512b06）
+版本：0.1.6-alpha.1（2026-09-20 打包，对应源码仓提交 feb50a15c3；tarball=38ea41e8d9 态 TS + wheel=feb50a15c3 态 python）。本版新增：drawio 几何自查（渲染硬门）、实验验证章 09-verification、中文优先回复纪律、宿主面环境自检工具 patent_setup_check、配置文件化偏好（~/.dsh/patent-services.yaml + home patch 启用 MCP 行）。
 
 这是 DeepSeek Harness（dsh）的专利交底书撰写插件「点金」——不是每块石头都值得点，先验金，再点金。丢一个技术点子，它先检索中国专利给出「值不值得写」的评估（可以反驳它），确认方向后走完五方对齐访谈、八章交底书撰写、附图与仿真实验、确定性审查、docx/PDF 导出，以及可选的 Python 导出/渲染/检索/查新服务。
 

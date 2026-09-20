@@ -173,7 +173,9 @@ def review_gate_warning(root: Path) -> str:
 
     Mirrors the loop's rule: newest ``*.review.md`` wins, a partial-scope
     report is no verdict, ``reviewThreshold`` in patent.yml overrides the
-    default bar, and the 查新不可用 marker relaxes it by ten.
+    default bar, and the 查新不可用 marker relaxes it by ten. A pass under
+    the relaxed bar still warns — the unrefreshed prior-art debt travels
+    with the deliverable.
     """
     review_dir = root / "review"
     reports = sorted(review_dir.glob("*.review.md")) if review_dir.is_dir() else []
@@ -200,6 +202,12 @@ def review_gate_warning(root: Path) -> str:
     if score < effective:
         relaxed = "（查新不可用，已放宽 10 分）" if degraded else ""
         return f"提醒：最新审查总分 {score} 低于达标线 {effective}{relaxed}——导出物未达审查线，建议修订重审后再交付。"
+    if degraded:
+        return (
+            "提醒：交底书带着未清偿的查新降级债——审查按放宽 10 分的达标线放行（检索通道当时不可用）。"
+            "通道恢复后按 patent-research 补检索 reference/prior-art.md、删除「查新不可用」标记，"
+            "并把分数审回未放宽的达标线。"
+        )
     return ""
 
 

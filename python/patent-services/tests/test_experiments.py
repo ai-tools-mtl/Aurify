@@ -172,3 +172,59 @@ def test_timeout_out_of_range(tmp_path, monkeypatch):
     (tmp_path / "experiments" / "tiny").mkdir(parents=True)
     with pytest.raises(ValueError, match="timeout_seconds"):
         run_experiment(str(tmp_path), "tiny", timeout_seconds=1)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "python run.py",
+        "python3 run.py --trials 100",
+        "python -m pytest -q",
+        'python run.py --name "two words"',
+    ],
+)
+def test_command_policy_accepts_single_python_calls(tmp_path, monkeypatch, command):
+    monkeypatch.delenv("DSH_EXPERIMENT_ALLOW_ANY_COMMAND", raising=False)
+    monkeypatch.setattr("shutil.which", lambda name: "docker.exe" if name == "docker" else None)
+    (tmp_path / "experiments" / "sim").mkdir(parents=True)
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+    assert run_experiment(str(tmp_path), "sim", command=command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf /workspace",
+        "sh run.sh",
+        "bash -c 'python run.py'",
+        "python run.py && python plot_results.py",
+        "python run.py; ls",
+        "python run.py | tee results/log.txt",
+        "python run.py > results/out.txt",
+        "python run.py $(whoami)",
+        "python run.py `id`",
+        "python run.py\nrm -rf .",
+        "",
+    ],
+)
+def test_command_policy_rejects_shell_operators_and_non_python(tmp_path, monkeypatch, command):
+    monkeypatch.delenv("DSH_EXPERIMENT_ALLOW_ANY_COMMAND", raising=False)
+    monkeypatch.setattr("shutil.which", lambda name: "docker.exe" if name == "docker" else None)
+    (tmp_path / "experiments" / "sim").mkdir(parents=True)
+    with pytest.raises(ValueError, match="命令不被接受") as excinfo:
+        run_experiment(str(tmp_path), "sim", command=command)
+    assert "DSH_EXPERIMENT_ALLOW_ANY_COMMAND" in str(excinfo.value)
+
+
+def test_command_policy_escape_hatch_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("DSH_EXPERIMENT_ALLOW_ANY_COMMAND", "1")
+    monkeypatch.setattr("shutil.which", lambda name: "docker.exe" if name == "docker" else None)
+    (tmp_path / "experiments" / "sim").mkdir(parents=True)
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""),
+    )
+    assert run_experiment(str(tmp_path), "sim", command="bash run.sh && python run.py")

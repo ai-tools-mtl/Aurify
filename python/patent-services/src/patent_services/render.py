@@ -22,6 +22,9 @@ import subprocess
 from pathlib import Path
 import shutil
 
+from .config import config_value
+from .figures import format_findings, lint_drawio_source
+
 #: PATH names tried for the draw.io desktop CLI, in order.
 PATH_CANDIDATES = ("draw.io", "drawio")
 
@@ -107,7 +110,7 @@ def discover_html_browser(explicit: str | None = None) -> str:
     Raises:
         RuntimeError: with install guidance when no candidate exists.
     """
-    candidate = explicit or os.environ.get("DSH_HTML_BROWSER")
+    candidate = explicit or config_value("DSH_HTML_BROWSER")
     if candidate:
         path = Path(candidate)
         if path.is_file():
@@ -189,7 +192,7 @@ def resolve_drawio_binary(explicit: str | None = None) -> str:
     Raises:
         RuntimeError: with install guidance when no candidate exists.
     """
-    candidate = explicit or os.environ.get("DSH_DRAWIO_BIN")
+    candidate = explicit or config_value("DSH_DRAWIO_BIN")
     if candidate:
         path = Path(candidate)
         if path.is_file():
@@ -246,12 +249,25 @@ def render_figure(source: str, fmt: str = "png", binary: str | None = None) -> s
         raise ValueError(f"not a drawio figure source (expected .drawio): {source}")
     if not source_path.is_file():
         raise ValueError(f"figure source not found: {source}")
-    if binary or os.environ.get("DSH_DRAWIO_BIN"):
-        return _render_native(resolve_drawio_binary(binary), source_path, fmt)
+    # The geometry gate runs before any backend work: unanchored edges,
+    # waypoints clipped inside boxes, and shared bends are drawing-stage
+    # faults the rendered PNG would only reveal after the fact, so an error
+    # refuses the render and hands the fix list back to the model.
+    findings = lint_drawio_source(source_path)
+    errors = [finding for finding in findings if finding.severity == "error"]
+    if errors:
+        raise RuntimeError(
+            f"几何自查未过（{len(errors)} 项 error），拒绝渲染。按下列发现修正 drawio 源后重试：\n"
+            + format_findings(findings)
+        )
+    warnings = [finding for finding in findings if finding.severity == "warning"]
+    suffix = f"\n{format_findings(warnings)}" if warnings else ""
+    if binary or config_value("DSH_DRAWIO_BIN"):
+        return _render_native(resolve_drawio_binary(binary), source_path, fmt) + suffix
     native = discover_native_binary()
     if native is not None:
-        return _render_native(native, source_path, fmt)
-    return _render_via_docker(source_path, fmt)
+        return _render_native(native, source_path, fmt) + suffix
+    return _render_via_docker(source_path, fmt) + suffix
 
 
 def _render_native(executable: str, source_path: Path, fmt: str) -> str:
@@ -276,7 +292,7 @@ def _render_via_docker(source_path: Path, fmt: str) -> str:
             + " 另一可选方案是 docker 容器导出，但未检测到 docker 命令："
             "请先安装并启动 Docker Desktop（https://docs.docker.com/desktop/）。"
         )
-    image = os.environ.get(DOCKER_IMAGE_ENV, DEFAULT_DOCKER_IMAGE)
+    image = config_value(DOCKER_IMAGE_ENV) or DEFAULT_DOCKER_IMAGE
     inspected = subprocess.run(
         ["docker", "image", "inspect", image],
         capture_output=True,

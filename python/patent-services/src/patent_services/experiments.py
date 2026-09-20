@@ -25,6 +25,8 @@ import subprocess
 from pathlib import Path
 import shutil
 
+from .config import config_value
+
 #: The experiment slug: one path segment under ``experiments/``, nothing more.
 SLUG_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
@@ -48,6 +50,23 @@ DEFAULT_EXPERIMENT_IMAGE = "q771103517/dsh-patent-experiment:latest"
 
 #: Environment variable overriding the docker runner image.
 DOCKER_IMAGE_ENV = "DSH_PATENT_EXPERIMENT_IMAGE"
+
+#: Environment variable admitting arbitrary shell commands again. The default
+#: policy keeps the model-facing surface a single ``python`` invocation; a
+#: human who wants full shell freedom opts in explicitly.
+ALLOW_ANY_COMMAND_ENV = "DSH_EXPERIMENT_ALLOW_ANY_COMMAND"
+
+#: Shell operators a validated command may never carry: the runner accepts
+#: ``python <args>``, not a pipeline. Each character is a separate escape
+#: route (chaining, substitution, redirection), so one shared deny set.
+FORBIDDEN_COMMAND_CHARS = ";&|`$()<>\n\r\t"
+
+COMMAND_GUIDANCE = (
+    "run_experiment 的 command 只接受单个 python 调用"
+    "（如 python run.py、python3 -m pytest -q），不得携带 shell 运算符"
+    "（; & | ` $ ( ) < > 或换行）。确需其他命令时由用户设置"
+    f" {ALLOW_ANY_COMMAND_ENV}=1 显式放行。"
+)
 
 #: Shipped Dockerfile building the runner image (CJK fonts on top of the
 #: Python scientific stack).
@@ -95,6 +114,33 @@ def validate_experiment(project_dir: Path, experiment: str) -> Path:
     return directory
 
 
+def validate_command(command: str) -> None:
+    """Accept only a single ``python`` invocation with plain arguments.
+
+    The command runs through ``sh -c`` inside a container that mounts the
+    whole project read-write, so a free-form string is an arbitrary-code
+    surface the model can reach (directly, or through injected instructions
+    in fetched patent pages). The default policy narrows it to what the
+    documented flow needs — one python call, no shell operators;
+    :data:`ALLOW_ANY_COMMAND_ENV` is the human escape hatch.
+
+    Args:
+        command: the caller-supplied command.
+
+    Raises:
+        ValueError: the command is not a single python invocation, or it
+            carries shell operators.
+    """
+    if config_value(ALLOW_ANY_COMMAND_ENV) == "1":
+        return
+    stripped = command.strip()
+    words = stripped.split()
+    if not words or words[0] not in ("python", "python3") or any(
+        char in stripped for char in FORBIDDEN_COMMAND_CHARS
+    ):
+        raise ValueError(f"命令不被接受：{command!r}。{COMMAND_GUIDANCE}")
+
+
 def run_experiment(
     project_dir: str,
     experiment: str,
@@ -109,18 +155,21 @@ def run_experiment(
     ``requirements.txt``, it installs before the command runs. The run log
     records the invocation even when it fails or times out.
 
-    Args:
-        project_dir: the patent project directory (absolute path recommended).
-        experiment: the experiment slug under ``experiments/``.
-        command: the shell command to run there (default ``python run.py``).
-        timeout_seconds: wall-clock budget, 30-7200 (default 1800).
+        Args:
+            project_dir: the patent project directory (absolute path recommended).
+            experiment: the experiment slug under ``experiments/``.
+            command: one ``python`` invocation with plain arguments to run
+                there (default ``python run.py``); shell operators are
+                rejected unless ``DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1``.
+            timeout_seconds: wall-clock budget, 30-7200 (default 1800).
 
-    Returns:
-        The run's combined output tail, followed by the run log's path.
+        Returns:
+            The run's combined output tail, followed by the run log's path.
 
-    Raises:
-        ValueError: a bad slug, a missing experiment directory, or an
-            out-of-range timeout.
+        Raises:
+            ValueError: a bad slug, a missing experiment directory, an
+                out-of-range timeout, or a command outside the single-python
+                policy.
         RuntimeError: docker is unusable, the runner image is missing and
             cannot be pulled, or the command failed (its output tail is
             carried in the message).
@@ -133,7 +182,8 @@ def run_experiment(
     if not root.is_dir():
         raise ValueError(f"项目目录不存在：{project_dir}")
     directory = validate_experiment(root, experiment)
-    image = os.environ.get(DOCKER_IMAGE_ENV, DEFAULT_EXPERIMENT_IMAGE)
+    validate_command(command)
+    image = config_value(DOCKER_IMAGE_ENV) or DEFAULT_EXPERIMENT_IMAGE
     ensure_image(image)
     script = f'if [ -f requirements.txt ]; then pip install --no-input -q -r requirements.txt; fi; {command}'
     started = _datetime.datetime.now().astimezone()

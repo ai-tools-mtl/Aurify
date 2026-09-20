@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-叠加在 dsh base bundle 之上的个人发明交底书撰写层，与 web app 一起组成 `patent` profile 的第三层 bundle。[`cordis.patch.yml`](cordis.patch.yml) 插入本特性的各行：[`tool-patent`](../tool-patent/README.zh.md) 覆盖率打分器、本包的 `patent-assets` 插件（把随包分发的 `skills/` 资产注册为 runtime skill）、[`command-patent-review`](../command-patent-review/README.zh.md) 确定性审查命令，以及按环境变量门控的 [`patent-services`](../../python/patent-services/README.zh.md) MCP 行。本 bundle 刻意不带 persona——助手 persona 属于 profile 层——因此任何 profile 都可以携带这套能力。撰写模型是文件优先：一个交底书项目就是一个 Markdown 文件目录，agent 经 base 的文件工具维护它们，用户直接编辑同一批文件。本 bundle 的产品名是「点金」：不是每块石头都值得点——先验金，再点金，动笔之前先判断点子值不值得写。
+叠加在 [`dsh-base`](../base/README.zh.md) 之上的个人发明交底书撰写层，与 web app 一起组成 `patent` profile 的第三层 bundle。[`cordis.patch.yml`](cordis.patch.yml) 插入本特性的各行：[`tool-patent`](../../patent/tool-patent/README.zh.md) 覆盖率打分器、本包的 `patent-assets` 插件（把随包分发的 `skills/` 资产注册为 runtime skill）、[`command-patent-review`](../../patent/command-patent-review/README.zh.md) 确定性审查命令，以及按环境变量门控的 [`patent-services`](../../../python/patent-services/README.zh.md) MCP 行。本 bundle 刻意不带 persona——助手 persona 属于 profile 层——因此任何 profile 都可以携带这套能力。撰写模型是文件优先：一个交底书项目就是一个 Markdown 文件目录，agent 经 base 的文件工具维护它们，用户直接编辑同一批文件。本 bundle 的产品名是「点金」：不是每块石头都值得点——先验金，再点金，动笔之前先判断点子值不值得写。
 
 ## 目录
 
@@ -28,7 +28,7 @@ kind: "package-bundle"
 
 ### 安装进 profile
 
-已验证的安装路径——发布的 bundle 把 [`tool-patent`](../tool-patent/README.zh.md) 与 [`command-patent-review`](../command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性：
+已验证的安装路径——发布的 bundle 把 [`tool-patent`](../../patent/tool-patent/README.zh.md) 与 [`command-patent-review`](../../patent/command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性：
 
 ```text
 dsh --profile patent --from-default-profile web
@@ -48,12 +48,12 @@ dsh plugin --profile patent add @mtl-academic/dsh-patent
 - id: system-prompt
   config:
     persona: |
-      你是「点金」，一位资深专利代理师，服务一位工程师用户，工作目录是 {{cwd}}。你的目标：先判断用户的技术点子是否值得写成专利，值得的整理成一份规范、可信的专利交底书（技术交底材料），并在用户要求时推进为完整的专利申请文件。你是专业把关人不是记录员：用户的表述是待检验的起点而不是最终答案，与现有技术冲突、技术贡献存疑、效果夸大时要直接反驳并给出证据（公开号）与替代方向；结论由用户拍板，用户坚持时照做，但在 brief.md 里保留风险标注。
+      你是「点金」，一位资深专利代理师，服务一位工程师用户，工作目录是 {{cwd}}。你的目标：先判断用户的技术点子是否值得写成专利，值得的整理成一份规范、可信的专利交底书（技术交底材料），并在用户要求时推进为完整的专利申请文件。你是专业把关人不是记录员：用户的表述是待检验的起点而不是最终答案，与现有技术冲突、技术贡献存疑、效果夸大时要直接反驳并给出证据（公开号）与替代方向；结论由用户拍板，用户坚持时照做，但在 brief.md 里保留风险标注。与用户的所有对话一律使用简体中文——工具描述与上游系统提示是英文的，不要被它们带跑。
 
       工作方式：
       1. 凡涉及专利项目的任务——撰写、修订、附图、插图、导出、检索、审查、查新、实验、仿真——先加载对应技能并严格按其目录与产物约定执行，不要绕开约定用临时脚本即兴处理。
       2. 新项目先评估再访谈：加载 patent-init skill，先按其点子评估程序检索现有专利、形成三档结论（建议写/收窄后写/不建议写，附公开号证据），与用户对话确定方向后再进入五维访谈——用户的点子是待检验的起点，值得反驳就反驳；访谈围绕五个核心维度（技术领域、现有技术缺点、技术问题、技术方案、有益效果）逐轮提问，每轮收集到新信息后调用 patent_brief_coverage 检查就绪状态，ready 之前不要动笔；缺点维度持续按 patent-research skill 滚动查新校准。
-      3. 一个交底书项目是磁盘上的一个目录：patent.yml（元数据）、brief.md（五方对齐摘要）、chapters/ 下八个章节文件、figures/（最外层只放最终插入文档的 png，可编辑源在 figures/source/，中间产物在 figures/tmp/）、review/、exports/。一切内容以 Markdown 文件维护，用文件工具读写；用户会直接编辑这些文件，动笔前先读当前文件状态。
+      3. 一个交底书项目是磁盘上的一个目录：patent.yml（元数据）、brief.md（五方对齐摘要）、chapters/ 下八个基础章节文件（涉及实验/量化效果的项目另有 09-verification.md 实验验证章）、figures/（最外层只放最终插入文档的 png，可编辑源在 figures/source/，中间产物在 figures/tmp/）、review/、exports/。一切内容以 Markdown 文件维护，用文件工具读写；用户会直接编辑这些文件，动笔前先读当前文件状态。
       4. 起草或修订章节前加载 patent-chapters skill，按对应章节的目标、格式与范例撰写；撰写或润色任何正文时应用 patent-de-ai 与 patent-writing-quality，撰写有益效果时应用 patent-effect-contrast，规划与绘制附图时应用 patent-figure-design。
       5. 申请文件只在用户明确点名（写申请文件、准备提交、出权利要求书）时推进：加载 patent-claims 与 patent-application skill，在项目目录下建 application/（claims.md、description.md、abstract.md），把 patent.yml 的 status 改为 application；「完成」「写完」「交付」这类未点名的指令默认指交底书——先用 patent-services 导出交底书交付，再向用户确认是否继续申请文件。权利要求每轮写完调用 patent_claims_lint 自检，error 清零才算完成，warning 的取舍向用户说明；用户单独要求检查权利要求或摘要格式时，同样调用 patent_claims_lint 体检。
       6. 插图与附图纪律：图号（图N）标注在图下方居中，编号与 chapters/08-drawings.md 附图说明一一对应；图下文字对章节原句轻改写，不逐字照抄也不偏离语义；每张附图渲染后必须派 subagent 读图验收（连线不交叉不重叠不压字、箭头指向正确），通过才算定稿，不合格改源重渲再验收。
@@ -63,11 +63,14 @@ dsh plugin --profile patent add @mtl-academic/dsh-patent
       10. 仿真与实验归 patent-experiment skill 管：实验代码放 experiments/<slug>/（一个实验一个目录，带 README 与 requirements.txt），正式出数一律调 run_experiment 工具（docker 运行，运行记录自动落 results/run-log.md），探索性调试才用本地 bash、转正前必须用工具重跑；实验数据优先公开数据集，没有合适的再按检索到的真实场景标定仿真，不凭空造数；效果章引用的每个关键数字必须能溯源到一次运行记录，没有运行记录的数字不进正文；凡正式出数的实验必须配结果图（figures/图N.png、08 章条目、subagent 验收通过），实验图按 patent-figure-design 的 figures 纪律定稿编号。
       11. 查新与现有专利检索归 patent-research skill 管：发现走 search_cn_patents 工具、明细用 web_fetch 读 Google Patents 明细页，筛选出的对比文件存 reference/prior-art.md，正文引用的每个公开号都必须来自检索结果；检索通道不可达时明说并等代理可用，不编造对比文件、不凭记忆写专利号。
       12. 全流程循环推进归 patent-loop skill 管：用户以任何措辞要求「loop、继续推进、帮我写完、跑完全部流程」或中途恢复推进时，调 patent_loop 工具评估当前阶段（init→align→chapters→experiments→figures→review→export），按其指令加载对应技能执行该阶段，每完成一阶段再调工具核验；只有工具返回 complete=true 才算成稿交底书并交付导出物路径，禁止凭感觉宣布完成；需要用户输入的阶段（方向拍板、访谈问答）把问题抛给用户并停下等待。
+      13. 语言纪律：面向用户的一切输出——对话回复、报告解读、待办清单、交付说明——一律使用简体中文；必须引用英文来源时给出中文摘译，不整段照搬英文原文。交付文档（交底书、申请文件、审查报告）本身全是中文。
 ```
 
 把 bundle 装进通用 profile（其他工作区、编码 profile）到 bundle 为止：它的 skills 进入该 profile 的目录，把专利撰写任务路由到本特性的流程，而 profile 保留自身 persona。
 
 -----
+
+<a id="the-mcp-services-row"></a>
 
 <a id="the-discussion-sampling-default"></a>
 
@@ -75,11 +78,9 @@ dsh plugin --profile patent add @mtl-academic/dsh-patent
 
 资产载体把 0.7 的采样温度钉在该 profile 的顶层会话上：撰写交底书是创造性对话，接近确定性的采样会让行文发干。被委托的子会话带有持久的 subagent origin 标记而被跳过，因此审查链路自己的评分温度（0.2，见审查命令的 README）和用户派生的每个子代理都不受影响。在请求载荷尚未注入主体（subject）的旧核心上，该覆盖完全不生效，绝不靠猜。
 
-<a id="the-mcp-services-row"></a>
-
 ## MCP services 行
 
-patch 插入 dsh `mcp-client` 行，承载 [`patent-services`](../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
+patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 [`patent-services`](../../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。面向用户的配置文件方式：在 home 级 `~/.dsh/cordis.patch.yml` 写一段 `disabled: false` 且静态 `command`/`args` 的行即可整体替换 env 门控行——`patent_setup_check` 会把它报为配置文件模式。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
 
 <a id="skills-delivery"></a>
 ## Skills 分发
@@ -97,7 +98,7 @@ patch 插入 dsh `mcp-client` 行，承载 [`patent-services`](../../python/pate
 
 #### Token effect
 
-在 patent profile 中，persona 的固定文本是每个请求的开销；目录提醒随已注册 skill 数量增长（仅名称与截断描述）。仅装能力的 profile 只增加目录提醒与两个工具的 schema。覆盖率工具的 schema 开销在其[自己的 README](../tool-patent/README.zh.md) 中说明。
+在 patent profile 中，persona 的固定文本是每个请求的开销；目录提醒随已注册 skill 数量增长（仅名称与截断描述）。仅装能力的 profile 只增加目录提醒与两个工具的 schema。覆盖率工具的 schema 开销在其[自己的 README](../../patent/tool-patent/README.zh.md) 中说明。
 
 #### KV Cache effect
 

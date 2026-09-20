@@ -5,7 +5,7 @@ description: 专利全流程循环推进的契约。当用户要求"loop""继续
 
 # 全流程循环：评估 → 执行 → 再评估
 
-本技能管"循环怎么转"——阶段怎么判定、每阶段找哪个技能、什么时候必须停下来问用户、什么时候才算完成。阶段判定与完成结论的唯一权威是 `patent_loop` 工具（读磁盘事实：patent.yml、brief、八章、实验运行记录、附图成品与 08 章声明的对账、审查报告、导出物新旧），**它说 complete 才是 complete，你的感觉不是**。
+本技能管"循环怎么转"——阶段怎么判定、每阶段找哪个技能、什么时候必须停下来问用户、什么时候才算完成。阶段判定与完成结论的唯一权威是 `patent_loop` 工具（读磁盘事实：patent.yml、brief、八章、实验运行记录、附图成品与 08 章声明的对账、正文公开号与查新出处账本的对账、审查报告、导出物新旧），**它说 complete 才是 complete，你的感觉不是**。
 
 ## 流水线阶段
 
@@ -13,9 +13,9 @@ description: 专利全流程循环推进的契约。当用户要求"loop""继续
 |------|----------------------|------------------|
 | init | 无 patent.yml | patent-init、patent-research |
 | align | brief.md 缺失或核心维度章节缺失 | patent-init、patent-research |
-| chapters | 八章任一缺失或占位空白 | patent-chapters、patent-de-ai、patent-writing-quality、patent-effect-contrast |
-| experiments | 效果章含量化数据但无运行记录、也无"无需实验"声明 | patent-experiment |
-| figures | 08 章声明与 figures/ 根成品对不上（缺失/多余/未规划） | patent-figure-design |
+| chapters | 八章任一缺失或占位空白；涉及实验/量化效果的项目还缺 chapters/09-verification.md；或正文/简报引用的公开号未见于 reference/prior-art.md | patent-chapters、patent-de-ai、patent-writing-quality、patent-effect-contrast（公开号缺口按 patent-research 补账） |
+| experiments | 效果章含量化数据但无运行记录、也无"无需实验"声明（转正后数字回填 09 章实验验证） | patent-experiment |
+| figures | 08 章声明与 figures/ 根成品对不上（缺失/多余/未规划），或正文引用了未声明的图号 | patent-figure-design |
 | review | 最新审查报告缺失、总分低于达标线（默认 80，patent.yml `reviewThreshold` 可调；查新不可用期间放宽 10 分），或报告早于源文件修改 | patent-review（工具） |
 | export | 无交底书导出物，或导出物早于源文件修改 | patent-services（工具） |
 
@@ -28,10 +28,11 @@ description: 专利全流程循环推进的契约。当用户要求"loop""继续
 3. **需要用户时停**：init 的方向拍板、align 的访谈问答、ready 复述确认——把问题抛给用户并结束本轮，等回答后继续；用户也可以随时重新发 /patent-loop 恢复。禁止替用户编造访谈答案。
 4. **失败要响**：检索通道、docker、MCP 服务不可用时如实说明并给启用方法，不静默降级（同各技能的失败纪律）。
 5. **完成即交付**：complete=true 后向用户交付导出物路径、阶段摘要与审查分数，结束循环；申请文件（application/）不在循环范围内，用户明确要求推进时才走 patent-claims 与 patent-application。
+6. **语言纪律**：面向用户的一切回复（进度汇报、待办清单、提问、交付说明）一律使用简体中文；工具返回里的英文内容（如报错原文）转述时给中文说明，原文仅在用户需要排查时附带。
 
 ## 审查分数门
 
-审查关要的不是"有报告"，而是**最新一份报告的总分达标且不早于源文件**：默认达标线 80 分，项目可在 patent.yml 写 `reviewThreshold: <0-100>` 调整；修订源文件后旧报告作废（早于源文件即过期），必须重审。查新通道不可用时，按 patent-research 在 `reference/prior-art.md` 写「查新不可用：<原因>，待补查」——评估器读到该标记自动把达标线放宽 10 分，网络恢复后补查、删除标记，并把分数审回原达标线。放宽是记录在案的债务，不是永久豁免。
+审查关要的不是"有报告"，而是**最新一份报告的总分达标且不早于源文件**：默认达标线 80 分，项目可在 patent.yml 写 `reviewThreshold: <0-100>` 调整；修订源文件后旧报告作废（早于源文件即过期），必须重审。查新通道不可用时，按 patent-research 在 `reference/prior-art.md` 写「查新不可用：<原因>，待补查」——评估器读到该标记自动把达标线放宽 10 分，网络恢复后补查、删除标记，并把分数审回原达标线。放宽是记录在案的债务，不是永久豁免：标记存续期间工具返回的每条 directive（含成稿结论）都携带债务提示，导出交底书的返回里也会带着同样的提醒；工具还会探测检索通道，一旦恢复，下一次调用的待办清单就变成偿债步骤——补检索、删标记、审回原线。
 
 ## 免做声明（防止循环卡死）
 

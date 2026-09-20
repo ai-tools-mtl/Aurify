@@ -45,7 +45,7 @@ Report placement anchors to the file-first project model: after the target resol
 
 ## Export shape
 
-A function plugin: it exports `name` / `inject` / `Config` / `apply` and NO default. A stray `export default` would collapse the module via the Loader's `unwrapExports` and drop `inject` (see the deepseek-harness monorepo postmortem `docs/postmortem/0001`).
+A function plugin: it exports `name` / `inject` / `Config` / `apply` and NO default. A stray `export default` would collapse the module via the Loader's `unwrapExports` and drop `inject` (see [docs/postmortem/0001](../../../docs/postmortem/0001-acp-default-export-drops-inject.md)).
 
 ## Model Experience
 

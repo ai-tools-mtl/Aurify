@@ -23,7 +23,7 @@ experiments/
 
 - 实验脚本只写进 `experiments/<slug>/`，**不得**散落在项目根、chapters/ 或 figures/ 下。
 - `requirements.txt` 只列镜像预装栈之外的依赖；预装栈见 `run_experiment` 工具说明（numpy/scipy/pandas/matplotlib/openpyxl）。
-- 非 Python 实验（Node、C++ 等）入口不受 run.py 约定限制，用 `command` 参数指定执行命令，依赖安装写进 `command` 或镜像外说明；**正式出数仍必须走 run_experiment**。
+- `command` 参数只接受带普通参数的单个 `python`/`python3` 调用（如 `python run.py`、`python -m pytest -q`），不得携带 shell 运算符（`;` `&` `|` `` ` `` `$` `(` `)` `<` `>`）——它在整个项目的读写挂载上执行，白名单是硬约束；确需非 Python 命令（Node、C++ 等）时，请用户设置 `DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1` 后再用，并在实验 README 里写明理由。
 
 ## 执行通道
 
@@ -59,6 +59,7 @@ experiments/
 - **禁止编造**：没有对应运行记录的数字不进正文。用户口头给的参考数据标注来源后再引用。
 - **凡正式出数的实验必须配结果图**——数字进了正文（效果章、有益效果、具体实施方式）而没有任何实验结果图进附图，视同未完成：把结果图画进 `results/`（matplotlib 脚本入实验目录，读 results/ 的输出数据出图），定稿复制为 `figures/图N.png`（编号顺延既有示意图），08 章补"图N 为…"条目，随导出进交付文档。算法/性能类优化点的说服力在对比曲线与柱状图上，不画出来，审查人和代理人就只看到一表格裸数。
 - 结果图同样走 patent-figure-design 的 subagent 视觉验收门：渲染不出的字体（豆腐块）、图例压线、黑白不可辨，验收不过不许进 figures/ 根。
+- **出数后回填实验验证章**：把结果与关键数字写进 chapters/09-verification.md（五要素结构见 patent-chapters：针对什么事情、普遍的解决方式、遇到的问题、本专利如何解决、解决效果）——章里引用的每个数字都要能溯源到一条运行记录，无记录的数字不进章。
 
 ## 实验图规范（matplotlib）
 

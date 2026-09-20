@@ -19,6 +19,7 @@ import { ALL_DIMENSIONS, ALIGN_TOLERANCE, computeCoverage, DIMENSION_TITLES, typ
 import { ABSTRACT_MAX_CHARS, lintClaims } from './claims-lint.ts'
 import { lintProse } from './prose-lint.ts'
 import { assessLoopState, type LoopState } from './loop.ts'
+import { checkSetupChannels, formatSetupReport } from './setup-check.ts'
 
 export { computeCoverage } from './coverage.ts'
 export type { Coverage, DimensionOutline } from './coverage.ts'
@@ -28,6 +29,8 @@ export { lintProse } from './prose-lint.ts'
 export type { ProseLintResult, ProseViolation } from './prose-lint.ts'
 export { assessLoopState } from './loop.ts'
 export type { LoopGap, LoopStage, LoopState } from './loop.ts'
+export { checkSetupChannels, formatSetupReport } from './setup-check.ts'
+export type { SetupChannel } from './setup-check.ts'
 
 export const name = 'tool-patent'
 export const inject = ['tools', 'commands']
@@ -340,12 +343,14 @@ export function apply(ctx: Context): void {
     name: 'patent_loop',
     description: 'Assess a patent project from any stage and name the one next pipeline stage '
       + '(init → align → chapters → experiments → figures → review → export) with its directive. '
-      + 'Every verdict is read from disk facts — manifest, brief, chapters, the experiment run log, '
-      + 'figure files against the drawings chapter, the NEWEST review report total score against the '
-      + 'threshold (default 80; reviewThreshold in patent.yml overrides; a 查新不可用 marker in '
-      + 'reference/prior-art.md relaxes it by 10) with report freshness against the sources, and the '
-      + 'exported disclosure docx — never from the conversation, so this is the only authority on '
-      + 'whether the project is 成稿. '
+      + 'Every verdict is read from disk facts — manifest, brief, chapters (a project carrying '
+      + 'experiments or quantified effects also needs the verification chapter 09-verification.md), '
+      + 'the experiment run log, figure files against the drawings chapter, publication numbers in '
+      + 'the prose against the prior-art ledger (reference/prior-art.md), the NEWEST review report '
+      + 'total score against the threshold (default 80; reviewThreshold in patent.yml overrides; a '
+      + '查新不可用 marker in reference/prior-art.md relaxes it by 10) with report freshness against '
+      + 'the sources, and the exported disclosure docx — never from the conversation, so this is the '
+      + 'only authority on whether the project is 成稿. '
       + 'Use it to start or resume a full-pipeline push ("loop", "继续推进", "帮我完成"), and call it '
       + 'again after finishing each stage; only its complete=true verdict ends the loop.',
     parameters: {
@@ -407,6 +412,39 @@ export function apply(ctx: Context): void {
       }
     },
     presentCall: args => ({ card: 'generic', title: 'Patent loop', kind: 'other', rawInput: args }),
+  }))
+
+  // Host-plane on purpose: an MCP-served self-check cannot diagnose an MCP
+  // row that never loaded, so this tool must not depend on it — it is what
+  // names the missing row and hands the model the enabling step.
+  ctx.tools.register(defineTool({
+    name: 'patent_setup_check',
+    description: 'Self-check the patent plugin environment: the MCP services row (env opt-in or the ~/.dsh config files), docker and its '
+      + 'two images, the native draw.io CLI, the patents.google.com search channel, the experiment '
+      + 'command policy, and the proxy variables — one Chinese verdict line per channel with the '
+      + 'configuration step for whatever is missing. Host-side on purpose: it works even while the '
+      + 'MCP row is disabled, so it is the tool that names that missing row. Call it at a project\'s '
+      + 'start ("检查专利环境/环境自检", before the idea evaluation), after any configuration change, '
+      + 'or when a channel behaves oddly; act on the gaps (a pre-warm docker pull, asking the user '
+      + 'for one env line) and re-check. A broken channel is a report row, never an exception.',
+    parameters: {},
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          report: { type: 'string', required: true },
+          failed: { type: 'array', required: true, items: { type: 'string' } },
+        },
+      },
+      render: (_args, value) => [{ type: 'text', text: value.report }],
+      presentationMeta: (_args, value) => value,
+    },
+    async execute() {
+      const channels = await checkSetupChannels()
+      return { report: formatSetupReport(channels), failed: [...new Set(channels.filter(c => c.status === 'fail').map(c => c.gates).filter(g => g.length > 0))] }
+    },
+    presentCall: () => ({ card: 'generic', title: 'Patent setup check', kind: 'other', rawInput: {} }),
   }))
 
   // The command is a trigger, not an executor: it assesses the project and
