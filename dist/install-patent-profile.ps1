@@ -22,9 +22,12 @@
 #   7. Verifies the composed profile via dump-config
 #
 # Prereqs: desktop app installed. MCP export/render/experiment tools need a
-#   Python-services gate at user level — DSH_PATENT_SERVICES=1 (installed
-#   wheel) or DSH_PATENT_SERVICES_DIR (source checkout) — then restart the
-#   desktop app; experiments/rendering also need Docker Desktop.
+#   Python-services gate — preferred: ~/.dsh/patent-services.yaml with
+#   mcp_enabled: true plus mcp_project_dir (absolute source path) or
+#   mcp_wheel: true; scripted setups may set user-level DSH_PATENT_SERVICES=1
+#   or DSH_PATENT_SERVICES_DIR instead. Either way the MCP row loads at
+#   process start, so restart the desktop app after enabling; 
+#   experiments/rendering also need Docker Desktop.
 
 param(
   # The profile to create/install into (relative to ~/.dsh/profiles).
@@ -224,6 +227,8 @@ Write-Host ""
 Write-Host "DONE: profile '$Name' installed." -ForegroundColor Green
 Write-Host "  - Restart the desktop app (fully quit + relaunch) to pick up the new profile."
 Write-Host "  - Pick the '$Name' profile in the desktop app, open a session in a patent project directory."
-Write-Host "  - MCP export/render/experiment tools need a Python-services gate (user-level env):"
-Write-Host "    DSH_PATENT_SERVICES=1 (installed wheel) or DSH_PATENT_SERVICES_DIR (source checkout);"
-Write-Host "    experiments and figure rendering also need Docker Desktop."
+Write-Host "  - MCP export/render/experiment tools need a Python-services gate:"
+Write-Host "    preferred: ~/.dsh/patent-services.yaml with mcp_enabled: true plus mcp_project_dir (absolute path)"
+Write-Host "    or mcp_wheel: true; scripted: user-level DSH_PATENT_SERVICES=1 / DSH_PATENT_SERVICES_DIR."
+Write-Host "    The MCP row loads at process start - restart the desktop app after enabling."
+Write-Host "    Experiments and figure rendering also need Docker Desktop."
