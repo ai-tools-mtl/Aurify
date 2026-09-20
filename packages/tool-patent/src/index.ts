@@ -18,8 +18,9 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { ALL_DIMENSIONS, ALIGN_TOLERANCE, computeCoverage, DIMENSION_TITLES, type DimensionOutline } from './coverage.ts'
 import { ABSTRACT_MAX_CHARS, lintClaims } from './claims-lint.ts'
 import { lintProse } from './prose-lint.ts'
+import * as McpClient from '@deepseek-ai/dsh-mcp-client'
 import { assessLoopState, type LoopState } from './loop.ts'
-import { checkSetupChannels, formatSetupReport } from './setup-check.ts'
+import { checkSetupChannels, formatSetupReport, homePatchEnablesMcp, markSettingsMcpLoaded, mcpFromSettings } from './setup-check.ts'
 
 export { computeCoverage } from './coverage.ts'
 export type { Coverage, DimensionOutline } from './coverage.ts'
@@ -147,7 +148,7 @@ async function searchChannelReachable(): Promise<boolean> {
  * `patent_loop` assessor tool, and the `/patent-loop` command on `ctx`.
  * @param ctx - registrant context carrying the tool and command registries.
  */
-export function apply(ctx: Context): void {
+export async function apply(ctx: Context): Promise<void> {
   ctx.tools.register(defineTool({
     name: 'patent_brief_coverage',
     description: 'Score a patent disclosure brief against the five-party alignment readiness criteria '
@@ -419,14 +420,17 @@ export function apply(ctx: Context): void {
   // names the missing row and hands the model the enabling step.
   ctx.tools.register(defineTool({
     name: 'patent_setup_check',
-    description: 'Self-check the patent plugin environment: the MCP services row (env opt-in or the ~/.dsh config files), docker and its '
+    description: 'Self-check the patent plugin environment: the MCP services row (the ~/.dsh/patent-services.yaml mcp keys, a home-patch row, or the env opt-in), docker and its '
       + 'two images, the native draw.io CLI, the patents.google.com search channel, the experiment '
       + 'command policy, and the proxy variables — one Chinese verdict line per channel with the '
       + 'configuration step for whatever is missing. Host-side on purpose: it works even while the '
       + 'MCP row is disabled, so it is the tool that names that missing row. Call it at a project\'s '
       + 'start ("检查专利环境/环境自检", before the idea evaluation), after any configuration change, '
       + 'or when a channel behaves oddly; act on the gaps (a pre-warm docker pull, asking the user '
-      + 'for one env line) and re-check. A broken channel is a report row, never an exception.',
+      + 'for one settings-file line) and re-check. The MCP row loads at process start, so a freshly '
+      + 'written settings file needs a dsh process restart — the desktop shell as a whole, not just '
+      + 'a new conversation; the check reports 已装载 versus 待重启 so you never hand the user a '
+      + 'false green light. A broken channel is a report row, never an exception.',
     parameters: {},
     output: {
       schema: {
@@ -476,4 +480,28 @@ export function apply(ctx: Context): void {
       handler,
     })
   }, 'tool-patent loop command')
+
+  // The patent MCP services, config-file mode: when neither the env opt-in
+  // nor a home-patch row enabled the bundle's static row, the settings
+  // file's mcp keys load the client here — one file carries every
+  // preference, and the home patch stays untouched. Skipped whenever the
+  // static row is already live: a duplicate serverName fails loud. Empty
+  // strings count as unset, matching what the setup check reports. The boot
+  // marker afterwards lets the setup check separate "configured" from
+  // "configured and live" — a file written after boot needs a restart.
+  const envDir = process.env.DSH_PATENT_SERVICES_DIR
+  const envWheel = process.env.DSH_PATENT_SERVICES
+  if ((envDir === undefined || envDir.length === 0) && (envWheel === undefined || envWheel.length === 0)
+    && !homePatchEnablesMcp()) {
+    const launch = mcpFromSettings()
+    if (launch !== null) {
+      await ctx.plugin(McpClient, {
+        transport: 'stdio',
+        serverName: 'patent',
+        command: launch.command,
+        args: [...launch.args],
+      })
+      markSettingsMcpLoaded()
+    }
+  }
 }

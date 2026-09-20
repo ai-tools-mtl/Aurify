@@ -80,7 +80,7 @@ dsh plugin --profile patent add @mtl-academic/dsh-patent
 
 ## MCP services 行
 
-patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 [`patent-services`](../../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。面向用户的配置文件方式：在 home 级 `~/.dsh/cordis.patch.yml` 写一段 `disabled: false` 且静态 `command`/`args` 的行即可整体替换 env 门控行——`patent_setup_check` 会把它报为配置文件模式。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
+patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 [`patent-services`](../../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。单文件方式（首选）：在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（或 `mcp_wheel: true`）——tool-patent 插件加载时读这些键并自行装载 MCP 客户端，所有偏好收在这一个文件里，不必动 home 补丁。home 级 `~/.dsh/cordis.patch.yml` 的启用行仍是高级覆盖手段。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
 
 <a id="skills-delivery"></a>
 ## Skills 分发

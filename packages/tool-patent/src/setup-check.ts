@@ -34,9 +34,48 @@ export function readSettings(): Map<string, string> {
   if (!existsSync(path)) return map
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z_][\w-]*):\s*(.+?)\s*$/.exec(line)
-    if (match !== null) map.set(match[1] as string, match[2] as string)
+    if (match !== null) map.set(match[1] as string, scalarValue(match[2] as string))
   }
   return map
+}
+
+/**
+ * One scalar the way the python plane's yaml loader would read it: a trailing
+ * ` #` comment is dropped and one layer of matching quotes is stripped. The
+ * file is written by hand or by the model, so a commented `mcp_enabled` line
+ * or a quoted Windows path must not leak comment text or quote characters
+ * into the value. Backslash escapes are not processed — this file's values
+ * are paths, written unquoted.
+ * @param raw - the value text after the key's colon.
+ * @returns the effective scalar value.
+ */
+function scalarValue(raw: string): string {
+  const quote = raw.charAt(0)
+  if ((quote === '"' || quote === "'") && raw.length > 1) {
+    const end = raw.indexOf(quote, 1)
+    if (end > 0) return raw.slice(1, end)
+  }
+  const comment = raw.indexOf(' #')
+  return (comment >= 0 ? raw.slice(0, comment) : raw).trim()
+}
+
+/** The truthy spellings yaml booleans take in this file, case-insensitive. */
+function isTruthy(value: string | undefined): boolean {
+  if (value === undefined) return false
+  const normalized = value.toLowerCase()
+  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
+}
+
+/** The falsy spellings python's yaml loader maps to False. */
+function isFalsy(value: string | undefined): boolean {
+  if (value === undefined) return false
+  const normalized = value.toLowerCase()
+  return normalized === 'false' || normalized === 'no' || normalized === 'off'
+}
+
+/** Windows (drive-letter or UNC) or POSIX absolute — platform independent. */
+function isAbsolutePath(dir: string): boolean {
+  return /^([A-Za-z]:[\\/]|\\\\|\/)/.test(dir)
 }
 
 /**
@@ -49,7 +88,7 @@ export function optionValue(envName: string, fileKey: string): string | undefine
   const ambient = process.env[envName]
   if (ambient !== undefined && ambient.length > 0) return ambient
   const value = readSettings().get(fileKey)
-  if (value !== undefined && value.length > 0 && value !== 'false') return value
+  if (value !== undefined && value.length > 0 && !isFalsy(value)) return value
   return undefined
 }
 
@@ -69,10 +108,72 @@ export function homePatchEnablesMcp(): boolean {
   if (start < 0) return false
   for (const line of lines.slice(start + 1)) {
     if (/^-\s*id:/.test(line)) break
-    if (/^\s*disabled:\s*(!!js.*)?true/.test(line)) return false
-    if (/^\s*disabled:\s*(!!js.*)?false/.test(line)) return true
+    if (/^\s*disabled:\s*(!!js.*)?true/i.test(line)) return false
+    if (/^\s*disabled:\s*(!!js.*)?false/i.test(line)) return true
   }
   return true
+}
+
+/** One launch shape for the patent MCP services, resolved from the settings file. */
+export interface McpLaunch {
+  /** How the settings file named the backend. */
+  mode: 'source' | 'wheel'
+  /** The executable `ctx.plugin` spawns. */
+  command: string
+  /** Its argv. */
+  args: readonly string[]
+  /** The source directory when mode is 'source' — the check validates it. */
+  projectDir?: string
+}
+
+/**
+ * Whether THIS process boot loaded the MCP client from the settings file —
+ * set by apply() once `ctx.plugin(McpClient, …)` has run. The check reads it
+ * to separate "configured" from "configured and live": the file can be
+ * written (or changed) after boot, and only a process restart picks it up,
+ * so a freshly configured machine must not be told the tools are usable now.
+ */
+let settingsMcpLoadedThisBoot = false
+
+/** Record that this boot loaded the MCP client from the settings file. */
+export function markSettingsMcpLoaded(): void {
+  settingsMcpLoadedThisBoot = true
+}
+
+/** Whether this boot loaded the MCP client from the settings file.
+ * @returns whether apply() ran the settings-file MCP load in this process.
+ */
+export function settingsMcpLoaded(): boolean {
+  return settingsMcpLoadedThisBoot
+}
+
+/** Clear the boot marker (test isolation only). */
+export function resetSettingsMcpLoadedForTests(): void {
+  settingsMcpLoadedThisBoot = false
+}
+
+/**
+ * Resolve the patent MCP services launch from the settings file's flat keys
+ * (`mcp_enabled` plus `mcp_project_dir` or `mcp_wheel`) — the single-file way
+ * of enabling the services, read by the plugin itself at load time. Callers
+ * skip it when the env opt-in or a home-patch row already enabled the static
+ * bundle row (a duplicate `serverName` fails loud). Pure resolver: it does
+ * not touch the filesystem or PATH — `checkSetupChannels` validates the
+ * resolved launch and names whatever is wrong with it.
+ * @returns the launch, or null when the file does not enable it.
+ */
+export function mcpFromSettings(): McpLaunch | null {
+  const settings = readSettings()
+  if (!isTruthy(settings.get('mcp_enabled'))) return null
+  const dir = settings.get('mcp_project_dir')
+  if (dir !== undefined && dir.length > 0) {
+    return { mode: 'source', command: 'uv', args: ['run', '--project', dir, 'python', '-m', 'patent_services'], projectDir: dir }
+  }
+  const wheel = settings.get('mcp_wheel')
+  if (wheel !== undefined && wheel.length > 0 && !isFalsy(wheel)) {
+    return { mode: 'wheel', command: 'uvx', args: ['--from', 'deepseek-harness-patent-services', 'patent-services'] }
+  }
+  return null
 }
 
 /** One channel's verdict. */
@@ -146,19 +247,49 @@ async function searchReachable(): Promise<boolean> {
 export async function checkSetupChannels(): Promise<SetupChannel[]> {
   const channels: SetupChannel[] = []
 
+  const uvReady = await commandExists('uv')
+  const uvxReady = await commandExists('uvx')
   const servicesDir = process.env.DSH_PATENT_SERVICES_DIR
   const servicesWheel = process.env.DSH_PATENT_SERVICES
   if (servicesDir !== undefined && servicesDir.length > 0) {
     const manifest = join(servicesDir, 'pyproject.toml')
-    channels.push(existsSync(manifest)
-      ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 已设且目录有效——导出/渲染/实验/检索等 MCP 工具应已装载（调用报错时按报错指引处理）。' }
-      : { status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 指向的目录缺 pyproject.toml（${servicesDir}）——改为指向 python/patent-services 检出后重启会话。` })
+    if (!existsSync(manifest)) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 指向的目录缺 pyproject.toml（${servicesDir}）——改为指向 python/patent-services 检出后重启进程。` })
+    } else if (!uvReady) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（源码模式）：目录有效但未检出 uv——MCP 行由 uv 拉起，安装 uv（https://docs.astral.sh/uv/）后重启进程复检。' })
+    } else {
+      channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（源码模式）：DSH_PATENT_SERVICES_DIR 已设且目录与 uv 有效——MCP 工具应已装载（调用报错时按报错指引处理）。' })
+    }
   } else if (servicesWheel !== undefined && servicesWheel.length > 0) {
-    channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设——MCP 工具经 uvx 运行已安装的包。' })
+    channels.push(uvxReady
+      ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设——MCP 工具经 uvx 运行已安装的包。' }
+      : { status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设但未检出 uvx——安装 uv（自带 uvx）后重启进程复检。' })
   } else if (homePatchEnablesMcp()) {
-    channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式）：~/.dsh/cordis.patch.yml 已启用 mcp-patent-services 行——MCP 工具按该行的 command/args 运行。' })
+    channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式·home patch）：~/.dsh/cordis.patch.yml 已启用 mcp-patent-services 行——MCP 工具按该行的 command/args 运行。' })
   } else {
-    channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务未启用——导出/渲染/实验/检索的 MCP 工具全部不可见。首选配置文件方式：编辑 ~/.dsh/cordis.patch.yml 加一段启用的 mcp-patent-services 行（command 用 uv、args 指向 patent-services 源码目录），保存后重启会话；脚本化场景也可设环境变量 DSH_PATENT_SERVICES_DIR/DSH_PATENT_SERVICES。本工具不受影响，配好后复检。' })
+    const launch = mcpFromSettings()
+    if (launch === null) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务未启用——导出/渲染/实验/检索的 MCP 工具全部不可见。启用方式（首选，单文件）：在 ~/.dsh/patent-services.yaml 写 mcp_enabled: true 加 mcp_project_dir: <patent-services 源码目录的绝对路径>（安装 wheel 的机器写 mcp_wheel: true），并确保 PATH 上有 uv/uvx；保存后重启 dsh 进程生效（桌面端：重启整个桌面壳，仅新开会话无效），复检应显示「已装载」。脚本化场景也可设环境变量 DSH_PATENT_SERVICES_DIR/DSH_PATENT_SERVICES。本工具不受影响。' })
+    } else if (launch.mode === 'source') {
+      const dir = launch.projectDir ?? ''
+      if (!isAbsolutePath(dir)) {
+        channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（配置文件模式）：mcp_project_dir 需写绝对路径（当前：${dir}）——相对路径按 dsh 进程的工作目录解析，会指错位置。` })
+      } else if (!existsSync(join(dir, 'pyproject.toml'))) {
+        channels.push({ status: 'fail', gates: 'MCP 服务', line: `❌ MCP 服务（配置文件模式）：mcp_project_dir 指向的目录缺 pyproject.toml（${dir}）——改为指向 python/patent-services 检出。` })
+      } else if (!uvReady) {
+        channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uv——源码模式的 MCP 行由 uv 拉起，安装 uv（https://docs.astral.sh/uv/）后重启进程复检。' })
+      } else {
+        channels.push(settingsMcpLoaded()
+          ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_project_dir 装载 MCP 工具。' }
+          : { status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式·待重启）：~/.dsh/patent-services.yaml 已配置（mcp_project_dir），但本进程启动时未装载——配置写入晚于进程启动。重启 dsh 进程后生效（桌面端：重启整个桌面壳，仅新开会话无效）；重启后复检应显示「已装载」。' })
+      }
+    } else if (!uvxReady) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uvx——wheel 模式的 MCP 行由 uvx 拉起，安装 uv（自带 uvx）后重启进程复检。' })
+    } else {
+      channels.push(settingsMcpLoaded()
+        ? { status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_wheel 装载 MCP 工具。' }
+        : { status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式·待重启）：~/.dsh/patent-services.yaml 已配置（mcp_wheel），但本进程启动时未装载——配置写入晚于进程启动。重启 dsh 进程后生效（桌面端：重启整个桌面壳，仅新开会话无效）；重启后复检应显示「已装载」。' })
+    }
   }
 
   let dockerWorks = true

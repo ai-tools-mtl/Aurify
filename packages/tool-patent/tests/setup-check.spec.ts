@@ -1,10 +1,12 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatSetupReport, checkSetupChannels, type SetupChannel } from '../src/setup-check.ts'
+import { checkSetupChannels, formatSetupReport, markSettingsMcpLoaded, resetSettingsMcpLoadedForTests, type SetupChannel } from '../src/setup-check.ts'
 import * as ToolPatent from '../src/index.ts'
 
 /** Per-test probe state the mocked process boundaries read. */
 const state = vi.hoisted(() => ({
   dockerVersion: true,
+  uv: true,
+  uvx: true,
   images: new Map<string, boolean | null>(),
   files: new Map<string, boolean>(),
   fileText: new Map<string, string>(),
@@ -16,6 +18,12 @@ vi.mock('node:child_process', () => ({
     if (command === 'docker' && args[0] === '--version') {
       return state.dockerVersion
         ? Promise.resolve({ stdout: 'Docker version 27', stderr: '' })
+        : Promise.reject(Object.assign(new Error('enoent'), { code: 'ENOENT' }))
+    }
+    if ((command === 'uv' || command === 'uvx') && args[0] === '--version') {
+      const ready = command === 'uv' ? state.uv : state.uvx
+      return ready
+        ? Promise.resolve({ stdout: `${command} 0.5`, stderr: '' })
         : Promise.reject(Object.assign(new Error('enoent'), { code: 'ENOENT' }))
     }
     if (command === 'docker' && args[0] === 'image' && args[1] === 'inspect') {
@@ -57,11 +65,14 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs()
   state.dockerVersion = true
+  state.uv = true
+  state.uvx = true
   state.images = new Map()
   state.files = new Map()
   state.fileText = new Map()
   state.reachable = true
   globalThis.fetch = originalFetch
+  resetSettingsMcpLoadedForTests()
   vi.restoreAllMocks()
 })
 
@@ -207,7 +218,147 @@ describe('settings-file awareness', () => {
     channels = await checkSetupChannels()
     const mcp = channels.find(c => c.gates === 'MCP 服务')
     expect(mcp?.status).toBe('fail')
-    expect(mcp?.line).toContain('cordis.patch.yml')
+    expect(mcp?.line).toContain('patent-services.yaml')
+    expect(mcp?.line).toContain('mcp_enabled')
+  })
+
+  it('accepts the settings file mcp keys as the single-file mode when loaded this boot', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n')
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('ok')
+    expect(mcp?.line).toContain('已装载')
+    expect(mcp?.line).toContain('mcp_project_dir')
+  })
+
+  it('refuses a false green light when the settings file was written after boot', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n')
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('待重启')
+    expect(mcp?.line).toContain('重启整个桌面壳')
+    expect(mcp?.line).toContain('仅新开会话无效')
+  })
+
+  it('fails the settings source mode on a relative project dir', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_project_dir: patent-services\n')
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('绝对路径')
+  })
+
+  it('fails the settings source mode when the directory lacks pyproject.toml', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_project_dir: G:/wrong\n')
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('pyproject.toml')
+  })
+
+  it('fails the settings source mode when uv is not on PATH', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n')
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
+    state.uv = false
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('uv')
+  })
+
+  it('fails the settings wheel mode when uvx is not on PATH', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\nmcp_wheel: true\n')
+    state.uvx = false
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('fail')
+    expect(mcp?.line).toContain('uvx')
+  })
+
+  it('parses quoted values and trailing comments the way the python yaml loader would', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true  # enabled by the setup flow\nmcp_project_dir: "G:/src/patent-services"\n')
+    state.files.set('G:/src/patent-services/pyproject.toml', true)
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    const mcp = channels.find(c => c.gates === 'MCP 服务')
+    expect(mcp?.status).toBe('ok')
+  })
+
+  it('accepts capitalized yaml booleans for mcp_enabled', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: True\nmcp_wheel: true\n')
+    markSettingsMcpLoaded()
+    const channels = await checkSetupChannels()
+    expect(channels.find(c => c.gates === 'MCP 服务')?.line).toContain('mcp_wheel')
+  })
+
+  it('rejects mcp_enabled without a backend key', async () => {
+    state.fileText.set('/fake-home/patent-services.yaml', 'mcp_enabled: true\n')
+    const channels = await checkSetupChannels()
+    expect(channels.find(c => c.gates === 'MCP 服务')?.status).toBe('fail')
+  })
+})
+
+describe('the plugin loads the MCP client from the settings file', () => {
+  interface ToolShape { name: string }
+  interface PluginCall { module: unknown; config: Record<string, unknown> }
+
+  async function mount(options: { env?: Record<string, string>; yaml?: string }): Promise<PluginCall[]> {
+    const calls: PluginCall[] = []
+    const registered: ToolShape[] = []
+    for (const [k, v] of Object.entries(options.env ?? {})) vi.stubEnv(k, v)
+    if (options.yaml !== undefined) state.fileText.set('/fake-home/patent-services.yaml', options.yaml)
+    const ctx = {
+      tools: { register: vi.fn((d: ToolShape) => { registered.push(d); return () => {} }) },
+      commands: { register: vi.fn(() => () => {}) },
+      plugin: vi.fn(async (module: unknown, config: Record<string, unknown>) => { calls.push({ module, config }) }),
+      effect: (callback: () => Generator): void => {
+        for (const step of callback()) void step
+      },
+    }
+    await ToolPatent.apply(ctx as never)
+    expect(registered.some(t => t.name === 'patent_loop')).toBe(true)
+    return calls
+  }
+
+  it('loads uv with the settings project dir when nothing else enabled the row', async () => {
+    const calls = await mount({ yaml: 'mcp_enabled: true\nmcp_project_dir: G:/src/patent-services\n' })
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.config).toMatchObject({ transport: 'stdio', serverName: 'patent', command: 'uv' })
+    expect(calls[0]?.config.args).toEqual(['run', '--project', 'G:/src/patent-services', 'python', '-m', 'patent_services'])
+  })
+
+  it('loads uvx for the wheel mode', async () => {
+    const calls = await mount({ yaml: 'mcp_enabled: true\nmcp_wheel: true\n' })
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.config).toMatchObject({ command: 'uvx' })
+  })
+
+  it('loads the wheel mode for a capitalized yaml boolean too', async () => {
+    const calls = await mount({ yaml: 'mcp_enabled: True\nmcp_wheel: true\n' })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('treats an empty-string env opt-in as unset and still loads from the settings file', async () => {
+    const calls = await mount({ env: { DSH_PATENT_SERVICES_DIR: '', DSH_PATENT_SERVICES: '' }, yaml: 'mcp_enabled: true\nmcp_wheel: true\n' })
+    expect(calls).toHaveLength(1)
+  })
+
+  it('stays silent when the env opt-in already enabled the static row', async () => {
+    const calls = await mount({ env: { DSH_PATENT_SERVICES_DIR: 'G:/any' }, yaml: 'mcp_enabled: true\nmcp_project_dir: G:/x\n' })
+    expect(calls).toHaveLength(0)
+  })
+
+  it('stays silent when the settings file does not enable the services', async () => {
+    const calls = await mount({ yaml: 'drawio_bin: D:/tools/draw.io.exe\n' })
+    expect(calls).toHaveLength(0)
   })
 })
 
@@ -223,7 +374,7 @@ describe('patent_setup_check registration', () => {
         for (const step of callback()) void step
       },
     }
-    ToolPatent.apply(ctx as never)
+    void ToolPatent.apply(ctx as never)
     expect(registered.some(tool => tool.name === 'patent_setup_check')).toBe(true)
     expect(registered.some(tool => tool.name === 'patent_loop')).toBe(true)
   })
