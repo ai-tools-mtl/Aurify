@@ -7,6 +7,8 @@ kind: "package-bundle"
 
 [English](README.md) | 中文
 
+> 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
+
 ## 概述
 
 叠加在 [`dsh-base`](../base/README.zh.md) 之上的个人发明交底书撰写层，与 web app 一起组成 `patent` profile 的第三层 bundle。[`cordis.patch.yml`](cordis.patch.yml) 插入本特性的各行：[`tool-patent`](../../patent/tool-patent/README.zh.md) 覆盖率打分器、本包的 `patent-assets` 插件（把随包分发的 `skills/` 资产注册为 runtime skill）、[`command-patent-review`](../../patent/command-patent-review/README.zh.md) 确定性审查命令，以及按环境变量门控的 [`patent-services`](../../../python/patent-services/README.zh.md) MCP 行。本 bundle 刻意不带 persona——助手 persona 属于 profile 层——因此任何 profile 都可以携带这套能力。撰写模型是文件优先：一个交底书项目就是一个 Markdown 文件目录，agent 经 base 的文件工具维护它们，用户直接编辑同一批文件。本 bundle 的产品名是「点金」：不是每块石头都值得点——先验金，再点金，动笔之前先判断点子值不值得写。
@@ -28,14 +30,18 @@ kind: "package-bundle"
 
 ### 安装进 profile
 
-已验证的安装路径——发布的 bundle 把 [`tool-patent`](../../patent/tool-patent/README.zh.md) 与 [`command-patent-review`](../../patent/command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性：
+发布的 bundle 把 [`tool-patent`](../../patent/tool-patent/README.zh.md) 与 [`command-patent-review`](../../patent/command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性。但在 bundle 发布到 npm 之前，已验证的安装路径是**解包出来的目录**——本包、它的两个依赖包，以及 vendored 的 `@deepseek-ai/schemastery` / `@deepseek-ai/cosmokit`，都还不在 registry 上：
 
 ```text
-dsh --profile patent --from-default-profile web
-dsh plugin --profile patent add @mtl-academic/dsh-patent
+dsh --profile patent --from-default-profile web           # 档案不存在时先按 web 模板创建（base + web app）
+dsh plugin --profile patent add "file:<dist-dir>/bundle"  # 把本 bundle 加为档案的第三层
 ```
 
-第一条命令从 web 模板创建 profile（base + web app）并启动它；第二条把本 bundle 加为 profile 的第三层，后续用 `add`/`remove` 管理。仅由 `dsh plugin` 创建的 profile 以 base 为基础——本 bundle 的各行同样挂载，但撰写界面是 web app。移除本层用 `dsh plugin --profile patent remove @mtl-academic/dsh-patent`；用于开发的源码检出则直接随附 `patent` 模板，由启动器组装同一套层栈。
+`<dist-dir>` 与所有 `file:` 值都必须写**绝对路径**。dsh 是按**档案目录**（不是你敲命令时所在的目录）解析 `file:` 依赖的：相对路径装出来的档案根本起不来（`cannot resolve profile bundle`），桌面版也就打不开该档案。未发布的内部包靠档案 `pnpm-workspace.yaml` 里的 `overrides:` 块指向分发包的四个 tarball；报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` 就是这块缺失或路径写错了。解包出来的 `bundle/` 目录是已装档案的**运行期依赖**，装完别删、别移动分发包。
+
+装完接着装 persona（下一节），并在**重启桌面版之前**验收：`dsh --profile patent --dump-config` 必须退出码为 0，且列出 `tool-patent` / `patent-assets` / `command-patent-review` / `mcp-patent-services` 四行与 `persona:` 键。逐步命令与 Windows 一键安装器见 [`dist/README.md`](../../dist/README.md)（中文）与 [`dist/INSTALL-NEW-PROFILE.md`](../../dist/INSTALL-NEW-PROFILE.md)（英文）。
+
+移除本层用 `dsh plugin --profile patent remove @mtl-academic/dsh-patent`；bundle 发布到 npm 后，上面整步会退化成一条 `dsh plugin --profile patent add @mtl-academic/dsh-patent`。仅由 `dsh plugin` 创建的档案以 base 为基础，本 bundle 的各行同样挂载，只是撰写界面不同；开发用的源码检出则直接随附 `patent` 模板，由启动器组装同一套层栈。
 
 树内解析锚点照常生效：bundle 与它的两个依赖包安装后从 profile 的 `node_modules` 解析；缺失 `dsh.bundle.patch` 声明会让启动明确失败。
 
@@ -80,7 +86,7 @@ dsh plugin --profile patent add @mtl-academic/dsh-patent
 
 ## MCP services 行
 
-patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 [`patent-services`](../../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。单文件方式（首选）：在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（或 `mcp_wheel: true`）——tool-patent 插件加载时读这些键并自行装载 MCP 客户端，所有偏好收在这一个文件里，不必动 home 补丁。home 级 `~/.dsh/cordis.patch.yml` 的启用行仍是高级覆盖手段。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
+patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 [`patent-services`](../../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。单文件方式（首选）：在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true`——**总开关，两种模式都必须写**——再加 `mcp_project_dir: <patent-services 源码目录的绝对路径>` 或 `mcp_wheel: true`；wheel 模式另外要求先把随包分发的 wheel 装成 uv 工具（`uv tool install <dist-dir>/deepseek_harness_patent_services-<version>-py3-none-any.whl`），因为该包未发布 PyPI，`uvx` 只解析 `uv tool install` 装过的东西。tool-patent 插件加载时读这些键并自行装载 MCP 客户端，所有偏好收在这一个文件里，不必动 home 补丁。home 级 `~/.dsh/cordis.patch.yml` 的启用行仍是高级覆盖手段。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
 
 <a id="skills-delivery"></a>
 ## Skills 分发

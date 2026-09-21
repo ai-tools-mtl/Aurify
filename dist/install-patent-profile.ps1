@@ -33,7 +33,8 @@ param(
   # The profile to create/install into (relative to ~/.dsh/profiles).
   [string]$Name = "patent-test",
   # The directory holding the unpacked release: a bundle/ subdirectory plus
-  # the package tarballs. Any location works.
+  # the package tarballs. Any location works; a relative path is anchored to
+  # the current directory before it reaches the manifest (see step 2 below).
   [string]$DistDir = "$env:USERPROFILE\.dsh\plugin-dist\patent",
   # Where to copy the persona patch from: an existing profile name, or the
   # shipped file "<DistDir>\persona.patch.yml" when present. "" skips persona.
@@ -71,6 +72,16 @@ $bundleDir = Join-Path $DistDir "bundle"
 Step "Checking dist artifacts in $DistDir"
 if (-not (Test-Path (Join-Path $bundleDir "package.json"))) { Fail "bundle directory missing: $bundleDir (unpack the release first)" }
 
+# Anchor both paths before anything writes them into the profile. The manifest
+# records the release directory verbatim as a `file:` dependency, and the dsh
+# core resolves every `file:` value against the PROFILE directory — never
+# against the shell's current directory. A relative -DistDir would therefore
+# install a profile whose bundle dependency points at nothing: `dsh --profile
+# <name> --dump-config` fails with "cannot resolve profile bundle" and the
+# desktop app cannot launch that profile at all until it is repaired.
+$DistDir = (Resolve-Path -LiteralPath $DistDir).Path
+$bundleDir = (Resolve-Path -LiteralPath $bundleDir).Path
+
 $patterns = @{
   bundle    = "mtl-academic-dsh-patent-*.tgz"
   tool      = "deepseek-ai-dsh-tool-patent-*.tgz"
@@ -102,6 +113,18 @@ if ($newProfile) {
   Write-Host "   profile initialized (dependency resolution errors here are expected and repaired below)"
 } else {
   Step "Profile $Name already exists — refreshing in place"
+  # Refresh-in-place rewrites files a user may never have copied aside, and an
+  # existing profile can carry entries this installer does not manage (the
+  # desktop app's own dsh-tauri*/dshmarket dependencies and bundle layers).
+  # Snapshot the three files that encode its dependency state first, so a bad
+  # merge is recoverable instead of a rebuild-from-the-lockfile exercise.
+  $backupDir = Join-Path $env:USERPROFILE ".dsh\.plugin-backups\$Name-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+  New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+  foreach ($f in @("package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "cordis.patch.yml")) {
+    $source = Join-Path $profileDir $f
+    if (Test-Path $source) { Copy-Item $source (Join-Path $backupDir $f) -Force }
+  }
+  Write-Host "   previous manifest backed up to $backupDir"
 }
 
 # 4. package.json: the bundle as a DIRECTORY dependency + the three-layer bundle stack.

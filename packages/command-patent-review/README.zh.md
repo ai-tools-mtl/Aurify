@@ -7,6 +7,8 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
+> 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
+
 ## 概述
 
 确定性专利审查，两个入口：人类命令 `/patent-review` 与模型工具 `patent_review`。两者都审查一个交底书文件或一个 Markdown 文件目录，报告写入 `review/`。模型不能跳过、改形或稀释审查——编排是 host 数据，模型侧入口只提供目标路径。

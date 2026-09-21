@@ -1,0 +1,10 @@
+# Bilingual-pair consistency record for the distribution guides. Both sides carry
+# equal authority: dist/README.md is the Chinese receiver guide, and
+# dist/INSTALL-NEW-PROFILE.md is its English counterpart (the installer guide,
+# manual steps, substitution table and troubleshooting).
+# This pair does not use the README.md / README.zh.md naming that the monorepo's
+# verify-translation-pairing script expects, so the record is maintained by hand:
+# after editing either side, bring the other along and re-record both lines with
+#   git hash-object dist/README.md dist/INSTALL-NEW-PROFILE.md
+README.md: e9f20f69ff6942c8e7426e0229376b0e0c55bd38
+INSTALL-NEW-PROFILE.md: 2bbbe0bad8f7b1104c200defc54bf7f14975dcb2

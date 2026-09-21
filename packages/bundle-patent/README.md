@@ -7,6 +7,8 @@ kind: "package-bundle"
 
 English | [中文](README.zh.md)
 
+> Relative links in this document follow the deepseek-harness monorepo layout. This repository is the extracted distribution — the full monorepo ships as the release's `dsh-patent-full.bundle` — so links that leave this directory resolve in the monorepo, not here.
+
 ## Summary
 
 A personal invention-disclosure drafting layer over [`dsh-base`](../base/README.md) — the `patent` profile's third bundle layer. [`cordis.patch.yml`](cordis.patch.yml) inserts the feature rows: the [`tool-patent`](../../patent/tool-patent/README.md) scorer, the `patent-assets` plugin (registers the shipped `skills/` as runtime skills), the [`command-patent-review`](../../patent/command-patent-review/README.md) deterministic review, and the environment-gated [`patent-services`](../../../python/patent-services/README.md) MCP row. The bundle is persona-free; the persona belongs to the profile layer. Drafting is file-first: a project is a Markdown directory the agent maintains through the base tools while the user edits the same files. Product name Aurify (点金, touch of gold): appraise the idea against prior art before drafting it.
@@ -30,14 +32,18 @@ A personal invention-disclosure drafting layer over [`dsh-base`](../base/README.
 
 ### Install into a profile
 
-The verified install path — the published bundle pulls the [`tool-patent`](../../patent/tool-patent/README.md) and [`command-patent-review`](../../patent/command-patent-review/README.md) packages as its own dependencies, so one install brings the whole feature:
+The bundle pulls the [`tool-patent`](../../patent/tool-patent/README.md) and [`command-patent-review`](../../patent/command-patent-review/README.md) packages as its own dependencies, so one install brings the whole feature. Until the bundle is published to npm, the verified path is the release's **unpacked directory** — neither this package nor its two dependencies (nor the vendored `@deepseek-ai/schemastery` / `@deepseek-ai/cosmokit`) are on the registry:
 
 ```text
-dsh --profile patent --from-default-profile web
-dsh plugin --profile patent add @mtl-academic/dsh-patent
+dsh --profile patent --from-default-profile web           # create the profile (base + web app) if it does not exist yet
+dsh plugin --profile patent add "file:<dist-dir>/bundle"  # add the bundle as its third layer
 ```
 
-The first command creates the profile from the web template (base + web app) and starts it; the second adds this bundle as the profile's third layer and manages it through later `add`/`remove` runs. A profile created by `dsh plugin` alone is base-backed — the bundle's rows mount there too, but the drafting surface is the web app. Removing the layer is `dsh plugin --profile patent remove @mtl-academic/dsh-patent`; the source checkout used for development instead ships the `patent` template directly, where the same layer stack is assembled by the launcher.
+`<dist-dir>` and every `file:` value must be an **absolute path**. dsh resolves `file:` dependencies against the *profile* directory, never against the shell you typed them in, so a relative value installs a profile that cannot boot at all (`cannot resolve profile bundle`) — and the desktop app then cannot open that profile. The unpublished internal packages resolve from the release's four tarballs through an `overrides:` block in the profile's `pnpm-workspace.yaml`; `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` means that block is missing or mistyped. The unpacked `bundle/` directory is a runtime dependency of the installed profile, so do not delete or move the release afterwards.
+
+After the install, add the persona (next section) and verify **before** restarting the desktop app: `dsh --profile patent --dump-config` must exit 0 and list the `tool-patent` / `patent-assets` / `command-patent-review` / `mcp-patent-services` rows plus a `persona:` key. The step-by-step walkthrough and the one-command Windows installer live in [`dist/README.md`](../../dist/README.md) (Chinese) and [`dist/INSTALL-NEW-PROFILE.md`](../../dist/INSTALL-NEW-PROFILE.md) (English).
+
+Removing the layer is `dsh plugin --profile patent remove @mtl-academic/dsh-patent`; once the bundle is on npm this whole step collapses to `dsh plugin --profile patent add @mtl-academic/dsh-patent`. The profile is created by `dsh plugin` (or by the launcher's `patent` template in the development checkout), and a base-backed profile mounts the bundle's rows too — only the drafting surface differs.
 
 The in-box resolution anchors apply: the bundle and its two dependency packages resolve from the profile's `node_modules` once installed, and a missing `dsh.bundle.patch` declaration fails startup loudly.
 
@@ -78,7 +84,7 @@ The asset carrier pins a 0.7 sampling temperature on the profile's top-level ses
 
 ## The MCP services row
 
-The patch inserts the [`dsh-mcp-client`](../../mcp/mcp-client/README.md) row for the [`patent-services`](../../../python/patent-services/README.md) stdio server (`serverName: patent` — `parse_disclosure_docx`, `export_disclosure`, `export_application_docs`, `render_drawio_figure`, `render_html_figure`, `lint_drawio_figure`, `search_patent_archive`, `run_experiment`, and `search_cn_patents`). Two opt-in modes, both off by default so the row stays disabled (visible in `--dump-config`, absent from the tool table). The single-file way (preferred): write `mcp_enabled: true` plus `mcp_project_dir: <absolute path to the patent-services checkout>` (or `mcp_wheel: true`) into `~/.dsh/patent-services.yaml` — the tool-patent plugin reads those keys at load and loads the MCP client itself, so every preference lives in that one file and the home patch stays untouched. A home-level `~/.dsh/cordis.patch.yml` row with `disabled: false` and a static `command`/`args` remains the advanced override. The env modes: set `DSH_PATENT_SERVICES` to run the installed package through `uvx` (the published wheel, or a locally built one via `uv build` + `uv tool install`); or set `DSH_PATENT_SERVICES_DIR` to a source checkout, which runs the module straight from that directory. Either way the model gains the parsing, export, rendering, search, experiment, and patent-discovery tools at the next boot.
+The patch inserts the [`dsh-mcp-client`](../../mcp/mcp-client/README.md) row for the [`patent-services`](../../../python/patent-services/README.md) stdio server (`serverName: patent` — `parse_disclosure_docx`, `export_disclosure`, `export_application_docs`, `render_drawio_figure`, `render_html_figure`, `lint_drawio_figure`, `search_patent_archive`, `run_experiment`, and `search_cn_patents`). Two opt-in modes, both off by default so the row stays disabled (visible in `--dump-config`, absent from the tool table). The single-file way (preferred): write `mcp_enabled: true` — the master switch, required in both modes — plus either `mcp_project_dir: <absolute path to the patent-services checkout>` or `mcp_wheel: true` into `~/.dsh/patent-services.yaml`; wheel mode additionally requires the shipped wheel installed as a uv tool (`uv tool install <dist-dir>/deepseek_harness_patent_services-<version>-py3-none-any.whl`), because the package is not on PyPI and `uvx` only resolves what `uv tool install` put there. The tool-patent plugin reads those keys at load and loads the MCP client itself, so every preference lives in that one file and the home patch stays untouched. A home-level `~/.dsh/cordis.patch.yml` row with `disabled: false` and a static `command`/`args` remains the advanced override. The env modes: set `DSH_PATENT_SERVICES` to run the installed package through `uvx` (the published wheel, or a locally built one via `uv build` + `uv tool install`); or set `DSH_PATENT_SERVICES_DIR` to a source checkout, which runs the module straight from that directory. Either way the model gains the parsing, export, rendering, search, experiment, and patent-discovery tools at the next boot.
 
 ## Skills delivery
 

@@ -7,6 +7,8 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+> Relative links in this document follow the deepseek-harness monorepo layout. This repository is the extracted distribution — the full monorepo ships as the release's `dsh-patent-full.bundle` — so links that leave this directory resolve in the monorepo, not here.
+
 ## Summary
 
 The deterministic patent review, reachable from two surfaces: the human-facing `/patent-review` command and the model-facing `patent_review` tool. Both review one disclosure file or a directory of Markdown files and write the report to `review/`. The model cannot skip, reshape, or dilute the review — the orchestration is host data, and the model-facing surface only supplies the target path.

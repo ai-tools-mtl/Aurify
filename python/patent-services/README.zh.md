@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+> 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
+
 把专利交底书领域服务经 MCP stdio 暴露给 dsh `patent` profile：模板/参考文献解析、整项目导出、申请文件导出、drawio 附图渲染、归档检索、docker 仿真实验与中国专利发现。经 [`@deepseek-ai/dsh-mcp-client`](../../packages/mcp/mcp-client/README.zh.md) 挂载后，工具以 `mcp__patent__parse_disclosure_docx`、`mcp__patent__export_disclosure`、`mcp__patent__export_application_docs`、`mcp__patent__render_drawio_figure`、`mcp__patent__render_html_figure`、`mcp__patent__lint_drawio_figure`、`mcp__patent__search_patent_archive`、`mcp__patent__run_experiment` 与 `mcp__patent__search_cn_patents` 出现在模型工具表。
 
 ## 工具
@@ -28,7 +30,12 @@ uv run --project python/patent-services pytest                      # tests
 uv build                                                            # wheel + sdist into dist/
 ```
 
-wheel 是可安装形态：自带模板与 Dockerfile 资产和 `patent-services` console script。`patent` bundle 挂载的客户端行有两个默认关闭的 opt-in 门（disabled——在 `dsh --profile patent --dump-config` 中可见，但不出现在工具表）：设 `DSH_PATENT_SERVICES` 经 `uvx --from deepseek-harness-patent-services patent-services` 运行已安装的包；或设 `DSH_PATENT_SERVICES_DIR`（本检出的绝对路径）直接从源码运行模块。
+wheel 是可安装形态：自带模板与 Dockerfile 资产和 `patent-services` console script。`patent` bundle 挂载的客户端行藏在若干 opt-in 门之后，默认全关（disabled——在 `dsh --profile patent --dump-config` 中可见，但不出现在工具表）：
+
+- **单文件方式（首选）**：`~/.dsh/patent-services.yaml` 写 `mcp_enabled: true`——**总开关，两种模式都必须写**——再加 `mcp_project_dir: <本检出的绝对路径>`（源码模式；相对路径、或缺 `pyproject.toml` 的目录会被拒绝并给出可读原因）或 `mcp_wheel: true`（wheel 模式）。wheel 模式要求先把 wheel 装成 uv 工具：`uv tool install <dist-dir>/deepseek_harness_patent_services-<version>-py3-none-any.whl`——本包未发布 PyPI，`uvx` 只解析 `uv tool install` 装过的东西。tool-patent 插件在加载时读该文件并自行装载客户端。
+- **环境变量方式（脚本化场景）**：设 `DSH_PATENT_SERVICES` 经 `uvx --from deepseek-harness-patent-services patent-services` 运行已安装的包；或设 `DSH_PATENT_SERVICES_DIR`（本检出的绝对路径）直接从源码运行模块。
+
+两种方式下该行都在**进程启动时**装载：新写的文件要到下一个 dsh 进程才生效，仅新开会话不够；`patent_setup_check` 区分「已装载/待重启」。
 
 ## Known Limitations and Deferred Work
 

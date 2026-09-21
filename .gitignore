@@ -5,3 +5,8 @@ __pycache__/
 .pytest_cache/
 dist/python/patent-services/
 *.pyc
+
+# The unpacked release bundle: install source for dist/install-patent-profile.ps1,
+# and a runtime dependency of every installed profile — those reference the
+# directory by absolute path, so never delete or move it after installing.
+dist/bundle/

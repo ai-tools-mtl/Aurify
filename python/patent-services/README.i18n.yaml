@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write python/patent-services/README.md
-README.md: d05029a7ce4884c4bdd5f49123c1b5e27b20859e
-README.zh.md: 1d9d55f7ba9d4efde7141fed6548de2cb0b25a92
+README.md: 391e5a0db726a23fd3ec80cb36b29207183134ac
+README.zh.md: cb67b9cfc3bbf0f9c55a5d479d2d9711d4cb8a6c

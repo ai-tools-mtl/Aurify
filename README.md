@@ -33,16 +33,25 @@
 
 前置：[DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或 dsh ≥0.1.5）；可选 uv（Python 服务）与 Docker Desktop（附图渲染、仿真实验）。
 
-**方式 A · 一键安装器（Windows，推荐）**——解包为目录，跑安装器；建档案、写 overrides、装包、装 persona、验证全自动，幂等可重跑：
+**方式 A · 一键安装器（Windows，推荐）**——先在本仓库根目录把插件解包成**目录**（安装器要求 `<dist目录>\bundle\` 与 tarball 同级），再跑安装器；建档案、写 overrides、装包、装 persona、验证全自动，幂等可重跑：
 
-```sh
-mkdir bundle && tar -xzf dist/mtl-academic-dsh-patent-0.1.6-alpha.1.tgz -C bundle --strip-components=1
-powershell -ExecutionPolicy Bypass -File dist/install-patent-profile.ps1 -Name patent-demo -DistDir <dist目录>
+```powershell
+mkdir dist\bundle
+tar -xzf dist\mtl-academic-dsh-patent-0.1.6-alpha.1.tgz -C dist\bundle --strip-components=1
+powershell -ExecutionPolicy Bypass -File dist\install-patent-profile.ps1 -Name patent-demo -DistDir "$PWD\dist"
 ```
+
+`-DistDir` 一律给**绝对路径**（上例的 `$PWD\dist`）；它会原样写进档案清单的 `file:` 依赖，而 dsh 是按**档案目录**（不是按当前目录）解析这些路径的——写成相对路径装出来的档案，下次启动直接报 `cannot resolve profile bundle`，桌面版根本打不开该档案。安装器已把 `-DistDir` 锚定为绝对路径，手改清单时同样必须写绝对路径。
+
+解包出来的 `dist\bundle\` 与 `dist\*.tgz` 是安装源，**装完别删、别移动**：档案清单用绝对路径引用 `bundle\` 目录，桌面版启动自愈会把指向不存在目录的 `file:` 依赖判为死链卸掉。
+
+> Windows 上如果 `tar` 命中 Git 自带的那份（`C:\Program Files\Git\usr\bin\tar.exe`），在受限 shell/沙箱里会以 `couldn't create signal pipe, Win32 error 5` 直接崩；换成系统自带的 `C:\Windows\System32\tar.exe`（Win10 1803+ 自带 bsdtar）即可。
 
 macOS/Linux 无安装器，直接走方式 B——路径替换（`~/.dsh`、桌面版垫片 `~/.local/bin/dsh`、环境变量进 shell profile）见 INSTALL-NEW-PROFILE.md 的替换表。
 
-**方式 B · 手动安装**——五步：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 建 profile → 写 pnpm overrides → `dsh plugin add "file:<DIST>/bundle"` → 装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`）；可选追加 Python 服务（`uv tool install` wheel + 用户环境变量 `DSH_PATENT_SERVICES=1`，重启桌面版）。逐步命令见 [dist/README.md 的方式 B](dist/README.md)。
+**方式 B · 手动安装**——五步：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 建 profile → 写 pnpm overrides → `dsh plugin add "file:<DIST>/bundle"` → 装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`）；可选追加 Python 服务（`uv tool install` wheel + 用户环境变量 `DSH_PATENT_SERVICES=1`，重启桌面版）。**`<DIST>` 与清单里所有 `file:` 路径都必须是绝对路径**（`file:./bundle` 这类相对值会按档案目录解析，直接让档案不可启动）；逐步命令见 [dist/README.md 的方式 B](dist/README.md)。
+
+**装进已有档案（包括桌面版自建的档案）**——安装器是合并写入：档案清单里既有的依赖与 bundles 层（桌面版自己的 `dsh-tauri*`、`dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`）会保留，只新增本插件需要的条目。**不要用编辑器整个覆盖 `package.json`**：清单外的包会被 pnpm 当多余包删掉，档案就丢了桌面版插件。装完先跑 `dsh --profile <档案名> --dump-config`（退出码必须为 0）再重启桌面版——清单解析不了时桌面版会直接打不开该档案。细节与恢复步骤见 [dist/README.md 的「装进已有档案」](dist/README.md)。
 
 ## 仓库结构
 
