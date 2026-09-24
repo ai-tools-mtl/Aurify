@@ -1,6 +1,6 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-**0.1.6-alpha.2** · 2026-09-24 打包 · tarball=@mtl-academic 改名后 alpha.2 态 TS / wheel=d04f14094d 态 python(不变)
+**0.1.6-alpha.3** · 2026-09-24 打包 · tarball=@mtl-academic alpha.3(setup-check 改真实 uvx 探测)/ wheel=0.1.0(PyPI)
 
 **本版要点**：MCP 装载前校验（相对路径、缺 `pyproject.toml` 直接拒绝）、env 模式补绝对路径校验、wheel 模式探测 uv 工具、安装器 overrides 原位刷新，且 `-DistDir` 自动锚定为绝对路径。更早的变更见 `git log` 与本仓库的 Release 说明。
 
@@ -76,7 +76,7 @@ dsh --profile patent-demo --dump-config
 
 ```sh
 mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.2.tgz -C bundle --strip-components=1
+tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.3.tgz -C bundle --strip-components=1
 ```
 
 ```powershell
@@ -97,8 +97,8 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 
 ```yaml
 overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.2.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.2.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.3.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.3.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
@@ -191,7 +191,7 @@ mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（离线机器�
 | 装完测试 `dsh ... --dump-config` 报 `EPERM: operation not permitted, open '...\cordis.yml'` | 不是档案坏了：`--dump-config` 会重写档案根部的 `cordis.yml`，只读/受限 shell（或 AI 沙箱）里跑就会这样。用有写权限的普通终端重跑即可 |
 | Windows 上 `tar -xzf` 报 `couldn't create signal pipe, Win32 error 5` | `tar` 命中了 Git 自带的 MSYS 版，在受限 shell / 沙箱里起不来。改用 `C:\Windows\System32\tar.exe -xzf ... -C ... --strip-components=1` |
 | 模型看不到导出/渲染/检索工具 | Python 服务门没开：`~/.dsh/patent-services.yaml` 缺 `mcp_enabled: true`（总开关，只有 `mcp_wheel`/`mcp_project_dir` 不生效），或配置写得晚于进程启动——MCP 行在进程启动时装载，**完整重启桌面壳**才对（新开会话不够）。会话内 `patent_setup_check` 区分「已装载/待重启」 |
-| wheel 模式自检说「未检出已安装的 patent-services 包」 | 先直接验证 uvx 通路：`uvx --from deepseek-harness-patent-services python -c "import patent_services"`（需 `uv`/`uvx` 在 PATH 且可达 PyPI；注意自检的 wheel 探测走 `uv tool list`，PyPI+uvx 模式下未 `uv tool install` 时会误报此行，以上命令通过即实际可用）。离线机器：`uv tool install <DIST>\deepseek_harness_patent_services-0.1.0-py3-none-any.whl` 后重启 |
+| wheel 模式自检说「uvx 拉取 patent-services 失败」 | 自检（0.1.6-alpha.3 起）直接跑 MCP 行同款 `uvx --from deepseek-harness-patent-services python -c "import patent_services"`：失败通常是 `uv`/`uvx` 不在 PATH 或 PyPI 不可达，按行内指引处理；离线机器：`uv tool install <DIST>\deepseek_harness_patent_services-0.1.0-py3-none-any.whl` 后重启 |
 | 审查报 "model not found" / 鉴权错误 | 会话里换一个你所用网关**确实支持**的模型（审查要真跑评分子代理）。经 GLM 网关调用默认 deepseek 线会报 model not found；本发行包推荐 GLM 网关下的 GLM 模型组，组名以你 `Settings → Models` 实际配置为准（文档里的 `zai-coding-cn` 只是示例） |
 | 某个审查维度报全部评分失败 | 网关限流。脚本化审查会分批退避重试，再跑一次 `patent_review` 通常就恢复 |
 
