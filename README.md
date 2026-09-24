@@ -49,7 +49,7 @@ powershell -ExecutionPolicy Bypass -File dist\install-patent-profile.ps1 -Name p
 
 macOS/Linux 无安装器，直接走方式 B——路径替换（`~/.dsh`、桌面版垫片 `~/.local/bin/dsh`、环境变量进 shell profile）见 INSTALL-NEW-PROFILE.md 的替换表。
 
-**方式 B · 手动安装**——五步：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 建 profile → 写 pnpm overrides → `dsh plugin add "file:<DIST>/bundle"` → 装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`）；可选追加 Python 服务（`uv tool install` wheel + 用户环境变量 `DSH_PATENT_SERVICES=1`，重启桌面版）。**`<DIST>` 与清单里所有 `file:` 路径都必须是绝对路径**（`file:./bundle` 这类相对值会按档案目录解析，直接让档案不可启动）；逐步命令见 [dist/README.md 的方式 B](dist/README.md)。
+**方式 B · 手动安装**——五步：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 建 profile → 写 pnpm overrides → `dsh plugin add "file:<DIST>/bundle"` → 装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`）；可选追加 Python 服务（已发布 PyPI：`~/.dsh/patent-services.yaml` 开 `mcp_enabled` + `mcp_wheel` 即可，`uvx` 自动拉取，重启桌面版）。**`<DIST>` 与清单里所有 `file:` 路径都必须是绝对路径**（`file:./bundle` 这类相对值会按档案目录解析，直接让档案不可启动）；逐步命令见 [dist/README.md 的方式 B](dist/README.md)。
 
 **装进已有档案（包括桌面版自建的档案）**——安装器是合并写入：档案清单里既有的依赖与 bundles 层（桌面版自己的 `dsh-tauri*`、`dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`）会保留，只新增本插件需要的条目。**不要用编辑器整个覆盖 `package.json`**：清单外的包会被 pnpm 当多余包删掉，档案就丢了桌面版插件。装完先跑 `dsh --profile <档案名> --dump-config`（退出码必须为 0）再重启桌面版——清单解析不了时桌面版会直接打不开该档案。细节与恢复步骤见 [dist/README.md 的「装进已有档案」](dist/README.md)。
 

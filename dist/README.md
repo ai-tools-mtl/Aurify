@@ -158,26 +158,22 @@ dsh --profile patent-demo --dump-config
 
 ### 导出/检索/实验/查新服务（9 个 MCP 工具）
 
-需要 [uv](https://docs.astral.sh/uv/)（安装：`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`），然后：
+需要 [uv](https://docs.astral.sh/uv/)（安装：`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`）。
 
-```sh
-uv tool install "<DIST>/deepseek_harness_patent_services-0.1.0-py3-none-any.whl"
-```
-
-wheel 模式的前提就是这一步（该包未发布 PyPI，`uvx` 只能解析 `uv tool install` 装过的工具）；换了 wheel 版本要重装一次，装了源码目录则不需要。
+wheel 模式无需预装任何包：`mcp_wheel: true` 启用后，`uvx` 会从 [PyPI](https://pypi.org/project/deepseek-harness-patent-services/) 自动拉取 `deepseek-harness-patent-services` 并在首次使用时运行。离线机器的替代路径：`uv tool install "<DIST>/deepseek_harness_patent_services-0.1.0-py3-none-any.whl"` 装本地 wheel，效果相同（离线模式换 wheel 版本要重装一次，PyPI 模式不用）。
 
 > 若 `irm` 在受限 shell / 沙箱里报「基础连接已经关闭」或 `SEC_E_NO_CREDENTIALS`（.NET schannel 取不到凭证），改用系统自带的 curl 下载再执行：
 > ```powershell
 > curl.exe -LsSf -o "$env:TEMP\uv-install.ps1" https://astral.sh/uv/install.ps1
 > powershell -ExecutionPolicy Bypass -File "$env:TEMP\uv-install.ps1"
 > ```
-> 安装脚本把 `uv`/`uvx` 放到 `%USERPROFILE%\.local\bin` 并写进用户 PATH；**PATH 变更对已运行的进程无效**，所以 uv 装完后要重启桌面版才会被 MCP 行找到（正好和「MCP 行在进程启动时装载」是同一次重启）。安装脚本与 `uv tool install` 都会打印一句 `warning: ...\.local\bin is not on your PATH`——那是**当前这个 shell** 的 PATH 还没刷新（用户级 PATH 已经写好），重启终端/桌面版即消失，不用处理。
+> 安装脚本把 `uv`/`uvx` 放到 `%USERPROFILE%\.local\bin` 并写进用户 PATH；**PATH 变更对已运行的进程无效**，所以 uv 装完后要重启桌面版才会被 MCP 行找到（正好和「MCP 行在进程启动时装载」是同一次重启）。安装脚本会打印一句 `warning: ...\.local\bin is not on your PATH`——那是**当前这个 shell** 的 PATH 还没刷新（用户级 PATH 已经写好），重启终端/桌面版即消失，不用处理。
 
 启用方式（首选，单文件）：在 `~/.dsh/patent-services.yaml` 写——
 
 ```yaml
 mcp_enabled: true          # 总开关，两种模式都必须写；只写下面那行不会生效
-mcp_wheel: true            # 装了 wheel 的机器（uv tool install 过本包的 wheel）
+mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（离线机器可改为 uv tool install 本地 wheel）
 ```
 
 用源码的机器则写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（相对路径会被拒绝；目录里必须有 `pyproject.toml`）。布尔值 `true`/`1`/`yes`/`on` 均可，注释用 `#`。
@@ -234,7 +230,7 @@ mcp_wheel: true            # 装了 wheel 的机器（uv tool install 过本包�
 | 装完测试 `dsh ... --dump-config` 报 `EPERM: operation not permitted, open '...\cordis.yml'` | 不是档案坏了：`--dump-config` 会重写档案根部的 `cordis.yml`，只读/受限 shell（或 AI 沙箱）里跑就会这样。用有写权限的普通终端重跑即可 |
 | Windows 上 `tar -xzf` 报 `couldn't create signal pipe, Win32 error 5` | `tar` 命中了 Git 自带的 MSYS 版，在受限 shell / 沙箱里起不来。改用 `C:\Windows\System32\tar.exe -xzf ... -C ... --strip-components=1` |
 | 模型看不到导出/渲染/检索工具 | Python 服务门没开：`~/.dsh/patent-services.yaml` 缺 `mcp_enabled: true`（总开关，只有 `mcp_wheel`/`mcp_project_dir` 不生效），或配置写得晚于进程启动——MCP 行在进程启动时装载，**完整重启桌面壳**才对（新开会话不够）。会话内 `patent_setup_check` 区分「已装载/待重启」 |
-| wheel 模式自检说「未检出已安装的 patent-services 包」 | 该包未发布 PyPI，`uvx` 只能解析 `uv tool install` 装过的工具：先在 `<DIST>` 跑 `uv tool install deepseek_harness_patent_services-0.1.0-py3-none-any.whl`，再重启 |
+| wheel 模式自检说「未检出已安装的 patent-services 包」 | 先直接验证 uvx 通路：`uvx --from deepseek-harness-patent-services python -c "import patent_services"`（需 `uv`/`uvx` 在 PATH 且可达 PyPI；注意自检的 wheel 探测走 `uv tool list`，PyPI+uvx 模式下未 `uv tool install` 时会误报此行，以上命令通过即实际可用）。离线机器：`uv tool install <DIST>\deepseek_harness_patent_services-0.1.0-py3-none-any.whl` 后重启 |
 | 审查报 "model not found" / 鉴权错误 | 会话里换一个你所用网关**确实支持**的模型（审查要真跑评分子代理）。经 GLM 网关调用默认 deepseek 线会报 model not found；本发行包推荐 GLM 网关下的 GLM 模型组，组名以你 `Settings → Models` 实际配置为准（文档里的 `zai-coding-cn` 只是示例） |
 | 某个审查维度报全部评分失败 | 网关限流。脚本化审查会分批退避重试，再跑一次 `patent_review` 通常就恢复 |
 
@@ -242,4 +238,4 @@ mcp_wheel: true            # 装了 wheel 的机器（uv tool install 过本包�
 
 - 面向 dsh 0.1.5-rc 至 0.1.6-alpha 线核心（桌面版当前 rc 线实测可用）；旧核心缺 Web 卡片时工具显示为文本行，功能不受影响。
 - 中国专利查新（search_cn_patents）需要本机能访问 patents.google.com（通常走代理）；检索不可达时工具会明确报错提示，不会返回编造的结果。
-- npm 路线：三个 `@mtl-academic` 包发布后，一条 `dsh plugin add @mtl-academic/dsh-patent` 即完成安装。npm/PyPI 尚未就绪或需离线安装时，走方式 A/B 的本地路径配置。
+- npm 与 PyPI 均已发布：JS 侧一条 `dsh plugin add @mtl-academic/dsh-patent`；Python 服务 `uvx` 从 PyPI 自动拉取（`mcp_enabled` + `mcp_wheel` 两行启用）。离线安装仍走方式 A/B 的本地路径配置。
