@@ -3,7 +3,7 @@ description: "Deterministic patent surfaces: five-party alignment readiness scor
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-patent
+# @mtl-academic/dsh-tool-patent
 
 English | [中文](README.zh.md)
 

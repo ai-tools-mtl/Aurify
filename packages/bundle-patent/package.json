@@ -1,14 +1,14 @@
 {
   "name": "@mtl-academic/dsh-patent",
-  "description": "The dsh patent-writing bundle: a personal disclosure-drafting layer over dsh-base with its tools, persona, and shipped skills",
+  "description": "The dsh patent-writing bundle: a disclosure-drafting capability layer over dsh-base with its tools, review command, and shipped skills",
   "version": "0.1.6-alpha.1",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/bundle/patent"
+    "url": "git+https://github.com/ai-tools-mtl/Aurify.git",
+    "directory": "packages/bundle-patent"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -61,8 +61,8 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-command-patent-review": "workspace:^",
-    "@deepseek-ai/dsh-tool-patent": "workspace:^",
+    "@mtl-academic/dsh-command-patent-review": "workspace:^",
+    "@mtl-academic/dsh-tool-patent": "workspace:^",
     "yaml": "^2.4.2"
   },
   "peerDependencies": {

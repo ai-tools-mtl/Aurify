@@ -1,12 +1,12 @@
 /**
- * Package-owned invariant companion for `@deepseek-ai/dsh-command-patent-review`.
- * @module @deepseek-ai/dsh-command-patent-review/invariant
+ * Package-owned invariant companion for `@mtl-academic/dsh-command-patent-review`.
+ * @module @mtl-academic/dsh-command-patent-review/invariant
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
-const PACKAGE_NAME = '@deepseek-ai/dsh-command-patent-review'
+const PACKAGE_NAME = '@mtl-academic/dsh-command-patent-review'
 
 /** Cordis companion plugin name. */
 export const name = 'command-patent-review-invariant'

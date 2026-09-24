@@ -32,18 +32,25 @@ A personal invention-disclosure drafting layer over [`dsh-base`](../base/README.
 
 ### Install into a profile
 
-The bundle pulls the [`tool-patent`](../../patent/tool-patent/README.md) and [`command-patent-review`](../../patent/command-patent-review/README.md) packages as its own dependencies, so one install brings the whole feature. Until the bundle is published to npm, the verified path is the release's **unpacked directory** — neither this package nor its two dependencies (nor the vendored `@deepseek-ai/schemastery` / `@deepseek-ai/cosmokit`) are on the registry:
+The bundle pulls the [`tool-patent`](../../tool-patent/README.md) and [`command-patent-review`](../../command-patent-review/README.md) packages as its own dependencies, so one install brings the whole feature. From npm (all three packages publish under the `@mtl-academic` scope):
+
+```text
+dsh --profile patent --from-default-profile web           # create the profile (base + web app) if it does not exist yet
+dsh plugin --profile patent add @mtl-academic/dsh-patent  # add the bundle as its third layer
+```
+
+Offline, the verified path is the release's **unpacked directory** — the two dependency packages then install from that release's tarballs through an `overrides:` block instead of the registry:
 
 ```text
 dsh --profile patent --from-default-profile web           # create the profile (base + web app) if it does not exist yet
 dsh plugin --profile patent add "file:<dist-dir>/bundle"  # add the bundle as its third layer
 ```
 
-`<dist-dir>` and every `file:` value must be an **absolute path**. dsh resolves `file:` dependencies against the *profile* directory, never against the shell you typed them in, so a relative value installs a profile that cannot boot at all (`cannot resolve profile bundle`) — and the desktop app then cannot open that profile. The unpublished internal packages resolve from the release's four tarballs through an `overrides:` block in the profile's `pnpm-workspace.yaml`; `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` means that block is missing or mistyped. The unpacked `bundle/` directory is a runtime dependency of the installed profile, so do not delete or move the release afterwards.
+`<dist-dir>` and every `file:` value must be an **absolute path**. dsh resolves `file:` dependencies against the *profile* directory, never against the shell you typed them in, so a relative value installs a profile that cannot boot at all (`cannot resolve profile bundle`) — and the desktop app then cannot open that profile. In the offline path the internal packages resolve from the release's tarballs through an `overrides:` block in the profile's `pnpm-workspace.yaml`; `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` means that block is missing or mistyped. The unpacked `bundle/` directory is a runtime dependency of the installed profile, so do not delete or move the release afterwards.
 
 After the install, add the persona (next section) and verify **before** restarting the desktop app: `dsh --profile patent --dump-config` must exit 0 and list the `tool-patent` / `patent-assets` / `command-patent-review` / `mcp-patent-services` rows plus a `persona:` key. The step-by-step walkthrough and the one-command Windows installer live in [`dist/README.md`](../../dist/README.md) (Chinese) and [`dist/INSTALL-NEW-PROFILE.md`](../../dist/INSTALL-NEW-PROFILE.md) (English).
 
-Removing the layer is `dsh plugin --profile patent remove @mtl-academic/dsh-patent`; once the bundle is on npm this whole step collapses to `dsh plugin --profile patent add @mtl-academic/dsh-patent`. The profile is created by `dsh plugin` (or by the launcher's `patent` template in the development checkout), and a base-backed profile mounts the bundle's rows too — only the drafting surface differs.
+Removing the layer is `dsh plugin --profile patent remove @mtl-academic/dsh-patent`. The profile is created by `dsh plugin` (or by the launcher's `patent` template in the development checkout), and a base-backed profile mounts the bundle's rows too — only the drafting surface differs.
 
 The in-box resolution anchors apply: the bundle and its two dependency packages resolve from the profile's `node_modules` once installed, and a missing `dsh.bundle.patch` declaration fails startup loudly.
 

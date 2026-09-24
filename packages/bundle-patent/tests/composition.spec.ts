@@ -33,9 +33,9 @@ describe('the patent bundle patch', () => {
     const rows = await loadPatch()
     const inserted = rows.find(row => Array.isArray(row.insert))?.insert ?? []
     expect(inserted).toEqual([
-      { id: 'tool-patent', name: '@deepseek-ai/dsh-tool-patent' },
+      { id: 'tool-patent', name: '@mtl-academic/dsh-tool-patent' },
       { id: 'patent-assets', name: '@mtl-academic/dsh-patent' },
-      { id: 'command-patent-review', name: '@deepseek-ai/dsh-command-patent-review' },
+      { id: 'command-patent-review', name: '@mtl-academic/dsh-command-patent-review' },
       expect.objectContaining({ id: 'mcp-patent-services', name: '@deepseek-ai/dsh-mcp-client' }),
     ])
   })

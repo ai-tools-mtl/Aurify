@@ -7,7 +7,7 @@
  * `/patent-loop` command read project state from disk and share one
  * assessor, so the completion verdict never depends on the model's own
  * claim of being done. Named exports preserve loader injection metadata.
- * @module @deepseek-ai/dsh-tool-patent
+ * @module @mtl-academic/dsh-tool-patent
  */
 
 import { resolve } from 'node:path'
@@ -280,7 +280,7 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.tools.register(defineTool({
     name: 'patent_prose_lint',
     description: 'Deterministic de-AI prose lint for disclosure chapter text, the machine half of the '
-      + 'patent-de-ai skill: filler transition phrases (值得注意的是/换言之/综上所述…), sentences over 150 '
+      + 'patent-de-ai skill: filler and apologetic phrases (值得注意的是/换言之/综上所述/遗憾的是…), sentences over 150 '
       + 'characters, triple parallelisms, paragraph-ending summary sentences, and textbook definitions. '
       + 'Errors must be cleared before a chapter counts as drafted; warnings are drafting hints. '
       + 'Run it on every drafted or revised chapter before presenting it.',

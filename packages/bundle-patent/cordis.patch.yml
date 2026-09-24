@@ -22,7 +22,7 @@
 - insert:
     # The five-party alignment readiness scorer.
     - id: tool-patent
-      name: '@deepseek-ai/dsh-tool-patent'
+      name: '@mtl-academic/dsh-tool-patent'
 
     # Registers the shipped patent SKILL.md assets as runtime skills.
     - id: patent-assets
@@ -30,7 +30,7 @@
 
     # The deterministic /patent-review command (fixed workflow script + versioned rubric).
     - id: command-patent-review
-      name: '@deepseek-ai/dsh-command-patent-review'
+      name: '@mtl-academic/dsh-command-patent-review'
 
     # The Python MCP services (template parsing, project export, figure
     # rendering, archive search). Two enable modes, both opt-in; with neither

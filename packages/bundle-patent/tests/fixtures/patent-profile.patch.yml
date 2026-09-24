@@ -13,7 +13,7 @@
 - insert:
     # The five-party alignment scorer, the claims/prose lints, the loop assessor.
     - id: tool-patent
-      name: '@deepseek-ai/dsh-tool-patent'
+      name: '@mtl-academic/dsh-tool-patent'
 
     # The bundle's own carrier: shipped SKILL.md assets as runtime skills plus
     # the discussion sampling default.
@@ -22,7 +22,7 @@
 
     # The deterministic /patent-review command (fixed workflow script + versioned rubric).
     - id: command-patent-review
-      name: '@deepseek-ai/dsh-command-patent-review'
+      name: '@mtl-academic/dsh-command-patent-review'
 
 # The MCP services row is opt-in by design; it is not inserted here at all —
 # the smoke asserts the patent rows that MUST be live, not the env-gated one.

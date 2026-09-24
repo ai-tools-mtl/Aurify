@@ -119,7 +119,7 @@ function fileNames(listing: DirectoryListing | null, suffix = ''): string[] {
 
 /**
  * The loop assessor's rules re-derived for the dashboard. These mirrors of
- * `@deepseek-ai/dsh-tool-patent/loop` stay presence-based (the client has no
+ * `@mtl-academic/dsh-tool-patent/loop` stay presence-based (the client has no
  * file bytes, only first pages) and never claim the 成稿 verdict — the
  * patent_loop tool remains the authority. Keep the two in step by comment.
  */

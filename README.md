@@ -57,13 +57,13 @@ macOS/Linux 无安装器，直接走方式 B——路径替换（`~/.dsh`、桌�
 
 ```text
 packages/bundle-patent/            # 能力 bundle：14 技能 + Web 卡片/面板 + MCP 行（@mtl-academic/dsh-patent）
-packages/tool-patent/              # 就绪度打分、权利要求/正文检查、全流程推进工具（@deepseek-ai/dsh-tool-patent）
+packages/tool-patent/              # 就绪度打分、权利要求/正文检查、全流程推进工具（@mtl-academic/dsh-tool-patent）
 packages/command-patent-review/    # /patent-review 确定性审查命令 + patent_review 直通工具（七维 rubric）
 python/patent-services/            # Python MCP 服务：导出/解析/渲染/检索/实验/查新（8 工具）
 dist/                              # 可直接安装的 npm tarball + Python wheel + 一键安装器 + persona 补丁 + 接收方指南
 ```
 
-技术标识：npm 包 `@mtl-academic/dsh-patent`（未发布，用 `dist/` 内 tarball 安装）；Docker 镜像 `q771103517/dsh-patent`（附图渲染）与 `q771103517/dsh-patent-experiment`（仿真实验），首次使用自动拉取。
+技术标识：npm 包 `@mtl-academic/dsh-patent`（随两个 `@mtl-academic` 依赖包一同发布，发布后 `dsh plugin add @mtl-academic/dsh-patent` 直装；也可用 `dist/` 内 tarball 离线安装）；Docker 镜像 `q771103517/dsh-patent`（附图渲染）与 `q771103517/dsh-patent-experiment`（仿真实验），首次使用自动拉取。
 
 ## 开发
 

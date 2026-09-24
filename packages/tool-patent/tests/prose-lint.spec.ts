@@ -10,10 +10,19 @@ describe('lintProse', () => {
     expect(result.violations[0]?.excerpt).toContain('值得注意的是')
   })
 
-  it('flags the extended filler set (需要注意的是/众所周知/毋庸置疑/不可否认)', () => {
-    for (const phrase of ['需要注意的是', '众所周知', '毋庸置疑', '不可否认']) {
+  it('flags the extended filler set (需要注意的是/综上所述/由此可见/众所周知/毋庸置疑/不可否认)', () => {
+    for (const phrase of ['需要注意的是', '综上所述', '由此可知', '由此可见', '众所周知', '毋庸置疑', '不可否认']) {
       const result = lintProse(`分区调度器按负载分配光配额。${phrase}，该策略由中央节点统一执行。`)
       expect(result.summary.cliches, phrase).toBe(1)
+    }
+  })
+
+  it('flags apologetic openers with the fact-stating rewrite guidance', () => {
+    for (const phrase of ['遗憾的是', '不得不承认', '必须承认']) {
+      const result = lintProse(`限频重排模块已完成单集群验证。${phrase}，跨集群场景尚未评估。`)
+      expect(result.summary.cliches, phrase).toBe(1)
+      expect(result.summary.errors, phrase).toBe(1)
+      expect(result.violations[0]?.message, phrase).toContain('事实陈述')
     }
   })
 

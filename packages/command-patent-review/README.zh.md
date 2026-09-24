@@ -3,7 +3,7 @@ description: "确定性 rubric 审查：人类命令 /patent-review 与模型工
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-command-patent-review
+# @mtl-academic/dsh-command-patent-review
 
 [English](README.md) | 中文
 

@@ -81,8 +81,8 @@ C:\Users\<你的用户名>\.dsh\profiles\patent-demo\pnpm-workspace.yaml
 
 ```yaml
 overrides:
-  '@deepseek-ai/dsh-tool-patent': 'file:<DIST>/deepseek-ai-dsh-tool-patent-0.1.6-alpha.1.tgz'
-  '@deepseek-ai/dsh-command-patent-review': 'file:<DIST>/deepseek-ai-dsh-command-patent-review-0.1.6-alpha.1.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.1.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.1.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
@@ -97,8 +97,8 @@ nodeLinker: hoisted
 autoInstallPeers: false
 
 overrides:
-  '@deepseek-ai/dsh-tool-patent': 'file:<DIST>/deepseek-ai-dsh-tool-patent-0.1.6-alpha.1.tgz'
-  '@deepseek-ai/dsh-command-patent-review': 'file:<DIST>/deepseek-ai-dsh-command-patent-review-0.1.6-alpha.1.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.1.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.1.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
@@ -200,8 +200,8 @@ mcp_wheel: true            # 装了 wheel 的机器（uv tool install 过本包�
 |---|---|
 | `mtl-academic-dsh-patent-*.tgz` | 插件本体（含 14 个技能 + Web UI 卡片/面板），解包为 `bundle/` 目录安装 |
 | `bundle/` | 上一条解包出来的**目录**（安装源的真正形态，与 tarball 同级由安装器校验；装完别删别移动——档案清单用绝对路径引用它） |
-| `deepseek-ai-dsh-tool-patent-*.tgz` | 依赖：就绪度打分、权利要求/正文检查、全流程推进工具 |
-| `deepseek-ai-dsh-command-patent-review-*.tgz` | 依赖：/patent-review 审查命令 + patent_review 直通工具 |
+| `mtl-academic-dsh-tool-patent-*.tgz` | 依赖：就绪度打分、权利要求/正文检查、全流程推进工具 |
+| `mtl-academic-dsh-command-patent-review-*.tgz` | 依赖：/patent-review 审查命令 + patent_review 直通工具 |
 | `deepseek-ai-schemastery-*.tgz` / `deepseek-ai-cosmokit-*.tgz` | 依赖：配置校验库（vendored 构建版） |
 | `deepseek_harness_patent_services-*.whl` / `.tar.gz` | 可选 Python 服务（9 个 MCP 工具：导出/渲染/检索/实验/查新） |
 | `install-patent-profile.ps1` | 一键安装器（方式 A） |
@@ -242,4 +242,4 @@ mcp_wheel: true            # 装了 wheel 的机器（uv tool install 过本包�
 
 - 面向 dsh 0.1.5-rc 至 0.1.6-alpha 线核心（桌面版当前 rc 线实测可用）；旧核心缺 Web 卡片时工具显示为文本行，功能不受影响。
 - 中国专利查新（search_cn_patents）需要本机能访问 patents.google.com（通常走代理）；检索不可达时工具会明确报错提示，不会返回编造的结果。
-- 插件未发布到 npm/PyPI，故需要方式 A/B 的本地路径配置；正式发布后此步骤将退化为一条 `dsh plugin add @mtl-academic/dsh-patent`。
+- npm 路线：三个 `@mtl-academic` 包发布后，一条 `dsh plugin add @mtl-academic/dsh-patent` 即完成安装。npm/PyPI 尚未就绪或需离线安装时，走方式 A/B 的本地路径配置。

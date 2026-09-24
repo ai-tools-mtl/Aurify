@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-tool-patent",
+  "name": "@mtl-academic/dsh-tool-patent",
   "description": "Model-facing five-party alignment coverage scorer for patent disclosure briefs",
   "version": "0.1.6-alpha.1",
   "publishConfig": {
@@ -7,8 +7,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/patent/tool-patent"
+    "url": "git+https://github.com/ai-tools-mtl/Aurify.git",
+    "directory": "packages/tool-patent"
   },
   "type": "module",
   "main": "lib/index.js",

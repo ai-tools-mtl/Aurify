@@ -1,8 +1,9 @@
 /**
  * Deterministic de-AI prose lint for disclosure chapters: the machine half of
- * the patent-de-ai skill. The skill's six features become five checkable
- * rules — filler phrases, overlong sentences, triple parallelisms,
- * paragraph-ending summaries, and textbook definitions — each a pure function
+ * the patent-de-ai skill. The skill's seven features become five checkable
+ * rules — filler and apologetic phrases, overlong sentences, triple
+ * parallelisms, paragraph-ending summaries, and textbook definitions — each a
+ * pure function
  * over the submitted text, so "read like a senior patent engineer" stops
  * being a hope and becomes a gate the model must clear. Rhythm (rule 5) is
  * the one feature left to the checklist: no honest regex exists for it.
@@ -39,7 +40,16 @@ export interface ProseLintResult {
 const CLICHES = [
   '更为关键的是', '需要指出的是', '需特别指出', '换言之', '换句话说',
   '值得注意的是', '值得一提的是', '需要注意的是', '这意味着', '这表明', '综上所述',
-  '总而言之', '不难发现', '可以看出', '众所周知', '毋庸置疑', '不可否认',
+  '总而言之', '不难发现', '可以看出', '由此可知', '由此可见', '众所周知', '毋庸置疑', '不可否认',
+]
+
+/** Apologetic self-weakening openers (rule 7): the apology goes, the fact stays. */
+const APOLOGIES = ['遗憾的是', '不得不承认', '必须承认']
+
+/** Every banned phrase with its own rewrite guidance. */
+const CLICHE_RULES = [
+  ...CLICHES.map(phrase => ({ phrase, message: `套话转折词「${phrase}」——删掉或改写，直接陈述事实` })),
+  ...APOLOGIES.map(phrase => ({ phrase, message: `道歉式措辞「${phrase}」——删掉道歉姿态，改成事实陈述；局限本身照实保留` })),
 ]
 
 /** A sentence longer than this must be split (rule 2). */
@@ -76,14 +86,14 @@ function excerptOf(text: string, start: number, length: number): string {
  */
 export function lintProse(text: string): ProseLintResult {
   const violations: ProseViolation[] = []
-  for (const phrase of CLICHES) {
+  for (const { phrase, message } of CLICHE_RULES) {
     let from = 0
     while (true) {
       const index = text.indexOf(phrase, from)
       if (index < 0) break
       violations.push({
         rule: 'cliche', severity: 'error',
-        message: `套话转折词「${phrase}」——删掉或改写，直接陈述事实`,
+        message,
         excerpt: excerptOf(text, index, phrase.length),
       })
       from = index + phrase.length

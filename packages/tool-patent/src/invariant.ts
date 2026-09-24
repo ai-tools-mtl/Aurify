@@ -1,12 +1,12 @@
 /**
- * Package-owned invariant companion for `@deepseek-ai/dsh-tool-patent`.
- * @module @deepseek-ai/dsh-tool-patent/invariant
+ * Package-owned invariant companion for `@mtl-academic/dsh-tool-patent`.
+ * @module @mtl-academic/dsh-tool-patent/invariant
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
-const PACKAGE_NAME = '@deepseek-ai/dsh-tool-patent'
+const PACKAGE_NAME = '@mtl-academic/dsh-tool-patent'
 
 /** Cordis companion plugin name. */
 export const name = 'tool-patent-invariant'

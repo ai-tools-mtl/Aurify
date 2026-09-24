@@ -16,11 +16,13 @@ jobs:
       - name: Run patent-services test suite
         run: uv run --project python/patent-services --group test pytest python/patent-services/tests -q
 
-  # No TypeScript job on purpose: the three packages depend on ~90
-  # @deepseek-ai/* workspace packages that are not published to npm, so a
-  # standalone install (and therefore tsc/vitest) cannot resolve them here.
-  # The TS suites run inside the deepseek-harness monorepo; this repo's
-  # dsh-patent-full.bundle Release artifact carries that full build context.
+  # No TypeScript job on purpose: type-checking and vitest need the packages'
+  # devDependencies — roughly ninety @deepseek-ai/* workspace packages that
+  # exist only inside the deepseek-harness monorepo — so a standalone install
+  # cannot resolve them here. (The three published packages' runtime
+  # dependency surface is fully on npm; it is the test context that is not.)
+  # The TS suites run inside the monorepo; this repo's dsh-patent-full.bundle
+  # Release artifact carries that full build context.
 
   dist-integrity:
     runs-on: ubuntu-latest
@@ -29,8 +31,8 @@ jobs:
       - name: Dist artifacts present and non-empty
         run: |
           set -e
-          for f in mtl-academic-dsh-patent-*.tgz deepseek-ai-dsh-tool-patent-*.tgz \
-                   deepseek-ai-dsh-command-patent-review-*.tgz \
+          for f in mtl-academic-dsh-patent-*.tgz mtl-academic-dsh-tool-patent-*.tgz \
+                   mtl-academic-dsh-command-patent-review-*.tgz \
                    deepseek_harness_patent_services-*.whl; do
             match=(dist/$f)
             [ -e "${match[0]}" ] || { echo "missing dist artifact: $f"; exit 1; }

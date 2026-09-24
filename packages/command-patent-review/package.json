@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-command-patent-review",
+  "name": "@mtl-academic/dsh-command-patent-review",
   "description": "Human-facing /patent-review command: deterministic rubric review over a disclosure file or directory, report written to review/",
   "version": "0.1.6-alpha.1",
   "publishConfig": {
@@ -7,8 +7,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/patent/command-patent-review"
+    "url": "git+https://github.com/ai-tools-mtl/Aurify.git",
+    "directory": "packages/command-patent-review"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -33,7 +33,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-tool-patent": "workspace:^",
+    "@mtl-academic/dsh-tool-patent": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
@@ -46,7 +46,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-commands": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
-    "@deepseek-ai/dsh-tool-patent": "workspace:^",
+    "@mtl-academic/dsh-tool-patent": "workspace:^",
     "@deepseek-ai/dsh-workflow": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"

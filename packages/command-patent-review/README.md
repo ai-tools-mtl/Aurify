@@ -3,7 +3,7 @@ description: "The deterministic rubric review: the human /patent-review command 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-command-patent-review
+# @mtl-academic/dsh-command-patent-review
 
 English | [中文](README.zh.md)
 

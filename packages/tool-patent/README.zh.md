@@ -3,7 +3,7 @@ description: "确定性专利工具面：交底书 brief 的五方对齐就绪�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-patent
+# @mtl-academic/dsh-tool-patent
 
 [English](README.md) | 中文
 

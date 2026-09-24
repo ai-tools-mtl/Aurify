@@ -30,18 +30,25 @@ kind: "package-bundle"
 
 ### 安装进 profile
 
-发布的 bundle 把 [`tool-patent`](../../patent/tool-patent/README.zh.md) 与 [`command-patent-review`](../../patent/command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性。但在 bundle 发布到 npm 之前，已验证的安装路径是**解包出来的目录**——本包、它的两个依赖包，以及 vendored 的 `@deepseek-ai/schemastery` / `@deepseek-ai/cosmokit`，都还不在 registry 上：
+发布的 bundle 把 [`tool-patent`](../../tool-patent/README.zh.md) 与 [`command-patent-review`](../../command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性。npm 安装（三个包都以 `@mtl-academic` scope 发布）：
+
+```text
+dsh --profile patent --from-default-profile web           # 档案不存在时先按 web 模板创建（base + web app）
+dsh plugin --profile patent add @mtl-academic/dsh-patent  # 把本 bundle 加为档案的第三层
+```
+
+离线安装的已验证路径是**解包出来的目录**——两个依赖包改由档案 `overrides:` 块指向该版分发包的 tarball，不走 registry：
 
 ```text
 dsh --profile patent --from-default-profile web           # 档案不存在时先按 web 模板创建（base + web app）
 dsh plugin --profile patent add "file:<dist-dir>/bundle"  # 把本 bundle 加为档案的第三层
 ```
 
-`<dist-dir>` 与所有 `file:` 值都必须写**绝对路径**。dsh 是按**档案目录**（不是你敲命令时所在的目录）解析 `file:` 依赖的：相对路径装出来的档案根本起不来（`cannot resolve profile bundle`），桌面版也就打不开该档案。未发布的内部包靠档案 `pnpm-workspace.yaml` 里的 `overrides:` 块指向分发包的四个 tarball；报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` 就是这块缺失或路径写错了。解包出来的 `bundle/` 目录是已装档案的**运行期依赖**，装完别删、别移动分发包。
+`<dist-dir>` 与所有 `file:` 值都必须写**绝对路径**。dsh 是按**档案目录**（不是你敲命令时所在的目录）解析 `file:` 依赖的：相对路径装出来的档案根本起不来（`cannot resolve profile bundle`），桌面版也就打不开该档案。离线路径下，内部包靠档案 `pnpm-workspace.yaml` 里的 `overrides:` 块指向分发包的 tarball；报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` 就是这块缺失或路径写错了。解包出来的 `bundle/` 目录是已装档案的**运行期依赖**，装完别删、别移动分发包。
 
 装完接着装 persona（下一节），并在**重启桌面版之前**验收：`dsh --profile patent --dump-config` 必须退出码为 0，且列出 `tool-patent` / `patent-assets` / `command-patent-review` / `mcp-patent-services` 四行与 `persona:` 键。逐步命令与 Windows 一键安装器见 [`dist/README.md`](../../dist/README.md)（中文）与 [`dist/INSTALL-NEW-PROFILE.md`](../../dist/INSTALL-NEW-PROFILE.md)（英文）。
 
-移除本层用 `dsh plugin --profile patent remove @mtl-academic/dsh-patent`；bundle 发布到 npm 后，上面整步会退化成一条 `dsh plugin --profile patent add @mtl-academic/dsh-patent`。仅由 `dsh plugin` 创建的档案以 base 为基础，本 bundle 的各行同样挂载，只是撰写界面不同；开发用的源码检出则直接随附 `patent` 模板，由启动器组装同一套层栈。
+移除本层用 `dsh plugin --profile patent remove @mtl-academic/dsh-patent`。仅由 `dsh plugin` 创建的档案以 base 为基础，本 bundle 的各行同样挂载，只是撰写界面不同；开发用的源码检出则直接随附 `patent` 模板，由启动器组装同一套层栈。
 
 树内解析锚点照常生效：bundle 与它的两个依赖包安装后从 profile 的 `node_modules` 解析；缺失 `dsh.bundle.patch` 声明会让启动明确失败。
 

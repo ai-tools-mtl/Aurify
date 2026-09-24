@@ -84,8 +84,8 @@ $bundleDir = (Resolve-Path -LiteralPath $bundleDir).Path
 
 $patterns = @{
   bundle    = "mtl-academic-dsh-patent-*.tgz"
-  tool      = "deepseek-ai-dsh-tool-patent-*.tgz"
-  command   = "deepseek-ai-dsh-command-patent-review-*.tgz"
+  tool      = "mtl-academic-dsh-tool-patent-*.tgz"
+  command   = "mtl-academic-dsh-command-patent-review-*.tgz"
   schemastery = "deepseek-ai-schemastery-*.tgz"
   cosmokit  = "deepseek-ai-cosmokit-*.tgz"
 }
@@ -190,13 +190,13 @@ $toolTgz = $tarballs['tool']; $commandTgz = $tarballs['command']
 $smTgz = $tarballs['schemastery']; $ckTgz = $tarballs['cosmokit']
 $overrides = @"
 
-# Aurify plugin: the internal packages are resolved from local tarballs until
-# they are published to npm (the registry only carries the 3.18.x schemastery
-# line; the bundle was built against the vendored fork). Remove this block
-# after publication.
+# Aurify plugin: the offline path pins the two internal packages (and the
+# schemastery/cosmokit fork line the bundle was built against) to this
+# release's local tarballs. Install from npm instead and this block is not
+# written at all; remove it to let the registry resolve everything.
 overrides:
-  '@deepseek-ai/dsh-tool-patent': 'file:$distForward/$toolTgz'
-  '@deepseek-ai/dsh-command-patent-review': 'file:$distForward/$commandTgz'
+  '@mtl-academic/dsh-tool-patent': 'file:$distForward/$toolTgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:$distForward/$commandTgz'
   '@deepseek-ai/schemastery': 'file:$distForward/$smTgz'
   '@deepseek-ai/cosmokit': 'file:$distForward/$ckTgz'
 "@
@@ -208,8 +208,8 @@ if ($ws -match "overrides:") {
   # refreshed in place on every run — leaving it would pin the previous
   # release's tarball names and break `dsh plugin install` after an upgrade.
   $refreshTargets = [ordered]@{
-    "'@deepseek-ai/dsh-tool-patent'" = "file:$distForward/$toolTgz"
-    "'@deepseek-ai/dsh-command-patent-review'" = "file:$distForward/$commandTgz"
+    "'@mtl-academic/dsh-tool-patent'" = "file:$distForward/$toolTgz"
+    "'@mtl-academic/dsh-command-patent-review'" = "file:$distForward/$commandTgz"
     "'@deepseek-ai/schemastery'" = "file:$distForward/$smTgz"
     "'@deepseek-ai/cosmokit'" = "file:$distForward/$ckTgz"
   }

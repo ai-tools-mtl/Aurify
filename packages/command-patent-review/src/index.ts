@@ -6,7 +6,7 @@
  * returns a UI-only summary. `CommandResult` never enters model history; the
  * report reaches the model only when it later reads the file through the fs
  * tools, so "model-visible ⟺ logged" stays intact.
- * @module @deepseek-ai/dsh-command-patent-review
+ * @module @mtl-academic/dsh-command-patent-review
  */
 
 import { readFile, readdir, writeFile, mkdir, access } from 'node:fs/promises'
@@ -22,8 +22,8 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-workflow'
 import { isReviewOutcome, renderReport, summarize, type ReviewOutcome } from './review.ts'
 import { REVIEW_SCRIPT } from './script.ts'
-import { sourceFingerprint } from '@deepseek-ai/dsh-tool-patent/fingerprint'
-import { readManifest } from '@deepseek-ai/dsh-tool-patent'
+import { sourceFingerprint } from '@mtl-academic/dsh-tool-patent/fingerprint'
+import { readManifest } from '@mtl-academic/dsh-tool-patent'
 
 export { isReviewOutcome, renderReport, summarize } from './review.ts'
 export { REVIEW_SCRIPT } from './script.ts'

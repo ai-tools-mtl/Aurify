@@ -56,8 +56,8 @@ When it prints `DONE`, **fully quit and relaunch the desktop app**, pick the new
 <DIST>\
 ├─ bundle\                                        # @mtl-academic/dsh-patent (directory form; the 14 skills live here)
 ├─ mtl-academic-dsh-patent-<version>.tgz
-├─ deepseek-ai-dsh-tool-patent-<version>.tgz
-├─ deepseek-ai-dsh-command-patent-review-<version>.tgz
+├─ mtl-academic-dsh-tool-patent-<version>.tgz
+├─ mtl-academic-dsh-command-patent-review-<version>.tgz
 ├─ deepseek-ai-schemastery-<version>.tgz          # the registry only carries the 3.18.x line; the bundle builds against the vendored fork
 ├─ deepseek-ai-cosmokit-<version>.tgz
 ├─ persona.patch.yml                              # the persona as a ready profile patch (optional but recommended)
@@ -112,8 +112,8 @@ nodeLinker: hoisted
 autoInstallPeers: false
 
 overrides:
-  '@deepseek-ai/dsh-tool-patent': file:<DIST>/deepseek-ai-dsh-tool-patent-<version>.tgz
-  '@deepseek-ai/dsh-command-patent-review': file:<DIST>/deepseek-ai-dsh-command-patent-review-<version>.tgz
+  '@mtl-academic/dsh-tool-patent': file:<DIST>/mtl-academic-dsh-tool-patent-<version>.tgz
+  '@mtl-academic/dsh-command-patent-review': file:<DIST>/mtl-academic-dsh-command-patent-review-<version>.tgz
   '@deepseek-ai/schemastery': file:<DIST>/deepseek-ai-schemastery-<version>.tgz
   '@deepseek-ai/cosmokit': file:<DIST>/deepseek-ai-cosmokit-<version>.tgz
 ```
