@@ -37,7 +37,7 @@
 
 ```powershell
 mkdir dist\bundle
-tar -xzf dist\mtl-academic-dsh-patent-0.1.6-alpha.1.tgz -C dist\bundle --strip-components=1
+tar -xzf dist\mtl-academic-dsh-patent-0.1.6-alpha.2.tgz -C dist\bundle --strip-components=1
 powershell -ExecutionPolicy Bypass -File dist\install-patent-profile.ps1 -Name patent-demo -DistDir "$PWD\dist"
 ```
 

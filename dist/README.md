@@ -1,6 +1,6 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-**0.1.6-alpha.1** · 2026-09-20 打包 · 源码仓提交 `57384d6c0d` · tarball `7f8e206a8e` 态 TS / wheel `d04f14094d` 态 python
+**0.1.6-alpha.2** · 2026-09-24 打包 · tarball=@mtl-academic 改名后 alpha.2 态 TS / wheel=d04f14094d 态 python(不变)
 
 **本版要点**：MCP 装载前校验（相对路径、缺 `pyproject.toml` 直接拒绝）、env 模式补绝对路径校验、wheel 模式探测 uv 工具、安装器 overrides 原位刷新，且 `-DistDir` 自动锚定为绝对路径。更早的变更见 `git log` 与本仓库的 Release 说明。
 
@@ -12,7 +12,7 @@
 
 前提：已安装 [DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或任意 dsh ≥0.1.5 安装），并能正常打开其 Web 界面。
 
-> **先约定两件事**：① `<DIST>` 指**解压本包的目录**（绝对路径），本文示例统一用 `G:\dsh-patent-dist`；② 命令里的文件名/版本号（`...-0.1.6-alpha.1.tgz`、`schemastery-3.18.2` 等）按**本版分发物**写死，换版后以 `<DIST>` 目录内实际文件名为准——英文指南 [INSTALL-NEW-PROFILE.md](INSTALL-NEW-PROFILE.md) 用 `<version>` 占位符表达同一件事，两者等价。
+> **先约定两件事**：① `<DIST>` 指**解压本包的目录**（绝对路径），本文示例统一用 `G:\dsh-patent-dist`；② 命令里的文件名/版本号（`...-0.1.6-alpha.2.tgz`、`schemastery-3.18.2` 等）按**本版分发物**写死，换版后以 `<DIST>` 目录内实际文件名为准——英文指南 [INSTALL-NEW-PROFILE.md](INSTALL-NEW-PROFILE.md) 用 `<version>` 占位符表达同一件事，两者等价。
 
 ### 方式 A：一键安装器（推荐）
 
@@ -20,7 +20,7 @@
 
 ```sh
 mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.1.tgz -C bundle --strip-components=1
+tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.2.tgz -C bundle --strip-components=1
 ```
 
 然后运行自带的安装器（`-DistDir` 就是 `<DIST>`：**绝对路径、正斜杠**；下同，示例用 `G:/dsh-patent-dist`）：
@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 
 ```sh
 mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.1.tgz -C bundle --strip-components=1
+tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.2.tgz -C bundle --strip-components=1
 ```
 
 用记事本打开：
@@ -81,8 +81,8 @@ C:\Users\<你的用户名>\.dsh\profiles\patent-demo\pnpm-workspace.yaml
 
 ```yaml
 overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.1.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.1.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.2.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.2.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
@@ -97,8 +97,8 @@ nodeLinker: hoisted
 autoInstallPeers: false
 
 overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.1.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.1.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.2.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.2.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
