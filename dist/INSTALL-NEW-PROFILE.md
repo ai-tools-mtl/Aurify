@@ -5,8 +5,9 @@
 > touching existing profiles.
 >
 > Everything happens inside the `.dsh` directory under your home — no admin
-> rights, no npm access needed. The Chinese walkthrough of the manual install
-> path lives in [README.md](README.md).
+> rights needed. The default route resolves the plugin from npm (the Chinese
+> walkthrough lives in [README.md](README.md)); an offline route uses the
+> shipped tarballs and needs no registry access at all.
 >
 > **Windows vs macOS/Linux** — the quick-install script is Windows-only: it
 > locates the dsh CLI through the desktop app's Windows shim directory and
@@ -19,8 +20,8 @@
 | Requirement | Notes | How to check |
 |---|---|---|
 | Desktop app installed | Provides the dsh core and the `dsh` CLI shim | `dsh --version` prints a version (Windows shim: `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`; macOS/Linux: `~/.local/bin/dsh`) |
-| Release artifacts unpacked | Unpack the bundle tarball into a `bundle/` directory beside the package tarballs — `tar -xzf mtl-academic-dsh-patent-*.tgz -C bundle --strip-components=1`, run from the directory holding the tarballs — and put them anywhere, e.g. `%USERPROFILE%\.dsh\plugin-dist\patent`. That directory is the installer's `-DistDir`: **pass it as an absolute path** (a relative one is anchored to the shell's current directory, and the value it writes into the profile manifest is resolved against the *profile* directory, not the shell's — see step 2) | The installer's first step validates this |
-| `tar` (Windows) | System bsdtar (`C:\Windows\System32\tar.exe`, shipped since Win10 1803), **not** Git's MSYS tar: under a restricted shell or a sandboxed agent, `C:\Program Files\Git\usr\bin\tar.exe` dies with `fatal error - couldn't create signal pipe, Win32 error 5` | `C:\Windows\System32\tar.exe --version` |
+| Release artifacts unpacked (**offline route only**) | The npm route needs no unpacked release. For the offline route: unpack the bundle tarball into a `bundle/` directory beside the package tarballs — `tar -xzf mtl-academic-dsh-patent-*.tgz -C bundle --strip-components=1`, run from the directory holding the tarballs — and put them anywhere, e.g. `%USERPROFILE%\.dsh\plugin-dist\patent`. That directory is the installer's `-DistDir`: **pass it as an absolute path** (a relative one is anchored to the shell's current directory, and the value it writes into the profile manifest is resolved against the *profile* directory, not the shell's — see the offline steps) | The offline installer's first step validates this |
+| `tar` (Windows, offline route only) | System bsdtar (`C:\Windows\System32\tar.exe`, shipped since Win10 1803), **not** Git's MSYS tar: under a restricted shell or a sandboxed agent, `C:\Program Files\Git\usr\bin\tar.exe` dies with `fatal error - couldn't create signal pipe, Win32 error 5` | `C:\Windows\System32\tar.exe --version` |
 | Python services (optional) | The 9 MCP tools (export, Word parsing, figure linting/rendering, experiments, prior-art search) | Preferred single file: `~/.dsh/patent-services.yaml` with `mcp_enabled: true` — the master switch, required in both modes, so a file carrying only the mode key stays off — plus `mcp_project_dir: <absolute path to a patent-services source checkout>` or `mcp_wheel: true`; wheel mode needs nothing pre-installed: `uvx` fetches the package from PyPI on first use; `uv tool install <DIST>/deepseek_harness_patent_services-<version>-py3-none-any.whl` of the shipped wheel is the offline alternative. [uv](https://docs.astral.sh/uv/) must be on PATH; if `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"` fails in a restricted shell (`基础连接已经关闭` / `SEC_E_NO_CREDENTIALS`), download it with `curl.exe -LsSf -o "$env:TEMP\uv-install.ps1" https://astral.sh/uv/install.ps1` and run that file instead — either route updates the *user* PATH, which only a new process sees, and the `warning: ...\.local\bin is not on your PATH` line refers to the shell you ran it in. Scripted setups may instead set a user-level env var — `DSH_PATENT_SERVICES=1` (installed wheel) or `DSH_PATENT_SERVICES_DIR` (source checkout); `setx` on Windows, `export` in your shell profile on macOS/Linux. Either way, fully restart the desktop app — the MCP row loads at process start, so a new conversation is not enough; all profiles inherit it. In-session, `patent_setup_check` reports 已装载 (loaded) versus 待重启 (restart pending) |
 | Docker Desktop (optional) | Only for simulation experiments and drawio figure rendering | Start it manually when needed |
 
@@ -36,19 +37,30 @@
 ## Quick install (recommended, Windows)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File <DIST>\install-patent-profile.ps1 -Name patent-test -DistDir "$env:USERPROFILE\.dsh\plugin-dist\patent"
+powershell -ExecutionPolicy Bypass -File <DIST>\install-patent-profile.ps1 -Name patent-test
 ```
 
+- Default route (**npm**): the installer runs `dsh plugin add @mtl-academic/dsh-patent` — the registry resolves the plugin, no unpacked release needed. On a fresh profile this also creates the scaffold (base + web-app + patent bundle stack). It then installs the persona and verifies via dump-config. On a profile carrying a **legacy offline install**, it strips the `overrides:` block first (those pins would defeat registry resolution) and replaces the `file:` dependency with the npm one.
 - `-Name <name>` — the new profile's name (created under `%USERPROFILE%\.dsh\profiles\<name>`). Default `patent-test`.
-- `-DistDir <DIST>` — where you unpacked the release (the same `<DIST>` the manual steps below use). Default `%USERPROFILE%\.dsh\plugin-dist\patent`. **Give an absolute path**: the installer writes it verbatim into the profile manifest as a `file:` dependency, and dsh resolves every `file:` value against the *profile* directory. A relative `-DistDir` used to produce an unbootable profile (`file:./bundle`); the installer now anchors it to the current directory, and older releases did not — so check `<profile>\package.json` if you installed with an earlier copy.
-- `-PersonaFrom auto` (default) — installs the persona from a shipped `persona.patch.yml` in the dist directory; with `-PersonaFrom <existing-profile>` it copies that profile's patch instead; `-PersonaFrom ""` skips.
-- Idempotent — re-running on an existing profile refreshes it in place, **merging** into `package.json` (an existing profile's other dependencies and bundle layers, e.g. the desktop app's own `dsh-tauri*`/`dshmarket`/`@xmanrui/dsh-im` entries, are preserved) and refreshing the 4 `overrides:` lines in `pnpm-workspace.yaml` to the tarballs actually present.
+- `-Offline -DistDir <DIST>` — the air-gapped route: validates the unpacked release, installs the `bundle/` directory as a `file:` dependency, and pins the internal packages to the local tarballs via 4 `overrides:` lines in `pnpm-workspace.yaml` (details in [Offline manual install](#offline-manual-install-what-the-scripts--offline-route-does-step-by-step)). **Give an absolute path**: the installer writes it verbatim into the profile manifest as a `file:` dependency, and dsh resolves every `file:` value against the *profile* directory.
+- `-PersonaFrom auto` (default) — installs the persona from a shipped `persona.patch.yml` in the script's directory; with `-PersonaFrom <existing-profile>` it copies that profile's patch instead; `-PersonaFrom ""` skips.
+- Idempotent — re-running on an existing profile refreshes it in place, **merging** into `package.json` (an existing profile's other dependencies and bundle layers, e.g. the desktop app's own `dsh-tauri*`/`dshmarket`/`@xmanrui/dsh-im` entries, are preserved).
 
 When it prints `DONE`, **fully quit and relaunch the desktop app**, pick the new profile, and open a session in a patent project directory.
 
 > Verify before you relaunch anything: `dsh --profile <name> --dump-config` must exit 0. A manifest that cannot be resolved does not merely leave the plugin off — the desktop app cannot launch that profile at all (`cannot resolve profile bundle "@mtl-academic/dsh-patent"`). Note that `--dump-config` rewrites the profile's root `cordis.yml`, so it needs write access to the profile directory; a read-only shell (or an agent sandbox) fails with `EPERM: operation not permitted, open '...\cordis.yml'`, which is a shell permission problem, not a broken profile.
 
-## Manual install (what the script does, step by step)
+## Manual install (npm, cross-platform)
+
+```sh
+dsh plugin --profile <name> add @mtl-academic/dsh-patent
+```
+
+One command: the registry resolves the plugin, and dsh writes the dependency plus the bundles stack (creating the profile from the web template first if it does not exist). Then install the persona (step 6) and verify (step 7) below — both apply unchanged. On a profile carrying a **legacy offline install**, delete the 4 `overrides:` lines the old installer wrote into `pnpm-workspace.yaml` first; they pin the dependency to stale local tarballs and block upgrades.
+
+## Offline manual install (what the script's `-Offline` route does, step by step)
+
+For machines without registry access. The npm route skips every step below that mentions tarballs and overrides.
 
 ### 1. Validate the dist layout
 
@@ -171,7 +183,9 @@ Recovery, in order of preference:
 
 ## Upgrading
 
-Drop the new release's tarballs and `bundle/` over the dist directory (**same absolute path** — every profile that installed from it points there), then re-run the installer (it re-resolves the tarball names by pattern and refreshes the 4 `overrides:` lines to them). Note that pnpm integrity-checks same-version tarballs — after replacing a tarball in place, delete the `overrides:` block in the profile's `pnpm-workspace.yaml` (or just re-run the installer, which rewrites the manifest and forces a reinstall). The Python services run from their source directory, so updating that directory is enough — no reinstall; wheel mode resolves new versions from PyPI via uvx (offline installs: `uv tool install` the new wheel). Before refreshing a profile you care about, copy `package.json` / `pnpm-workspace.yaml` / `pnpm-lock.yaml` aside: the installer merges, but a hand-edit does not, and the lockfile's `importers:` block is the authoritative list of what the profile is supposed to declare.
+**npm route**: re-run the installer (or `dsh plugin --profile <name> add @mtl-academic/dsh-patent`) — pnpm resolves the newly published version. The Python services resolve their new versions from PyPI via uvx the same way (source-checkout mode: updating that directory is enough — no reinstall). If a just-published version is "not found", the pnpm metadata cache is stale: clear `%LOCALAPPDATA%\pnpm-cache\v11\metadata*` and retry. Before refreshing a profile you care about, copy `package.json` / `pnpm-workspace.yaml` / `pnpm-lock.yaml` aside: the installer merges, but a hand-edit does not, and the lockfile's `importers:` block is the authoritative list of what the profile is supposed to declare.
+
+**Offline route**: drop the new release's tarballs and `bundle/` over the dist directory (**same absolute path** — every profile that installed from it points there), then re-run the installer with `-Offline` (it re-resolves the tarball names by pattern and refreshes the 4 `overrides:` lines to them). Note that pnpm integrity-checks same-version tarballs — after replacing a tarball in place, delete the `overrides:` block in the profile's `pnpm-workspace.yaml` (or just re-run the installer, which rewrites the manifest and forces a reinstall).
 
 ## Troubleshooting
 

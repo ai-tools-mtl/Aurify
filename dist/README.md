@@ -12,36 +12,19 @@
 
 前提：已安装 [DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或任意 dsh ≥0.1.5 安装），并能正常打开其 Web 界面。
 
-> **先约定两件事**：① `<DIST>` 指**解压本包的目录**（绝对路径），本文示例统一用 `G:\dsh-patent-dist`；② 命令里的文件名/版本号（`...-0.1.6-alpha.2.tgz`、`schemastery-3.18.2` 等）按**本版分发物**写死，换版后以 `<DIST>` 目录内实际文件名为准——英文指南 [INSTALL-NEW-PROFILE.md](INSTALL-NEW-PROFILE.md) 用 `<version>` 占位符表达同一件事，两者等价。
+**两条路线**：能访问 npm registry（官方源或 npmmirror 等镜像均可）就走 **npm 直装**（方式 A/B）——不需要下载解压本分发包，插件三个包在 npm、Python 服务在 PyPI；无网/内网机器走 **离线安装**（方式 C/D，用本分发包自带的 tarball）。
 
-### 方式 A：一键安装器（推荐）
-
-先在本目录（tarball 所在目录）把插件解包成**目录**——安装器要求 `<DIST>\bundle\` 与那几个 `.tgz` 同级（桌面端必须目录形态安装：指向 .tgz 文件的依赖会被桌面壳启动自愈判为死链卸载）：
-
-```sh
-mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.2.tgz -C bundle --strip-components=1
-```
-
-然后运行自带的安装器（`-DistDir` 就是 `<DIST>`：**绝对路径、正斜杠**；下同，示例用 `G:/dsh-patent-dist`）：
+### 方式 A：一键安装器（推荐，npm）
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo -DistDir "G:/dsh-patent-dist"
+powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo
 ```
 
-安装器一次性完成手动方式的全部步骤：校验分发物 → 建/刷新档案 → 写依赖与 overrides → 装包 → 装 persona（取自 `persona.patch.yml`）→ dump-config 验证。幂等可重跑；打印 `DONE` 即成功。参数说明与故障排查见 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
+安装器默认走 npm：`dsh plugin add @mtl-academic/dsh-patent`（档案不存在会自动按 web 模板建档并写入依赖与 bundles 声明）→ 装 persona（取自同目录 `persona.patch.yml`）→ dump-config 验证。幂等可重跑；打印 `DONE` 即成功。装过旧版离线形态（`file:` 依赖 + overrides）的档案，安装器会先清掉 `overrides:` 钉死行再换成 npm 依赖。参数说明与故障排查见 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
 
-> **`-DistDir` 必须写绝对路径**（相对路径安装器会自动锚定成当前目录的绝对路径）。这个值会原样写进档案清单的 `file:` 依赖，而 dsh 按**档案目录**解析 `file:`（不是按你运行命令时所在的目录）：写成相对路径装出来的档案，`dsh --profile <名>` 会报 `cannot resolve profile bundle`，桌面版直接打不开该档案。手工改清单时同理——`file:./bundle` 是错的，只有绝对路径对。
->
-> **解包出来的 `bundle\` 目录是运行期依赖，装完别删也别移动。** 档案清单用绝对路径引用它，桌面壳每次启动都会解析一遍清单里的 `file:` 依赖，指向不存在目录的会被判为死链卸掉。
->
-> Windows 上如果 `tar` 命中 Git 自带的那份（`C:\Program Files\Git\usr\bin\tar.exe`），在受限 shell / 沙箱环境里会以 `couldn't create signal pipe, Win32 error 5` 直接崩掉；改用系统自带的 `C:\Windows\System32\tar.exe`（Win10 1803+ 起随系统提供）即可。
+安装器仅面向 **Windows**（系统自带 PowerShell）。macOS/Linux 用户直接走方式 B：把 `%USERPROFILE%\.dsh` 换成 `~/.dsh`、桌面版 dsh 垫片在 `~/.local/bin/dsh`（而非 `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`）。
 
-安装器仅面向 **Windows**（系统自带 PowerShell）。macOS/Linux 用户直接走方式 B：把 `%USERPROFILE%\.dsh` 换成 `~/.dsh`、桌面版 dsh 垫片在 `~/.local/bin/dsh`（而非 `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`）、用户环境变量写入 shell profile，其余步骤完全一致。
-
-### 方式 B：手动安装
-
-以下以 Windows 路径书写；macOS/Linux 的路径换算见方式 A 末尾的说明。
+### 方式 B：npm 手动安装（跨平台）
 
 #### 1. 找到 dsh 命令
 
@@ -53,31 +36,64 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 
 （`%LOCALAPPDATA%` 即 `C:\Users\<你的用户名>\AppData\Local`。）
 
-#### 2. 选一个要安装的档案（profile）
+#### 2. 安装插件（档案不存在会自动创建）
 
-- **全新试用**（推荐，不影响现有档案）：
-  ```sh
-  dsh --profile patent-demo --from-default-profile web --no-open
-  ```
-  这会创建一个名为 `patent-demo` 的新档案（出错就先 `dsh --profile patent-demo --from-default-profile web` 跑一次不带 --no-open 的，Ctrl+C 退出即可）。
-- **装进已有档案**：把下面命令里的 `patent-demo` 换成你的档案名；如果这个档案是**桌面版自己建/自己在用**的（里面有 `dsh-tauri*`、`dshmarket` 等条目），先读一遍下面的[「装进已有档案」](#装进已有档案含桌面版自建档案)小节再动手。
+```sh
+dsh plugin --profile patent-demo add @mtl-academic/dsh-patent
+```
 
-#### 3. 解包插件并写入安装配置
+这一条从 npm 安装插件并写入依赖与 bundles 声明（含自动按 web 模板建档）。**装过旧版离线形态（`file:` 依赖 + overrides）的档案**：先把档案 `pnpm-workspace.yaml` 里旧安装器写入的 `overrides:` 段（4 行 `file:` 钉死）删掉再跑，否则 npm 依赖会被钉在本地 tarball 上不升级。
 
-先在本目录（tarball 所在目录）把插件解包成**目录**，让 `bundle\` 与那几个 `.tgz` 同级：
+#### 3. 装 persona（强烈建议）
+
+没有这一步插件能跑，但模型没有专利把关人的行为纪律：不会先查新评估、不会反驳你。把本目录的 `persona.patch.yml` 复制为 `C:\Users\<你的用户名>\.dsh\profiles\patent-demo\cordis.patch.yml`（注意：这会**整个覆盖**该档案原有的 `cordis.patch.yml`，档案里已有别的补丁条目时改为把 persona 条目**追加**进现有文件）；或把已装好的 `node_modules\@mtl-academic\dsh-patent\README.md` 里「The persona lives in the profile」一节的 yaml 块原样拷入新建的 `cordis.patch.yml`。
+
+#### 4. 验收（重启前必须做）
+
+```sh
+dsh --profile patent-demo --dump-config
+```
+
+命令**退出码为 0**、输出里能看到 `tool-patent`、`patent-assets`、`command-patent-review`、`mcp-patent-services` 四行与 `persona:` 键，才算装好。若报错**先把档案修好再重启桌面版**：损坏的清单会让桌面版连该档案都打不开（不是「插件不生效」，而是整个档案起不来）。
+
+然后重启 DeepSeek Harness 桌面版，切换到 `patent-demo` 档案开始会话。
+
+**验收**：新会话直接丢一个技术点子（比如"一种校园快递取件码防泄漏的方法"），它应该先检索再给「建议写/收窄后写/不建议写」的评估；或输入「请调用 patent_brief_coverage 打分：field=测试」，展开"1 次工具调用"看到"五方对齐"结构化卡片即插件完整生效。
+
+#### 装进已有档案（含桌面版自建档案）
+
+桌面版会在**它自己建、自己在用**的档案里放一批它自己的依赖与 bundles 层：`dsh-tauri`、`dsh-tauri-connection`、`dsh-tauri-model-config`、`dsh-tauri-panel-extension`、`dsh-tauri-panel-scheduler`、`dsh-tauri-pet`、`dsh-tauri-rightclick`、`dsh-tauri-session`、`dsh-tauri-turnrewind`、`dsh-tauri-ui`、`dsh-tauri-worktree`（`link:` 形态）与 `dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`。**这些条目必须留在清单里**：
+
+- 安装器是**合并**写入——npm 模式只确保 `@mtl-academic/dsh-patent` 依赖与 bundles 条目，其它条目原样保留，重跑不会抹掉它们；
+- **手改时只加不删**。用编辑器整个覆盖 `package.json` 会丢掉上面这些声明，接着 `dsh plugin install` 的 pnpm 段会把它们当**多余包删掉**——档案就丢了桌面版插件（市场、侧边栏、IM、rewind、Tauri 桥全没了）；
+- 已经丢了的恢复：安装器每次刷新**已有**档案前，会自动把 `package.json`、`pnpm-workspace.yaml`、`pnpm-lock.yaml`、`cordis.patch.yml` 备份到 `~/.dsh/.plugin-backups/<档案名>-<时间戳>/`，先看那里；没有备份就按该档案自己的 `pnpm-lock.yaml` 顶部 `importers:` 段把依赖键值抄回 `package.json` 的 `dependencies`，并把对应名字补回 `dsh.profile.bundles`，然后重跑安装器。
+
+装完**别急着重启**：先按第 4 步的验收命令确认 `--dump-config` 退出码为 0。
+
+### 方式 C：离线一键安装器（无网环境，Windows）
+
+无法访问 npm registry 的机器，用本分发包的 tarball 离线装（安装器加 `-Offline`）。先在本目录（tarball 所在目录）把插件解包成**目录**——离线安装要求 `<DIST>\bundle\` 与那几个 `.tgz` 同级（桌面端必须目录形态安装：指向 .tgz 文件的依赖会被桌面壳启动自愈判为死链卸载）：
 
 ```sh
 mkdir bundle
 tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.2.tgz -C bundle --strip-components=1
 ```
 
-用记事本打开：
-
-```text
-C:\Users\<你的用户名>\.dsh\profiles\patent-demo\pnpm-workspace.yaml
+```powershell
+powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo -Offline -DistDir "G:/dsh-patent-dist"
 ```
 
-这个文件通常已由档案模板创建，里面已有基础设置（`packages: - .`、`nodeLinker: hoisted`、`autoInstallPeers: false`）——**这种情况只把下面的 `overrides:` 段追加到文件末尾**（直接复制，注意缩进；值外面那层引号别省，路径里带空格时会用到）：
+`-DistDir` 就是 `<DIST>`：**绝对路径、正斜杠**（相对路径安装器会自动锚定成当前目录的绝对路径）。这个值会原样写进档案清单的 `file:` 依赖，而 dsh 按**档案目录**解析 `file:`（不是按你运行命令时所在的目录）：写成相对路径装出来的档案，`dsh --profile <名>` 会报 `cannot resolve profile bundle`，桌面版直接打不开该档案。
+
+> **解包出来的 `bundle\` 目录是运行期依赖，装完别删也别移动。** 档案清单用绝对路径引用它，桌面壳每次启动都会解析一遍清单里的 `file:` 依赖，指向不存在目录的会被判为死链卸掉。
+>
+> Windows 上如果 `tar` 命中 Git 自带的那份（`C:\Program Files\Git\usr\bin\tar.exe`），在受限 shell / 沙箱环境里会以 `couldn't create signal pipe, Win32 error 5` 直接崩掉；改用系统自带的 `C:\Windows\System32\tar.exe`（Win10 1803+ 起随系统提供）即可。
+>
+> 离线模式会在档案 `pnpm-workspace.yaml` 里写入 4 行 `overrides:`（把内部包钉到本地 tarball）。之后想换回 npm 路时，删掉那段 overrides 再按方式 A 重跑即可（安装器也会自动清）。
+
+### 方式 D：离线手动安装（无网环境）
+
+方式 C 的手动版：解包 bundle 为目录 → 档案 `package.json` 写 `"@mtl-academic/dsh-patent": "file:<DIST>/bundle"`（**绝对路径**）→ `pnpm-workspace.yaml` 追加下面的 overrides → `dsh plugin --profile patent-demo add "file:<DIST>/bundle"` → 装 persona → `--dump-config` 验收：
 
 ```yaml
 overrides:
@@ -87,62 +103,7 @@ overrides:
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
 
-文件不存在、要从头新建时（少见），**基础设置不能省**：少了 `nodeLinker: hoisted`，pnpm 会用默认的 `isolated` 布局，装出来的结构与本文验证过的不同。完整内容就是基础设置加上面那段：
-
-```yaml
-packages:
-  - .
-
-nodeLinker: hoisted
-autoInstallPeers: false
-
-overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.2.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.2.tgz'
-  '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
-  '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
-```
-
-把其中 4 处 `<DIST>` 全部替换为解压本包的目录，例如 `G:/dsh-patent-dist`（**正斜杠**）。**必须是绝对路径**——这些 `file:` 值由 dsh 按档案目录解析，相对路径会让档案启动时报 `cannot resolve profile bundle`。
-
-#### 4. 安装、装 persona、验收
-
-安装（目录形态，自动写入依赖与 bundles 声明）：
-
-```sh
-dsh plugin --profile patent-demo add "file:<DIST>/bundle"
-```
-
-同样的绝对路径要求：`file:<DIST>/bundle` 里的 `<DIST>` 写绝对路径。若这一步的 pnpm 段报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`（`workspace:^`），说明第 3 步的 4 行 overrides 没写对或路径不对——它们是必需项，回去核对。
-
-装 persona（**强烈建议**——没有这一步插件能跑，但模型没有专利把关人的行为纪律：不会先查新评估、不会反驳你）。两种取法任选：
-
-- 直接拷贝现成补丁：把本目录的 `persona.patch.yml` 复制为 `C:\Users\<你的用户名>\.dsh\profiles\patent-demo\cordis.patch.yml`（注意：这会**整个覆盖**该档案原有的 `cordis.patch.yml`，档案里已有别的补丁条目时会一并丢失——按方式 A 的安装器不会覆盖已有 persona，手改时请改成把 persona 条目**追加**进现有文件）；
-- 或新建 `cordis.patch.yml`，把 `<DIST>/bundle/README.md` 里「The persona lives in the profile」一节的 yaml 块原样拷入。
-
-看到 `Done` 即成功。
-
-**重启前先验收清单能不能解析**（这一步不能省）：
-
-```sh
-dsh --profile patent-demo --dump-config
-```
-
-命令**退出码为 0**、输出里能看到 `tool-patent`、`patent-assets`、`command-patent-review`、`mcp-patent-services` 四行与 `persona:` 键，才算装好。若报 `cannot resolve profile bundle "@mtl-academic/dsh-patent"` 或 `ERR_PNPM_*`，**先把档案修好再重启桌面版**：损坏的清单会让桌面版连该档案都打不开（不是「插件不生效」，而是整个档案起不来）。`DANGLING` / `UNINSTALLING` 行说明 bundle 是以 tarball 形态（而非目录形态）装进去的。
-
-然后重启 DeepSeek Harness 桌面版，切换到 `patent-demo` 档案开始会话。
-
-**验收**：新会话直接丢一个技术点子（比如"一种校园快递取件码防泄漏的方法"），它应该先检索再给「建议写/收窄后写/不建议写」的评估；或输入「请调用 patent_brief_coverage 打分：field=测试」，展开“1 次工具调用”看到“五方对齐”结构化卡片即插件完整生效。
-
-#### 装进已有档案（含桌面版自建档案）
-
-桌面版会在**它自己建、自己在用**的档案里放一批它自己的依赖与 bundles 层：`dsh-tauri`、`dsh-tauri-connection`、`dsh-tauri-model-config`、`dsh-tauri-panel-extension`、`dsh-tauri-panel-scheduler`、`dsh-tauri-pet`、`dsh-tauri-rightclick`、`dsh-tauri-session`、`dsh-tauri-turnrewind`、`dsh-tauri-ui`、`dsh-tauri-worktree`（`link:` 形态）与 `dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`。**这些条目必须留在清单里**：
-
-- 方式 A 的安装器是**合并**写入——只确保 `@mtl-academic/dsh-patent` 依赖与 `dsh-base`/`dsh-web-app`/`@mtl-academic/dsh-patent` 三个层，其它条目原样保留，重跑不会抹掉它们；
-- **手改时只加不删**。用编辑器整个覆盖 `package.json`（或早期版本安装器那种整体重写）会丢掉上面这些声明，接着 `dsh plugin install` 的 pnpm 段会把它们当**多余包删掉**——档案就丢了桌面版插件（市场、侧边栏、IM、rewind、Tauri 桥全没了）；
-- 已经丢了的恢复：安装器每次刷新**已有**档案前，会自动把 `package.json`、`pnpm-workspace.yaml`、`pnpm-lock.yaml`、`cordis.patch.yml` 备份到 `~/.dsh/.plugin-backups/<档案名>-<时间戳>/`，先看那里；没有备份就按该档案自己的 `pnpm-lock.yaml` 顶部 `importers:` 段把依赖键值抄回 `package.json` 的 `dependencies`，并把对应名字补回 `dsh.profile.bundles`，然后重跑安装器。
-
-装完**别急着重启**：先按上面第 4 步的验收命令确认 `--dump-config` 退出码为 0。
+全部 `<DIST>` 替换为解压目录（**正斜杠、绝对路径**——`file:` 值按档案目录解析，相对路径让档案起不来）。persona、验收与桌面版自建档案的注意事项与方式 B 共通，见上文对应小节与 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
 
 ---
 
