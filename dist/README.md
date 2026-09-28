@@ -1,6 +1,6 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-**0.1.6-alpha.3** · 2026-09-24 打包 · tarball=@mtl-academic alpha.3(setup-check 改真实 uvx 探测)/ wheel=0.1.0(PyPI)
+**0.1.6-alpha.4** · 2026-09-28 打包 · tarball=@mtl-academic alpha.4(init 环境自检改硬门:报告呈现后停下等用户,仅检索通道可由用户跳过)/ wheel=0.1.0(PyPI)
 
 **本版要点**：MCP 装载前校验（相对路径、缺 `pyproject.toml` 直接拒绝）、env 模式补绝对路径校验、wheel 模式探测 uv 工具、安装器 overrides 原位刷新，且 `-DistDir` 自动锚定为绝对路径。更早的变更见 `git log` 与本仓库的 Release 说明。
 
@@ -76,7 +76,7 @@ dsh --profile patent-demo --dump-config
 
 ```sh
 mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.3.tgz -C bundle --strip-components=1
+tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.4.tgz -C bundle --strip-components=1
 ```
 
 ```powershell
@@ -97,8 +97,8 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 
 ```yaml
 overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.3.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.3.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.4.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.4.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
