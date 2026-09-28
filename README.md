@@ -33,15 +33,17 @@
 
 前置：[DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或 dsh ≥0.1.5）；可选 uv（Python 服务）与 Docker Desktop（附图渲染、仿真实验）。
 
-**方式 A · 一键安装器（Windows，推荐，npm 路线）**——从 npm 解析 `@mtl-academic/dsh-patent`（无需解包任何 tarball），建档案、装 persona、dump-config 验证全自动，幂等可重跑：
+**方式 A · 插件市场一键安装（桌面版内，最简）**——桌面版 **设置 → 插件市场**，搜 **Aurify** 或 **点金**，一键装进当前活动档案（npm latest）。装完两步：把 `dist/persona.patch.yml` 的 yaml 块**追加**进该档案的 `cordis.patch.yml`；在 `~/.dsh/patent-services.yaml` 写 `mcp_wheel: true` 并完整重启桌面壳。细节见 [dist/README.md 的方式 A](dist/README.md)。
+
+**方式 B · 一键安装器（Windows，npm 路线）**——从 npm 解析 `@mtl-academic/dsh-patent`（无需解包任何 tarball），建档案、装 persona、dump-config 验证全自动，幂等可重跑（已在市场装过的档案同样适用）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File dist\install-patent-profile.ps1 -Name patent-demo
 ```
 
-**方式 B · 手动安装（跨平台，npm）**——两条命令：档案不存在时先 `dsh --profile patent-demo --from-default-profile web` 建档，然后 `dsh plugin --profile patent-demo add @mtl-academic/dsh-patent`；再装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`，已有补丁时改为追加 persona 条目）；可选追加 Python 服务（已发布 PyPI：`~/.dsh/patent-services.yaml` 开 `mcp_enabled` + `mcp_wheel` 即可，`uvx` 自动拉取，重启桌面版）。装完先跑 `dsh --profile patent-demo --dump-config`（退出码必须为 0）再重启桌面版。装过旧版离线形态的档案，先删掉档案 `pnpm-workspace.yaml` 里旧安装器写入的 4 行 `overrides:`（会钉死本地 tarball）。逐步说明见 [dist/README.md 的方式 B](dist/README.md)。
+**方式 C · 手动安装（跨平台，npm）**——两条命令：档案不存在时先 `dsh --profile patent-demo --from-default-profile web` 建档，然后 `dsh plugin --profile patent-demo add @mtl-academic/dsh-patent`；再装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`，已有补丁时改为追加 persona 条目）；可选追加 Python 服务（已发布 PyPI：`~/.dsh/patent-services.yaml` 开 `mcp_enabled` + `mcp_wheel` 即可，`uvx` 自动拉取，重启桌面版）。装完先跑 `dsh --profile patent-demo --dump-config`（退出码必须为 0）再重启桌面版。装过旧版离线形态的档案，先删掉档案 `pnpm-workspace.yaml` 里旧安装器写入的 4 行 `overrides:`（会钉死本地 tarball）。逐步说明见 [dist/README.md 的方式 C](dist/README.md)。
 
-**方式 C/D · 离线安装（无网环境）**——用本仓库 `dist/` 自带的 tarball：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 安装器加 `-Offline -DistDir`（或手动写 `file:` 依赖 + pnpm overrides）。**`<DIST>` 与清单里所有 `file:` 路径都必须是绝对路径**（`file:./bundle` 这类相对值会按档案目录解析，直接让档案不可启动）；解包出的 `bundle\` 与 tarball 是安装源，装完别删别移动。逐步命令见 [dist/README.md 的方式 C/D](dist/README.md)。
+**方式 D/E · 离线安装（无网环境）**——用本仓库 `dist/` 自带的 tarball：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 安装器加 `-Offline -DistDir`（或手动写 `file:` 依赖 + pnpm overrides）。**`<DIST>` 与清单里所有 `file:` 路径都必须是绝对路径**（`file:./bundle` 这类相对值会按档案目录解析，直接让档案不可启动）；解包出的 `bundle\` 与 tarball 是安装源，装完别删别移动。逐步命令见 [dist/README.md 的方式 D/E](dist/README.md)。
 
 **装进已有档案（包括桌面版自建的档案）**——安装器是合并写入：档案清单里既有的依赖与 bundles 层（桌面版自己的 `dsh-tauri*`、`dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`）会保留，只新增本插件需要的条目。**不要用编辑器整个覆盖 `package.json`**：清单外的包会被 pnpm 当多余包删掉，档案就丢了桌面版插件。装完先跑 `dsh --profile <档案名> --dump-config`（退出码必须为 0）再重启桌面版——清单解析不了时桌面版会直接打不开该档案。细节与恢复步骤见 [dist/README.md 的「装进已有档案」](dist/README.md)。
 

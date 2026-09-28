@@ -34,6 +34,10 @@
 | `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh\...` | `~/.local/share/io.github.hairyf.deepseek-harness-desktop/dependencies/dsh/...` (macOS: `~/Library/Application Support/...`) |
 | `setx <VAR> <value>` (user env var) | add `export <VAR>=<value>` to `~/.zshrc` / `~/.bashrc` |
 
+## Marketplace install (desktop, no terminal)
+
+If the dshmarket plugin is present (preset on the desktop shell), open **Settings → Plugin marketplace**, search **Aurify** (category `tools`, entry `Aurify#bundle-patent`), and install — the marketplace resolves the npm **latest** of `@mtl-academic/dsh-patent` into the active profile (a stale version shown on the catalog card does not affect what gets installed). The marketplace does not cover the two follow-ups: merge `persona.patch.yml` into the active profile's `cordis.patch.yml` (append the entry — overwriting the file drops existing patch rows), and write `mcp_wheel: true` into `~/.dsh/patent-services.yaml`, then fully restart the desktop shell. Details: route A in [README.md](README.md).
+
 ## Quick install (recommended, Windows)
 
 ```powershell

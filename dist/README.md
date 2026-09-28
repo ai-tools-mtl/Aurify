@@ -12,9 +12,20 @@
 
 前提：已安装 [DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或任意 dsh ≥0.1.5 安装），并能正常打开其 Web 界面。
 
-**两条路线**：能访问 npm registry（官方源或 npmmirror 等镜像均可）就走 **npm 直装**（方式 A/B）——不需要下载解压本分发包，插件三个包在 npm、Python 服务在 PyPI；无网/内网机器走 **离线安装**（方式 C/D，用本分发包自带的 tarball）。
+**三条路线**：桌面版用户首选**插件市场一键安装**（方式 A，零命令行）；能访问 npm registry（官方源或 npmmirror 等镜像均可）也可走 **npm 直装**（方式 B/C）——不需要下载解压本分发包，插件三个包在 npm、Python 服务在 PyPI；无网/内网机器走 **离线安装**（方式 D/E，用本分发包自带的 tarball）。
 
-### 方式 A：一键安装器（推荐，npm）
+### 方式 A：插件市场一键安装（桌面版内，推荐）
+
+桌面版自带插件市场（dshmarket）：打开 **设置 → 插件市场**，搜索 **Aurify** 或 **点金**（分类 tools，条目 `Aurify#bundle-patent`），点安装——它把 npm 上 `@mtl-academic/dsh-patent` 的 **latest** 装进**当前活动档案**（目录条目上显示的版本号可能滞后，装的始终是 npm 最新版）。多数情况下刷新页面即生效。
+
+市场只装插件本体；装完还有两步配置（各一两行，不做插件也能跑、但功能不完整）：
+
+1. **装 persona（强烈建议）**——把关人行为纪律不在 npm 包里：把本目录 `persona.patch.yml` 的 yaml 块**追加**进当前档案的 `cordis.patch.yml`（即 `~/.dsh/profiles/<档案名>/cordis.patch.yml`；档案里已有补丁条目——比如模型配置——时务必**追加**而不是整个覆盖，覆盖会把已有补丁抹掉）。
+2. **启用检索/导出/实验服务**——在 `~/.dsh/patent-services.yaml` 写 `mcp_wheel: true`（uvx 从 PyPI 自动拉取，需已装 uv；源码模式见「三、可选功能」），然后**完整重启桌面壳**（MCP 行在进程启动时装载）。
+
+验收与方式 C 相同：`dsh --profile <档案名> --dump-config` 退出码 0。
+
+### 方式 B：一键安装器（npm，Windows）
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo
@@ -22,9 +33,9 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 
 安装器默认走 npm：`dsh plugin add @mtl-academic/dsh-patent`（档案不存在会自动按 web 模板建档并写入依赖与 bundles 声明）→ 装 persona（取自同目录 `persona.patch.yml`）→ dump-config 验证。幂等可重跑；打印 `DONE` 即成功。装过旧版离线形态（`file:` 依赖 + overrides）的档案，安装器会先清掉 `overrides:` 钉死行再换成 npm 依赖。参数说明与故障排查见 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
 
-安装器仅面向 **Windows**（系统自带 PowerShell）。macOS/Linux 用户直接走方式 B：把 `%USERPROFILE%\.dsh` 换成 `~/.dsh`、桌面版 dsh 垫片在 `~/.local/bin/dsh`（而非 `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`）。
+安装器仅面向 **Windows**（系统自带 PowerShell）。macOS/Linux 用户直接走方式 C：把 `%USERPROFILE%\.dsh` 换成 `~/.dsh`、桌面版 dsh 垫片在 `~/.local/bin/dsh`（而非 `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`）。
 
-### 方式 B：npm 手动安装（跨平台）
+### 方式 C：npm 手动安装（跨平台）
 
 #### 1. 找到 dsh 命令
 
@@ -70,7 +81,7 @@ dsh --profile patent-demo --dump-config
 
 装完**别急着重启**：先按第 4 步的验收命令确认 `--dump-config` 退出码为 0。
 
-### 方式 C：离线一键安装器（无网环境，Windows）
+### 方式 D：离线一键安装器（无网环境，Windows）
 
 无法访问 npm registry 的机器，用本分发包的 tarball 离线装（安装器加 `-Offline`）。先在本目录（tarball 所在目录）把插件解包成**目录**——离线安装要求 `<DIST>\bundle\` 与那几个 `.tgz` 同级（桌面端必须目录形态安装：指向 .tgz 文件的依赖会被桌面壳启动自愈判为死链卸载）：
 
@@ -89,11 +100,11 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 >
 > Windows 上如果 `tar` 命中 Git 自带的那份（`C:\Program Files\Git\usr\bin\tar.exe`），在受限 shell / 沙箱环境里会以 `couldn't create signal pipe, Win32 error 5` 直接崩掉；改用系统自带的 `C:\Windows\System32\tar.exe`（Win10 1803+ 起随系统提供）即可。
 >
-> 离线模式会在档案 `pnpm-workspace.yaml` 里写入 4 行 `overrides:`（把内部包钉到本地 tarball）。之后想换回 npm 路时，删掉那段 overrides 再按方式 A 重跑即可（安装器也会自动清）。
+> 离线模式会在档案 `pnpm-workspace.yaml` 里写入 4 行 `overrides:`（把内部包钉到本地 tarball）。之后想换回 npm 路时，删掉那段 overrides 再按方式 B 重跑即可（安装器也会自动清）。
 
-### 方式 D：离线手动安装（无网环境）
+### 方式 E：离线手动安装（无网环境）
 
-方式 C 的手动版：解包 bundle 为目录 → 档案 `package.json` 写 `"@mtl-academic/dsh-patent": "file:<DIST>/bundle"`（**绝对路径**）→ `pnpm-workspace.yaml` 追加下面的 overrides → `dsh plugin --profile patent-demo add "file:<DIST>/bundle"` → 装 persona → `--dump-config` 验收：
+方式 D 的手动版：解包 bundle 为目录 → 档案 `package.json` 写 `"@mtl-academic/dsh-patent": "file:<DIST>/bundle"`（**绝对路径**）→ `pnpm-workspace.yaml` 追加下面的 overrides → `dsh plugin --profile patent-demo add "file:<DIST>/bundle"` → 装 persona → `--dump-config` 验收：
 
 ```yaml
 overrides:
@@ -103,7 +114,7 @@ overrides:
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
 
-全部 `<DIST>` 替换为解压目录（**正斜杠、绝对路径**——`file:` 值按档案目录解析，相对路径让档案起不来）。persona、验收与桌面版自建档案的注意事项与方式 B 共通，见上文对应小节与 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
+全部 `<DIST>` 替换为解压目录（**正斜杠、绝对路径**——`file:` 值按档案目录解析，相对路径让档案起不来）。persona、验收与桌面版自建档案的注意事项与方式 C 共通，见上文对应小节与 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
 
 ---
 
@@ -161,7 +172,7 @@ mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（离线机器�
 | `mtl-academic-dsh-command-patent-review-*.tgz` | 依赖：/patent-review 审查命令 + patent_review 直通工具 |
 | `deepseek-ai-schemastery-*.tgz` / `deepseek-ai-cosmokit-*.tgz` | 依赖：配置校验库（vendored 构建版） |
 | `deepseek_harness_patent_services-*.whl` / `.tar.gz` | 可选 Python 服务（9 个 MCP 工具：导出/渲染/检索/实验/查新） |
-| `install-patent-profile.ps1` | 一键安装器（方式 A） |
+| `install-patent-profile.ps1` | 一键安装器（方式 B） |
 | `persona.patch.yml` | persona 档案补丁正本（装 persona 用） |
 | `INSTALL-NEW-PROFILE.md` | 安装器配套的英文分步指南与故障排查 |
 | `README.md` | 本文件——中文接收方指南 |
@@ -184,7 +195,7 @@ mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（离线机器�
 
 | 现象 | 原因与处理 |
 |---|---|
-| `dsh --profile <名> --dump-config` 报 `cannot resolve profile bundle "@mtl-academic/dsh-patent"`；桌面版重启后打不开该档案 | 档案清单里的 `file:` 指向了解析不到的位置。dsh 按**档案目录**解析 `file:`，所以 `file:./bundle` 这类相对值、或已被删除/移动的 release 目录都会命中：把 `package.json` 的 `@mtl-academic/dsh-patent` 改成 `file:<DIST的绝对路径>/bundle`，`pnpm-workspace.yaml` 的 4 行 overrides 同样改成绝对路径，再跑一次 `dsh plugin --profile <名> install`（或直接重跑方式 A 安装器，它会原位刷新这 4 行） |
+| `dsh --profile <名> --dump-config` 报 `cannot resolve profile bundle "@mtl-academic/dsh-patent"`；桌面版重启后打不开该档案 | 档案清单里的 `file:` 指向了解析不到的位置。dsh 按**档案目录**解析 `file:`，所以 `file:./bundle` 这类相对值、或已被删除/移动的 release 目录都会命中：把 `package.json` 的 `@mtl-academic/dsh-patent` 改成 `file:<DIST的绝对路径>/bundle`，`pnpm-workspace.yaml` 的 4 行 overrides 同样改成绝对路径，再跑一次 `dsh plugin --profile <名> install`（或直接重跑方式 B 安装器，它会原位刷新这 4 行） |
 | 重启后市场/侧边栏/IM/rewind/Tauri 桥全没了，或安装日志出现 `Packages: +N -M` 把桌面版插件删掉 | 装插件时把档案 `package.json` 整个覆盖了，桌面版自己那批依赖（`dsh-tauri*`、`dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`）掉出清单，pnpm 当多余包清掉。见[「装进已有档案」](#装进已有档案含桌面版自建档案)的恢复步骤 |
 | `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`（`workspace:^`） | `pnpm-workspace.yaml` 的 overrides 块缺失或路径不对；对照 `<DIST>` 里实际存在的 4 个 tarball 名字逐行核对。注意 overrides 只能写在 `pnpm-workspace.yaml`（pnpm 11 忽略 `package.json` 里的 `pnpm` 字段） |
 | 日志出现 `DANGLING_LINK_UNINSTALLING`，插件重启后消失 | bundle 是以 `.tgz` 文件形态装进去的。桌面壳启动自愈会把指向非目录的 `file:` 依赖卸掉；删掉该档案重装，`add`/依赖必须指向解包出来的 `bundle` **目录** |
@@ -199,4 +210,4 @@ mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（离线机器�
 
 - 面向 dsh 0.1.5-rc 至 0.1.6-alpha 线核心（桌面版当前 rc 线实测可用）；旧核心缺 Web 卡片时工具显示为文本行，功能不受影响。
 - 中国专利查新（search_cn_patents）需要本机能访问 patents.google.com（通常走代理）；检索不可达时工具会明确报错提示，不会返回编造的结果。
-- npm 与 PyPI 均已发布：JS 侧一条 `dsh plugin add @mtl-academic/dsh-patent`；Python 服务 `uvx` 从 PyPI 自动拉取（`mcp_enabled` + `mcp_wheel` 两行启用）。离线安装仍走方式 A/B 的本地路径配置。
+- npm 与 PyPI 均已发布：JS 侧一条 `dsh plugin add @mtl-academic/dsh-patent`；Python 服务 `uvx` 从 PyPI 自动拉取（`mcp_enabled` + `mcp_wheel` 两行启用）。离线安装仍走方式 D/E 的本地路径配置。
