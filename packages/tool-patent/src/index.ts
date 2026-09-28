@@ -426,7 +426,9 @@ export async function apply(ctx: Context): Promise<void> {
     name: 'patent_setup_check',
     description: 'Self-check the patent plugin environment: the MCP services row (the ~/.dsh/patent-services.yaml mcp keys, a home-patch row, or the env opt-in), docker and its '
       + 'two images, the native draw.io CLI, the patents.google.com search channel, the experiment '
-      + 'command policy, and the proxy variables — one Chinese verdict line per channel with the '
+      + 'command policy, and — only while the search probe fails — the proxy environment variables '
+      + 'as a diagnostic for that failure, never as a standing configuration row — one Chinese '
+      + 'verdict line per channel with the '
       + 'configuration step for whatever is missing. Host-side on purpose: it works even while the '
       + 'MCP row is disabled, so it is the tool that names that missing row. Call it at a project\'s '
       + 'start ("检查专利环境/环境自检", before the idea evaluation), after any configuration change, '

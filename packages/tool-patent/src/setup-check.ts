@@ -308,16 +308,18 @@ async function commandExists(candidate: string): Promise<boolean> {
 }
 
 /**
- * Whether the patent-services wheel is installed as a uv tool — the real
- * precondition of wheel mode: the package is not on PyPI, so `uvx --from`
- * only resolves against a tool uv installed locally. False on any probe
- * failure too: an unprovable precondition is reported as not met, never as
- * a green light.
+ * Whether wheel mode can actually run: the same `uvx --from` invocation the
+ * MCP row uses must resolve and import the package — from PyPI, where
+ * `deepseek-harness-patent-services` is published, or from a `uv tool
+ * install` of the shipped wheel on offline machines. The timeout is generous
+ * because a cold uvx populates its cache with the package's dependency tree
+ * first. False on any probe failure too: an unprovable precondition is
+ * reported as not met, never as a green light.
  */
-async function wheelToolInstalled(): Promise<boolean> {
+async function wheelServiceRunnable(): Promise<boolean> {
   try {
-    const { stdout } = await run('uv', ['tool', 'list'], { timeout: 15_000, windowsHide: true })
-    return stdout.split(/\r?\n/).some(line => line.startsWith('deepseek-harness-patent-services'))
+    await run('uvx', ['--from', 'deepseek-harness-patent-services', 'python', '-c', 'import patent_services'], { timeout: 180_000, windowsHide: true })
+    return true
   } catch {
     return false
   }
@@ -380,8 +382,8 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
   } else if (servicesWheel !== undefined && servicesWheel.length > 0) {
     if (!uvxReady) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设但未检出 uvx——安装 uv（自带 uvx）后重启进程复检。' })
-    } else if (!(await wheelToolInstalled())) {
-      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：未检出已安装的 patent-services 包——wheel 模式生效前提是先装本地 wheel（该包未发布 PyPI，uvx 只能运行 uv 已装的工具）：uv tool install <分发目录>/deepseek_harness_patent_services-*.whl，装完重启进程复检。' })
+    } else if (!(await wheelServiceRunnable())) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（wheel 模式）：uvx 拉取 patent-services 失败——确认 uv/uvx 在 PATH 且可达 PyPI（直验命令：uvx --from deepseek-harness-patent-services python -c "import patent_services"）；离线机器改为 uv tool install <分发目录>/deepseek_harness_patent_services-*.whl，装完重启进程复检。' })
     } else {
       channels.push({ status: 'ok', gates: 'MCP 服务', line: '✅ MCP 服务（wheel 模式）：DSH_PATENT_SERVICES 已设——MCP 工具经 uvx 运行已安装的包。' })
     }
@@ -404,8 +406,8 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
       }
     } else if (!uvxReady) {
       channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：未检出 uvx——wheel 模式的 MCP 行由 uvx 拉起，安装 uv（自带 uvx）后重启进程复检。' })
-    } else if (!(await wheelToolInstalled())) {
-      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：mcp_wheel 已启用但未检出已安装的 patent-services 包——wheel 模式生效前提是先装本地 wheel（该包未发布 PyPI，uvx 只能运行 uv 已装的工具）：uv tool install <分发目录>/deepseek_harness_patent_services-*.whl，装完重启进程复检。' })
+    } else if (!(await wheelServiceRunnable())) {
+      channels.push({ status: 'fail', gates: 'MCP 服务', line: '❌ MCP 服务（配置文件模式）：mcp_wheel 已启用但 uvx 拉取 patent-services 失败——确认 uv/uvx 在 PATH 且可达 PyPI（直验命令：uvx --from deepseek-harness-patent-services python -c "import patent_services"）；离线机器改为 uv tool install <分发目录>/deepseek_harness_patent_services-*.whl，装完重启进程复检。' })
     } else {
       channels.push(mcpLoadVerdict(
         '✅ MCP 服务（配置文件模式·已装载）：~/.dsh/patent-services.yaml 的 mcp_enabled 已启用，本进程启动时已按 mcp_wheel 装载 MCP 工具。',
@@ -460,18 +462,24 @@ export async function checkSetupChannels(): Promise<SetupChannel[]> {
       : { status: 'info', gates: '附图渲染', line: 'ℹ️ draw.io 原生 CLI 未检出——渲染走 docker 兜底即可，无需配置；想加速可安装 draw.io Desktop 或设 DSH_DRAWIO_BIN。' })
   }
 
-  channels.push(await searchReachable()
+  const searchUp = await searchReachable()
+  channels.push(searchUp
     ? { status: 'ok', gates: '查新检索', line: '✅ 检索通道：patents.google.com 可达——查新（search_cn_patents）与明细阅读可用。' }
     : { status: 'fail', gates: '查新检索', line: '❌ 检索通道：patents.google.com 不可达——查新受限（点子评估与查新门会受影响）。通常需要开启本机代理（如 Clash 系统代理或 TUN）；通道恢复后复检，期间检索工具会如实报错、禁止编造结果。' })
+  // The proxy env vars are a diagnostic for a failed search probe, not a
+  // standing configuration row — a reachable channel stays silent about them.
+  if (!searchUp) {
+    const proxies = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy'].filter(name => (process.env[name] ?? '').length > 0)
+    channels.push({ status: 'info', gates: '', line: proxies.length > 0
+      ? `ℹ️ 代理环境变量：已设置（${proxies.join('、')}）——检索仍不可达时排查该代理是否放行 patents.google.com。`
+      : 'ℹ️ 代理环境变量：未设置——这本身无需设置；检索不可达的常见原因是系统代理/TUN 未开，HTTP_PROXY/HTTPS_PROXY 只是备选手段。' })
+  }
 
   const widenedValue = optionValue('DSH_EXPERIMENT_ALLOW_ANY_COMMAND', 'experiment_allow_any_command')
   const widened = widenedValue === '1' || widenedValue === 'true'
   channels.push({ status: 'info', gates: '', line: widened
     ? 'ℹ️ 实验命令白名单：已放宽（任意 shell 命令，仅建议确有需要时保留）；收紧：删除环境变量 DSH_EXPERIMENT_ALLOW_ANY_COMMAND，并把 ~/.dsh/patent-services.yaml 的 experiment_allow_any_command 改为 false 或删掉该行。'
     : 'ℹ️ 实验命令白名单：默认（只接受单个 python 调用）；放宽：环境变量 DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1，或在 ~/.dsh/patent-services.yaml 写 experiment_allow_any_command: true。' })
-
-  const proxies = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy'].filter(name => (process.env[name] ?? '').length > 0)
-  channels.push({ status: 'info', gates: '', line: `ℹ️ 代理环境变量：${proxies.length > 0 ? proxies.join('、') : '未设置（node fetch 仍会读系统代理）'}。` })
 
   return channels
 }

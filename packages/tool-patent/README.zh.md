@@ -57,7 +57,7 @@ kind: "package-reference"
 <a id="setup-check"></a>
 ## 环境自检
 
-`patent_setup_check` 逐通道探测——MCP 服务行（~/.dsh/patent-services.yaml 的 mcp 键、home 补丁行、或启用环境变量——这是 MCP 工具永远做不到的那项检查）、docker 与两个镜像、draw.io 原生 CLI、patents.google.com 可达性、实验命令策略、代理变量——逐项返回中文结论行，缺什么附修法。刻意在宿主面：MCP 行未启用时本工具依然可用，所以点名「缺 MCP 行」的正是它；通道坏了是报告行，绝不抛异常。同一组 settings 键也驱动插件自己的 MCP 装载：静态行未被其他方式启用时，`apply` 读 `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` 并经 `ctx.plugin` 装载 mcp 客户端——一个文件承载全部偏好。装载在 spawn 前拒绝相对路径或缺 pyproject.toml 的项目目录（原因落进「装载失败」报告行）；wheel 模式要求先把 wheel 装成 uv 工具——该包未发布 PyPI，uvx 只能运行 `uv tool install` 装过的东西；两者自检都会报。patent-init 技能把它作为每个新项目的第 0 步，且在那里是一道门：报告呈现给用户后即结束本轮——除检索通道外的每个受限通道都必须修复并复检（只给一句话修复步骤，不提供跳过选项）；唯一可跳过的是检索通道，且须用户明确拍板（通常只是 VPN/代理没连，此时问「是否跳过查新、先继续写作？」）；点子评估、访谈或回答点子本身的问题，要等所有通道就绪或修复、或用户明确跳过检索通道之后才开始；报告全部就绪时可以直接推进。
+`patent_setup_check` 逐通道探测——MCP 服务行（~/.dsh/patent-services.yaml 的 mcp 键、home 补丁行、或启用环境变量——这是 MCP 工具永远做不到的那项检查）、docker 与两个镜像、draw.io 原生 CLI、patents.google.com 可达性、实验命令策略，以及仅在检索探测失败时出现的代理环境变量（作为该次失败的排障线索，不是常驻行）——逐项返回中文结论行，缺什么附修法。刻意在宿主面：MCP 行未启用时本工具依然可用，所以点名「缺 MCP 行」的正是它；通道坏了是报告行，绝不抛异常。同一组 settings 键也驱动插件自己的 MCP 装载：静态行未被其他方式启用时，`apply` 读 `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` 并经 `ctx.plugin` 装载 mcp 客户端——一个文件承载全部偏好。装载在 spawn 前拒绝相对路径或缺 pyproject.toml 的项目目录（原因落进「装载失败」报告行）；wheel 模式要求 uvx 能从 PyPI 解析该包——自检直接跑 MCP 行同款的 `uvx --from deepseek-harness-patent-services python -c "import patent_services"` 导入，离线机器 `uv tool install` 本地 wheel 仍是替代路径；两者自检都会报。patent-init 技能把它作为每个新项目的第 0 步，且在那里是一道门：报告呈现给用户后即结束本轮——除检索通道外的每个受限通道都必须修复并复检（只给一句话修复步骤，不提供跳过选项）；唯一可跳过的是检索通道，且须用户明确拍板（通常只是 VPN/代理没连，此时问「是否跳过查新、先继续写作？」）；点子评估、访谈或回答点子本身的问题，要等所有通道就绪或修复、或用户明确跳过检索通道之后才开始；报告全部就绪时可以直接推进。
 
 <a id="loop-semantics"></a>
 ## 循环语义
