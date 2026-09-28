@@ -7,8 +7,6 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-> 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
-
 ## 概述
 
 模型可见的确定性专利工具面。`patent_brief_coverage` 按五方对齐就绪判据为交底书 brief 打分，给 Init 对话一个确定性的「何时停止提问、开始动笔」信号；`patent_claims_lint` 按中国专利申请（CNIPA）格式最低要求对起草的权利要求书（及可选的摘要）做静态检查；`patent_loop` 从任意流水线阶段评估项目目录并指认下一个阶段，配套的 `/patent-loop` 命令把评估结果注入会话做全流程推进。在 patent profile 内使用；两个纯函数工具不带任何配置，loop 工具对读盘项目状态做判定。
@@ -29,7 +27,7 @@ kind: "package-reference"
 <a id="what-it-does"></a>
 ## 做什么
 
-在 `ctx.tools` 上注册五个工具、在 `ctx.commands` 上注册一个命令。`patent_setup_check` 是宿主面环境自检（见[环境自检](#setup-check)）。`patent_brief_coverage`：模型按维度传入已收集的草稿内容——`field`、`background`、`problem`、`solution`、`effect` 五个核心维度，外加 `name`、`drawings`、`key_points` 三个边缘维度（省略即未收集）——返回已收集/缺失清单、三方对齐判定与就绪信号。`patent_claims_lint`：模型传入起草的权利要求书文本（及可选摘要），返回权项数量结构与规则违例。两个纯函数工具的调用与结果经 loop 的 `tool/call` 与 `tool/result` session 事件记录，不追加任何其他事件。`patent_prose_lint` 是 patent-de-ai 技能的机器半边：套话转折词、超 150 字长句、三连排比为必须清除的 error，段末总结与教科书定义为 warning 提示。`patent_loop` 与 `/patent-loop` 共用一个读盘评估器（见[循环语义](#loop-semantics)）。
+在 `ctx.tools` 上注册五个工具、在 `ctx.commands` 上注册一个命令。`patent_setup_check` 是宿主面环境自检（见[环境自检](#setup-check)）。`patent_brief_coverage`：模型按维度传入已收集的草稿内容——`field`、`background`、`problem`、`solution`、`effect` 五个核心维度，外加 `name`、`drawings`、`key_points` 三个边缘维度（省略即未收集）——返回已收集/缺失清单、三方对齐判定与就绪信号。`patent_claims_lint`：模型传入起草的权利要求书文本（及可选摘要），返回权项数量结构与规则违例。两个纯函数工具的调用与结果经 loop 的 `tool/call` 与 `tool/result` session 事件记录，不追加任何其他事件。`patent_prose_lint` 是 patent-de-ai 技能的机器半边：套话与道歉式措辞、超 150 字长句为必须清除的 error，三连排比、段末总结与教科书定义为 warning 提示。`patent_loop` 与 `/patent-loop` 共用一个读盘评估器（见[循环语义](#loop-semantics)）。
 
 <a id="scoring-semantics"></a>
 ## 打分语义
@@ -59,7 +57,7 @@ kind: "package-reference"
 <a id="setup-check"></a>
 ## 环境自检
 
-`patent_setup_check` 逐通道探测——MCP 服务行（~/.dsh/patent-services.yaml 的 mcp 键、home 补丁行、或启用环境变量——这是 MCP 工具永远做不到的那项检查）、docker 与两个镜像、draw.io 原生 CLI、patents.google.com 可达性、实验命令策略、代理变量——逐项返回中文结论行，缺什么附修法。刻意在宿主面：MCP 行未启用时本工具依然可用，所以点名「缺 MCP 行」的正是它；通道坏了是报告行，绝不抛异常。同一组 settings 键也驱动插件自己的 MCP 装载：静态行未被其他方式启用时，`apply` 读 `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` 并经 `ctx.plugin` 装载 mcp 客户端——一个文件承载全部偏好。`mcp_enabled` 是**总开关，两种模式都必须写**：只写 `mcp_wheel` 或 `mcp_project_dir` 的文件不生效，自检也会点明这一点。装载在 spawn 前拒绝相对路径或缺 pyproject.toml 的项目目录（原因落进「装载失败」报告行）；wheel 模式要求先把 wheel 装成 uv 工具——该包未发布 PyPI，uvx 只能运行 `uv tool install` 装过的东西；两者自检都会报。patent-init 技能把它作为每个新项目的第 0 步。
+`patent_setup_check` 逐通道探测——MCP 服务行（~/.dsh/patent-services.yaml 的 mcp 键、home 补丁行、或启用环境变量——这是 MCP 工具永远做不到的那项检查）、docker 与两个镜像、draw.io 原生 CLI、patents.google.com 可达性、实验命令策略、代理变量——逐项返回中文结论行，缺什么附修法。刻意在宿主面：MCP 行未启用时本工具依然可用，所以点名「缺 MCP 行」的正是它；通道坏了是报告行，绝不抛异常。同一组 settings 键也驱动插件自己的 MCP 装载：静态行未被其他方式启用时，`apply` 读 `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` 并经 `ctx.plugin` 装载 mcp 客户端——一个文件承载全部偏好。装载在 spawn 前拒绝相对路径或缺 pyproject.toml 的项目目录（原因落进「装载失败」报告行）；wheel 模式要求先把 wheel 装成 uv 工具——该包未发布 PyPI，uvx 只能运行 `uv tool install` 装过的东西；两者自检都会报。patent-init 技能把它作为每个新项目的第 0 步，且在那里是一道门：报告呈现给用户后即结束本轮——把每个受限通道的一句话修复步骤交给用户，并给出选择（修复后复检，或明确「继续」带着该项受限往下走）；点子评估、访谈或回答点子本身的问题，要等所有通道就绪、或用户明确接受某项受限之后才开始；报告全部就绪时可以直接推进。
 
 <a id="loop-semantics"></a>
 ## 循环语义
@@ -83,7 +81,7 @@ kind: "package-reference"
 
 #### What the model sees
 
-模型看到生成的 [`patent_brief_coverage` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-patent)。
+模型看到生成的 [`patent_brief_coverage` schema](../../../docs/tool-catalog.zh.md#mtl-academicdsh-tool-patent)。
 
 #### Token effect
 

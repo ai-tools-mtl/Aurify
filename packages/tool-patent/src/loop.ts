@@ -532,7 +532,7 @@ async function exportGap(root: string): Promise<string | undefined> {
 /** Per-stage directive: what to do, which skills, and the hard disciplines. */
 const STAGE_DIRECTIVES: Readonly<Record<Exclude<LoopStage, 'done'>, { directive: string; skills: string[]; mayNeedUser: boolean }>> = {
   init: {
-    directive: '这是一个新项目起点。加载 patent-init 技能：先按其点子评估程序拆 2~3 个核心技术特征，用 search_cn_patents 检索现有专利并用 web_fetch 读最接近几篇的明细，形成三档结论（建议写/收窄后写/不建议写，附公开号证据）与用户对话定方向；用户确认后按建档约定建立 patent.yml + brief.md（开头是评估节）。'
+    directive: '这是一个新项目起点。加载 patent-init 技能：先过其环境自检门（patent_setup_check——报告呈现后停在等待点，环境全部就绪或用户明确「继续」后才进入评估），再按其点子评估程序拆 2~3 个核心技术特征，用 search_cn_patents 检索现有专利并用 web_fetch 读最接近几篇的明细，形成三档结论（建议写/收窄后写/不建议写，附公开号证据）与用户对话定方向；用户确认后按建档约定建立 patent.yml + brief.md（开头是评估节）。'
       + '评估结论需要用户拍板——把判断和证据摆到桌面并直接提问，不要替用户决定。',
     skills: ['patent-init', 'patent-research'],
     mayNeedUser: true,

@@ -7,8 +7,6 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
-> Relative links in this document follow the deepseek-harness monorepo layout. This repository is the extracted distribution — the full monorepo ships as the release's `dsh-patent-full.bundle` — so links that leave this directory resolve in the monorepo, not here.
-
 ## Summary
 
 Model-facing deterministic patent surfaces. `patent_brief_coverage` scores a disclosure brief against the five-party alignment (五方对齐) readiness criteria so the Init dialogue has a deterministic stop signal; `patent_claims_lint` lints a drafted application's claims (and optional abstract) against the CNIPA format minimums; `patent_loop` assesses a project directory from any pipeline stage and names the one next stage, and the `/patent-loop` command injects that assessment into the session as a full-pipeline push. Choose them inside the patent profile; the two pure tools carry no configuration, and the loop pair reads project state from disk.
@@ -28,7 +26,7 @@ Model-facing deterministic patent surfaces. `patent_brief_coverage` scores a dis
 
 ## What it does
 
-Registers five tools on `ctx.tools` and one command on `ctx.commands`. `patent_setup_check` is the host-plane environment self-check (see [Setup check](#setup-check)). For `patent_brief_coverage` the model sends the draft content collected so far per dimension — `field`, `background`, `problem`, `solution`, `effect`, plus the edge dimensions `name`, `drawings`, `key_points` (omitted keys mean uncollected) — and receives the collected/missing split, the three-way alignment verdict, and the readiness signal. For `patent_claims_lint` the model sends the drafted claims text (and the optional abstract) and receives the claim count split and the rule violations. The coverage and lint tools are pure functions of their arguments; calls and results ride the loop's `tool/call` and `tool/result` session events, and nothing else is appended. `patent_prose_lint` is the machine half of the patent-de-ai skill: filler phrases, over-150-character sentences, triple parallelisms (errors to clear), plus paragraph summaries and textbook definitions (warnings). `patent_loop` and `/patent-loop` share one disk-reading assessor (see [Loop semantics](#loop-semantics)).
+Registers five tools on `ctx.tools` and one command on `ctx.commands`. `patent_setup_check` is the host-plane environment self-check (see [Setup check](#setup-check)). For `patent_brief_coverage` the model sends the draft content collected so far per dimension — `field`, `background`, `problem`, `solution`, `effect`, plus the edge dimensions `name`, `drawings`, `key_points` (omitted keys mean uncollected) — and receives the collected/missing split, the three-way alignment verdict, and the readiness signal. For `patent_claims_lint` the model sends the drafted claims text (and the optional abstract) and receives the claim count split and the rule violations. The coverage and lint tools are pure functions of their arguments; calls and results ride the loop's `tool/call` and `tool/result` session events, and nothing else is appended. `patent_prose_lint` is the machine half of the patent-de-ai skill: filler and apologetic phrases and over-150-character sentences are errors to clear, while triple parallelisms, paragraph summaries, and textbook definitions are warnings. `patent_loop` and `/patent-loop` share one disk-reading assessor (see [Loop semantics](#loop-semantics)).
 
 ## Scoring semantics
 
@@ -55,7 +53,7 @@ The parsed claims are deliberately excluded from the model-visible result: the m
 
 ## Setup check
 
-`patent_setup_check` probes every optional channel — the MCP services row (its `~/.dsh/patent-services.yaml` mcp keys, home-patch row, or enabling env vars; the one check an MCP-served tool could never run), docker and its two images, the native draw.io CLI, the patents.google.com reachability, the experiment command policy, the proxy variables — and returns one Chinese verdict line per channel with the fix for whatever is missing. Host-plane on purpose: the tool stays available while the MCP row is disabled, so it is what names that missing row; a broken channel is a report row, never an exception. The same settings keys also drive the plugin's own MCP load: when nothing else enabled the static row, `apply` reads `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` and loads the mcp client with `ctx.plugin` — one file carries every preference. `mcp_enabled` is the master switch, required in both modes: a file carrying only `mcp_wheel` or `mcp_project_dir` stays off, and the check says so. The load refuses a relative project dir or a directory without a pyproject.toml before spawning (the cause lands in the load-failure report row), and wheel mode requires the wheel installed as a uv tool — the package is not on PyPI, so `uvx` only resolves what `uv tool install` put there; the check reports both. The patent-init skill runs the check as step zero of every new project.
+`patent_setup_check` probes every optional channel — the MCP services row (its `~/.dsh/patent-services.yaml` mcp keys, home-patch row, or enabling env vars; the one check an MCP-served tool could never run), docker and its two images, the native draw.io CLI, the patents.google.com reachability, the experiment command policy, the proxy variables — and returns one Chinese verdict line per channel with the fix for whatever is missing. Host-plane on purpose: the tool stays available while the MCP row is disabled, so it is what names that missing row; a broken channel is a report row, never an exception. The same settings keys also drive the plugin's own MCP load: when nothing else enabled the static row, `apply` reads `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` and loads the mcp client with `ctx.plugin` — one file carries every preference. The load refuses a relative project dir or a directory without a pyproject.toml before spawning (the cause lands in the load-failure report row), and wheel mode requires the wheel installed as a uv tool — the package is not on PyPI, so `uvx` only resolves what `uv tool install` put there; the check reports both. The patent-init skill runs the check as step zero of every new project, and the check is a gate there: after the report is presented the turn ends — the user gets each limited channel's one-line fix step plus the choice to re-check after fixing or to explicitly continue past it — and the idea evaluation, the interview, or answering the idea itself starts only once every channel is ready or the user explicitly accepted a limited one; a fully ready report may proceed.
 
 ## Loop semantics
 
@@ -75,7 +73,7 @@ A function plugin: it exports `name` / `inject` / `apply` and NO default. A stra
 
 #### What the model sees
 
-The model sees the generated [`patent_brief_coverage` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-patent).
+The model sees the generated [`patent_brief_coverage` schema](../../../docs/tool-catalog.md#mtl-academicdsh-tool-patent).
 
 #### Token effect
 
