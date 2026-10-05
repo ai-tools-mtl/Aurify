@@ -61,7 +61,7 @@ dist/                              # 可直接安装的 npm tarball + Python whe
 
 ## 开发
 
-当前源码修复了整项审查漏读章节与申请文件、报告总分格式解析、失败实验日志误判完成及依赖安装失败仍继续执行的问题。整项审查传项目根目录（当前目录为项目时用 `.`），包含 `brief.md`、`chapters/` 和 `application/` 的顶层 Markdown；实验阶段要求至少一个实验的最新运行记录退出码为 0，或有明确的无需实验声明。本地 `dist/` 已重建为 TS `0.1.6-alpha.6` 与 Python `0.1.1`，包含上述修复；尚未发布 npm/PyPI，获取修复请使用本地离线安装包或源码模式。
+当前源码修复了整项审查漏读章节与申请文件、报告总分格式解析、失败实验日志误判完成及依赖安装失败仍继续执行的问题。整项审查传项目根目录（当前目录为项目时用 `.`），包含 `brief.md`、`chapters/` 和 `application/` 的顶层 Markdown；实验阶段要求至少一个实验的最新运行记录退出码为 0，或有明确的无需实验声明。本地 `dist/` 已重建为 TS `0.1.6-alpha.6` 与 Python `0.1.1`，包含上述修复；TS 三个包已发布 npm（latest 为 `0.1.6-alpha.6`）；Python `0.1.1` 尚未发布 PyPI，Python 修复请使用本地 wheel 或源码模式。
 
 技能/Python 服务可直接改源码（Python 服务经 `DSH_PATENT_SERVICES_DIR` 指源码运行，改动即生效）。TS 包的构建接线在 deepseek-harness monorepo 内（tsdown preset、workspace 依赖），完整 monorepo 历史与构建上下文见本仓库 Release 附带的 `dsh-patent-full.bundle`（`git clone` 即得源码仓，`pnpm install && pnpm run build`）。独立打包：`npm --prefix scripts install && npm --prefix scripts run build`；Python wheel/sdist：`python -m build --outdir dist python/patent-services`（需安装 build 与 hatchling）。产物验证：`python3 scripts/verify-dist.py`；重建后用 `--write-checksums` 更新校验文件。独立 TS 打包生成声明但不代替完整 monorepo 类型检查；运行时依赖保持外置，发布依赖范围沿用已有分发包元数据。Python 测试：`uv run --project python/patent-services --group test pytest python/patent-services/tests`。
 
