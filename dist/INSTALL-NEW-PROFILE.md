@@ -208,4 +208,4 @@ Recovery, in order of preference:
 
 ## Local rebuild (2026-10-05)
 
-The local artifacts are TS `0.1.6-alpha.5` and Python `0.1.1`. They include the review-scope, score-parser, experiment-status, and dependency-install fixes, but have not been published to npm/PyPI. Use the offline tarballs and local wheel (or Python source mode) for these fixes; registry installation still uses published releases.
+The local artifacts are TS `0.1.6-alpha.6` and Python `0.1.1`. They include the review-scope, score-parser, experiment-status, and dependency-install fixes, but have not been published to npm/PyPI. Use the offline tarballs and local wheel (or Python source mode) for these fixes; registry installation still uses published releases.

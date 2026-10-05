@@ -1,7 +1,7 @@
 {
   "name": "@mtl-academic/dsh-command-patent-review",
   "description": "Human-facing /patent-review command: deterministic rubric review over a disclosure file or directory, report written to review/",
-  "version": "0.1.6-alpha.5",
+  "version": "0.1.6-alpha.6",
   "publishConfig": {
     "access": "public"
   },

@@ -1,6 +1,6 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-**0.1.6-alpha.5** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.5 / wheel=0.1.1（均未发布 registry）
+**0.1.6-alpha.6** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.6 / wheel=0.1.1（均未发布 registry）
 
 **源码与分发包状态**：本目录安装包已包含整项审查范围、报告总分解析、失败实验日志误判完成及依赖安装失败仍继续执行的修复。版本仅在本地重建，尚未发布 npm/PyPI；插件市场和 npm/PyPI 在线路线仍取得已发布版本，使用这些修复请按方式 D/E 安装本地 tarball，并安装本地 0.1.1 wheel 或启用 Python 源码模式。
 
@@ -89,7 +89,7 @@ dsh --profile patent-demo --dump-config
 
 ```sh
 mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.5.tgz -C bundle --strip-components=1
+tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.6.tgz -C bundle --strip-components=1
 ```
 
 ```powershell
@@ -110,8 +110,8 @@ powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent
 
 ```yaml
 overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.5.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.5.tgz'
+  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.6.tgz'
+  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.6.tgz'
   '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
   '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
 ```
