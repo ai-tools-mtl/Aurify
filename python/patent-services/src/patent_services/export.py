@@ -59,13 +59,21 @@ _ATX_HEADING = re.compile(r"^(#{1,6})\s+(.+)$")
 _BULLET = re.compile(r"^[-*]\s+(.*)$")
 
 #: Model-authored hierarchical numbering leading a subheading — ``3.1``、
-#: ``12.3.4`` (2-digit-per-level cap keeps years and dates unstripped),
-#: ``一、``/``十二.`` (separator required, so ``三是`` survives), ``（2）``/
-#: ``（三）``. Stripped on export: the deliverable's numbering is the
+#: ``12.3.4`` (a multi-level counter is numbering-shaped on its own),
+#: ``一、``/``十二.`` (delimiter part of the branch, so ``三是`` survives),
+#: ``（2）``/``（三）`` (the closing bracket delimits). A lone number must
+#: end at an explicit delimiter or whitespace — prose that merely starts
+#: with digits (``3D模型构建``、``2026年实验环境``) keeps every character.
+#: Stripped on export: the deliverable's numbering is the
 #: exporter's own (一、二、三 sections); a subheading carrying its own
 #: counter reads as a second, restarting top level.
 _LEAD_NUMBERING = re.compile(
-    r"^(?:\d{1,2}(?:\.\d{1,2}){0,2}|[一二三四五六七八九十]{1,3}[、.．]|[（(][0-9一二三四五六七八九十]{1,3}[)）])[、.．:：]?\s*"
+    r"^(?:"
+    r"[（(][0-9一二三四五六七八九十]{1,3}[)）]"
+    r"|[一二三四五六七八九十]{1,3}[、.．]"
+    r"|\d{1,2}(?:\.\d{1,2})+"
+    r"|\d{1,2}(?:[、.．:：]|\s)"
+    r")\s*"
 )
 _EMPHASIS = re.compile(r"\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")

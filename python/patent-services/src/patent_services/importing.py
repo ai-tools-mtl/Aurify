@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
 from docx import Document
 from docx.oxml.ns import qn
 
@@ -147,8 +148,14 @@ def _section_kind(paragraph) -> str | None:
     if _EXTRA_HEADING.match(text) or _any_prefix(stripped, _EXTRA_SECTION_NAMES):
         return "extra"
     style = (paragraph.style.name or "")
-    if ("heading" in style.lower() or "标题" in style) and style.rstrip()[-1:].isdigit():
-        return "extra"
+    if "heading" in style.lower() or "标题" in style:
+        # Only a level-1 heading style starts a chapter (an unmapped one
+        # continues as an extra ``09-`` chapter); level 2/3 stay in the
+        # current section — the fold emits them as ``## ``/``### `` lines.
+        # A heading style without a trailing level digit keeps the old
+        # conservative no-split behavior.
+        level = re.search(r"(\d+)\s*$", style.rstrip())
+        return "extra" if level is not None and level.group(1) == "1" else None
     return None
 
 
@@ -364,8 +371,12 @@ def _finish_import(root: Path, source: Path, name: str | None, overwrite: bool,
         name_body = next((body for filename, bodies in sorted(grouped.items())
                           if filename == "01-name.md" for body in bodies if body.strip()), None)
         import_name = name or (name_body.splitlines()[0].strip() if name_body else None) or source.stem
-        manifest_path.write_text(f"formatVersion: 1\nname: {import_name}\nstatus: drafting\n",
-                                 encoding="utf-8", newline="\n")
+        # Serialized, not interpolated: a name like ``方法: 系统`` written raw
+        # into the manifest is a YAML ScannerError that later reads choke on.
+        manifest_path.write_text(
+            yaml.safe_dump({"formatVersion": 1, "name": import_name, "status": "drafting"},
+                           allow_unicode=True, sort_keys=False),
+            encoding="utf-8", newline="\n")
         manifest_created = True
 
     lines = [f"已导入 {source.name} → {root}："]

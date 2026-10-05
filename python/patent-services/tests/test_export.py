@@ -507,6 +507,27 @@ def test_export_strips_subheading_numbering(tmp_path):
     assert warnings == []
 
 
+def test_export_keeps_prose_that_merely_starts_with_digits(tmp_path):
+    """A heading whose text merely starts with digits is not a numbering
+    prefix: the old optional-separator regex ate the ``3`` from ``3D模型构建``
+    and the leading ``20`` from ``2026年实验环境`` — deliverable content
+    destroyed. A multi-level counter (``3.1``) is numbering-shaped on its own
+    and still strips; a date-shaped number is prose, not a counter."""
+    project = build_project(tmp_path / "project")
+    (project / "chapters" / "05-solution.md").write_text(
+        "# 技术方案\n\n总体说明。\n\n## 3D模型构建\n\n三维建模过程如下。\n\n"
+        "## 2026年实验环境\n\n实验环境就绪。\n\n## 3.1意图声明组件\n\n组件一。\n\n"
+        "## 2026.5.12 阶段计划\n\n时间表另附。\n",
+        encoding="utf-8")
+    output, warnings = export_project(str(project))
+    texts = [paragraph.text for paragraph in Document(output).paragraphs]
+    assert "3D模型构建" in texts and "D模型构建" not in texts
+    assert "2026年实验环境" in texts and "26年实验环境" not in texts
+    assert "意图声明组件" in texts and "3.1意图声明组件" not in texts
+    assert "2026.5.12 阶段计划" in texts
+    assert warnings == []
+
+
 def test_export_folds_deeper_headings_into_subheadings(tmp_path):
     """``### `` lines used to fall through as plain paragraphs with literal
     ``###`` markers in the deliverable; they fold into bold sub-paragraphs

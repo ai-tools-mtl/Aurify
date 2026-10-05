@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 from docx import Document
 
 from patent_services.importing import import_patent_document, split_document
@@ -93,6 +94,52 @@ def test_import_writes_chapters_brief_and_manifest(tmp_path):
     manifest = (project / "patent.yml").read_text(encoding="utf-8")
     assert "formatVersion: 1" in manifest and "status: drafting" in manifest
     assert "一种多智能体冲突消解方法" in manifest
+
+
+def test_styled_subheadings_stay_inside_their_section(tmp_path):
+    """Only a level-1 heading style splits chapters: ``Heading 2`` sections
+    (组件设计、接口设计) inside 发明内容 used to be shredded into ``09-``/``10-``
+    extra chapters, tearing them out of the solution body; they stay in the
+    solution chapter as ``## `` subheadings now."""
+    document = Document()
+    add_heading_like(document, "五、发明内容（应该结合图形详细阐述该技术方案）：")
+    document.add_paragraph("总体架构分为两层。")
+    document.add_heading("组件设计", level=2)
+    document.add_paragraph("组件负责意图声明与冲突预检。")
+    document.add_heading("接口设计", level=2)
+    document.add_paragraph("接口走消息总线。")
+    add_heading_like(document, "六、有益效果")
+    document.add_paragraph("检索时延下降三成。")
+    source = tmp_path / "styled.docx"
+    document.save(str(source))
+    project = tmp_path / "project"
+    project.mkdir()
+    import_patent_document(str(project), str(source))
+    solution = (project / "chapters" / "05-solution.md").read_text(encoding="utf-8")
+    assert "## 组件设计" in solution and "组件负责意图声明与冲突预检。" in solution
+    assert "## 接口设计" in solution and "接口走消息总线。" in solution
+    extras = sorted(path.name for path in (project / "chapters").glob("*.md")
+                    if path.name[:2] >= "09")
+    assert extras == []
+
+
+def test_manifest_name_survives_yaml_metacharacters(tmp_path):
+    """The manifest name is serialized, not interpolated: a name carrying
+    ``: `` written raw produced a patent.yml every later read died on with a
+    YAML ScannerError."""
+    document = Document()
+    add_heading_like(document, "一、名称：")
+    document.add_paragraph("一种基于意图声明的校验方法")
+    add_heading_like(document, "二、所属技术领域：")
+    document.add_paragraph("数据处理。")
+    source = tmp_path / "colon.docx"
+    document.save(str(source))
+    project = tmp_path / "project"
+    project.mkdir()
+    import_patent_document(str(project), str(source), name="方法: 系统")
+    manifest = yaml.safe_load((project / "patent.yml").read_text(encoding="utf-8"))
+    assert manifest["name"] == "方法: 系统"
+    assert manifest["formatVersion"] == 1 and manifest["status"] == "drafting"
 
 
 def test_import_bullets_and_subheadings_fold_into_markdown(tmp_path):
