@@ -89,6 +89,34 @@ describe('assessLoopState stage machine', () => {
     expect(state.gaps.some(gap => gap.detail.includes('06-effect.md 为占位'))).toBe(true)
   })
 
+  it('names a chapters gap when the name chapter carries candidates or extra lines', async () => {
+    const dir = await fullProject('name-candidates')
+    await writeFile(
+      join(dir, 'chapters', '01-name.md'),
+      '# 发明名称\n\n一种测试存储装置\n\n备选名称：一种分布式测试存储方法\n\n名称一：一种测试存储设备\n',
+      'utf8',
+    )
+    const state = await assessLoopState(dir)
+    expect(state.stage).toBe('chapters')
+    expect(state.gaps.some(gap => gap.detail.includes('01-name.md 应只包含最终名称一行'))).toBe(true)
+
+    // A single drafting note on the name line trips the marker even alone.
+    const single = await fullProject('name-single-note')
+    await writeFile(join(single, 'chapters', '01-name.md'), '# 发明名称\n\n名称一：一种测试存储装置\n', 'utf8')
+    const singleState = await assessLoopState(single)
+    expect(singleState.gaps.some(gap => gap.detail.includes('01-name.md'))).toBe(true)
+
+    // The normal single-name chapter — the shape every clean project has — stays gap-free.
+    const clean = await fullProject('name-clean')
+    await writeFile(
+      join(clean, 'chapters', '01-name.md'),
+      '# 发明名称\n\n一种多智能体系统资源写入冲突消解方法及系统\n',
+      'utf8',
+    )
+    const cleanState = await assessLoopState(clean)
+    expect(cleanState.gaps.some(gap => gap.detail.includes('01-name.md'))).toBe(false)
+  })
+
   it('names experiments for quantified effects with no run log, and accepts the not-applicable marker', async () => {
     const dir = await fullProject('no-experiments')
     await writeFile(join(dir, 'chapters', '06-effect.md'), `# 有益效果\n\n丢失从 226 个降至 0，调用减少 22%。${BODY}`, 'utf8')

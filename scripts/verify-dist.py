@@ -28,7 +28,10 @@ for directory in ('bundle-patent', 'tool-patent', 'command-patent-review'):
         if directory == 'bundle-patent':
             assert sum(n.endswith('/SKILL.md') for n in names) == 14
             client = tar.extractfile('package/lib/client.js').read().decode()
-            assert 'window.__ModuleLoader__.load' in client and 'style.textContent=' in client
+            # The monorepo tsdown build keeps spaces ("textContent = css"); the
+            # standalone scripts/build-dist.mjs minifies them away — accept both.
+            assert 'window.__ModuleLoader__.load' in client and 'textContent' in client
+            assert 'createElement("style")' in client or 'createElement(\'' + 'style' + '\')' in client
             assert 'node:fs' not in client
         if directory == 'command-patent-review':
             rubric = json.load(tar.extractfile('package/rubric/default.json'))

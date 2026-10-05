@@ -7,9 +7,25 @@ import asyncio
 from patent_services.server import mcp
 
 
-def test_server_registers_the_nine_domain_tools():
+def test_server_registers_the_ten_domain_tools():
     tools = {tool.name for tool in asyncio.run(mcp.list_tools())}
-    assert tools == {"parse_disclosure_docx", "export_disclosure", "export_application_docs", "render_drawio_figure", "render_html_figure", "lint_drawio_figure", "search_patent_archive", "run_experiment", "search_cn_patents"}
+    assert tools == {"import_patent_document", "parse_disclosure_docx", "export_disclosure", "export_application_docs", "render_drawio_figure", "render_html_figure", "lint_drawio_figure", "search_patent_archive", "run_experiment", "search_cn_patents"}
+
+
+def test_import_patent_document_through_the_mcp_call_path(tmp_path, monkeypatch):
+    """The shadowing shape again on the newest tool: the tool body must reach
+    the importing module's function, not itself."""
+    import patent_services.server as server
+
+    (tmp_path / "patent.yml").write_text("formatVersion: 1\nname: 测试\nstatus: drafting\n", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(server, "_import_document_impl",
+                        lambda project_dir, document_path, name, overwrite: calls.append((project_dir, document_path, name, overwrite)) or "已导入")
+    result = asyncio.run(mcp.call_tool("import_patent_document", {
+        "project_dir": str(tmp_path), "document_path": str(tmp_path / "doc.docx"), "overwrite": True,
+    }))
+    assert calls == [(str(tmp_path), str(tmp_path / "doc.docx"), None, True)]
+    assert result.content[0].text == "已导入"
 
 def test_fail_loud_keeps_the_domain_message_on_the_wire():
     """The SDK swallows non-ToolError exceptions into a bare 'Error executing

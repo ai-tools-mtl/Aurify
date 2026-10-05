@@ -4,13 +4,14 @@
 
 > 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
 
-把专利交底书领域服务经 MCP stdio 暴露给 dsh `patent` profile：模板/参考文献解析、整项目导出、申请文件导出、drawio 附图渲染、归档检索、docker 仿真实验与中国专利发现。经 [`@deepseek-ai/dsh-mcp-client`](../../packages/mcp/mcp-client/README.zh.md) 挂载后，工具以 `mcp__patent__parse_disclosure_docx`、`mcp__patent__export_disclosure`、`mcp__patent__export_application_docs`、`mcp__patent__render_drawio_figure`、`mcp__patent__render_html_figure`、`mcp__patent__lint_drawio_figure`、`mcp__patent__search_patent_archive`、`mcp__patent__run_experiment` 与 `mcp__patent__search_cn_patents` 出现在模型工具表。
+把专利交底书领域服务经 MCP stdio 暴露给 dsh `patent` profile：已有文档导入、模板/参考文献解析、整项目导出、申请文件导出、drawio 附图渲染、归档检索、docker 仿真实验与中国专利发现。经 [`@deepseek-ai/dsh-mcp-client`](../../packages/mcp/mcp-client/README.zh.md) 挂载后，工具以 `mcp__patent__import_patent_document`、`mcp__patent__parse_disclosure_docx`、`mcp__patent__export_disclosure`、`mcp__patent__export_application_docs`、`mcp__patent__render_drawio_figure`、`mcp__patent__render_html_figure`、`mcp__patent__lint_drawio_figure`、`mcp__patent__search_patent_archive`、`mcp__patent__run_experiment` 与 `mcp__patent__search_cn_patents` 出现在模型工具表。
 
 ## 工具
 
+- `import_patent_document(project_dir, document_path, name?, overwrite?)` — 把已有的 Word 专利文档导入为项目源文件：docx 在章节标题处切开（代理机构模板与 CNIPA 说明书的节名，按剥号文本前缀匹配——最长关键词优先，句末带标点的正文句永不切分），映射进 `chapters/01-name.md` … `08-drawings.md`（未映射的一级节顺延为 `09-` 起的附加章；权利要求书与摘要点名跳过——申请文件材料从章节重写，绝不原文导入），并生成 brief.md 五维骨架、缺 patent.yml 时补最小建档，流程门随后点名全部缺口；已有内容的章节拒绝导入，除非带 `overwrite`。表格与嵌入图片计数入报告，不导入。
 - `parse_disclosure_docx(path, output_path?)` — 按三层编号策略把 Word 文档解析为 Markdown（显式标题样式，`第一章/一、/1.` 为一级，`1.1/（一）` 为二级，`1.1.1` 为三级）；可选同时写出 Markdown 文件。表格与内嵌图片跳过。
-- `export_disclosure(project_dir, fmt)` — 以随包附带的代理机构交底书模板（`assets/disclosure-template.docx`）为底版导出：页眉「专利申请技术交底书」、发明人信息表与页面规格随模板保留，模板页脚（页码、事务所名与 logo）导出时清空，章节按模板条款（一、名称 ~ 八、附图）以模板自身排版（楷体_GB2312 四号、1.5 倍行距、首行两字符缩进）填入，并叠加阅读层级——条款标题加粗、`##` 子标题加粗不缩进、`- ` 分点渲染为 `●` 悬挂缩进圆点、`**加粗**` 保留为真加粗；未匹配模板条款的章节追加为后续条款，`brief.md` 不进入交底书；figures/图N.png 按序嵌入附图节（图N 标注与 08 章图题在图下方）；`docx`（默认，python-docx）或 `pdf`（Windows 上优先经隐藏窗口 Word COM 转换——docx 仍保留在 exports/，无 Word 时回退 weasyprint）。
-- `export_application_docs(project_dir, fmt)` — 把申请文件三件套（`application/{claims,description,abstract}.md`）按已提交申请文件的版式导出：单文档多分节——说明书摘要、权利要求书（每条编号权项一段，Markdown 续行并段）、说明书（居中发明名称 + 加粗不缩进节标题）——文档类型标签置于居中带下框线的页眉（黑体四号，字间空格照录），正文宋体四号（西文 Times New Roman、1.5 倍行距、首行两字符缩进、`●` 圆点与 `**加粗**` 层级同交底书），权利要求书与说明书各自重排页码但不显示页码；`docx`/`pdf` 行为与交底书导出一致。
+- `export_disclosure(project_dir, fmt)` — 以随包附带的代理机构交底书模板（`assets/disclosure-template.docx`）为底版导出：页眉「专利申请技术交底书」、发明人信息表与页面规格随模板保留，模板页脚（页码、事务所名与 logo）导出时清空，章节按模板条款（一、名称 ~ 八、附图）以模板自身排版（楷体_GB2312 四号、1.5 倍行距、首行两字符缩进）填入，并叠加**归一化**的阅读层级——条款标题加粗、`##`/`###` 子标题加粗不缩进且剥离模型自带的层级编号前缀（`3.1`、`一、`、`（2）`——编号由导出器统一生成，子标题绝不携带第二套中途重启的计数进交付物）、`- ` 分点渲染为 `●` 悬挂缩进圆点、`**加粗**` 保留为真加粗；章内更晚出现的 `# ` 行（修订时把内容加错层级）折叠为小节段落并作为具名警告随返回值带出，不再静默丢弃；未匹配模板条款的章节追加为后续条款，`brief.md` 不进入交底书；返回值带导出路径与标题警告；figures/图N.png 按序嵌入附图节（图N 标注与 08 章图题在图下方）；`docx`（默认，python-docx）或 `pdf`（Windows 上优先经隐藏窗口 Word COM 转换——docx 仍保留在 exports/，无 Word 时回退 weasyprint）。
+- `export_application_docs(project_dir, fmt)` — 把申请文件三件套（`application/{claims,description,abstract}.md`）按已提交申请文件的版式导出：单文档多分节——说明书摘要、权利要求书（每条编号权项一段，Markdown 续行并段）、说明书（居中发明名称 + 加粗不缩进节标题）——文档类型标签置于居中带下框线的页眉（黑体四号，字间空格照录），正文宋体四号（西文 Times New Roman、1.5 倍行距、首行两字符缩进、标题层级归一化同交底书导出），权利要求书与说明书各自重排页码但不显示页码；返回值带导出路径与标题警告；`docx`/`pdf` 行为与交底书导出一致。
 - `render_drawio_figure(source, fmt)` — 把一个 `.drawio` 源渲染为 `png`/`pdf`/`svg`/`jpg`：源在 `figures/source/` 下时成品落到 `figures/` 根（最外层只放最终插入文档的 PNG——源在 `figures/source/`、中间产物在 `figures/tmp/`），其余情况渲染到源旁。CLI 依次从 `DSH_DRAWIO_BIN`、PATH（`draw.io`/`drawio`）、用户级 Windows 安装位置解析（显式 `DSH_DRAWIO_BIN` 是严格模式——路径无效直接报错，不落入兜底）；docker 兜底运行 `DSH_DRAWIO_DOCKER_IMAGE`（默认 `q771103517/dsh-patent:latest`，即由 `assets/Dockerfile.drawio` 构建并发布到 Docker Hub 的中文字体叠加镜像——缺失时自动拉取；插件更新改动 Dockerfile 时以同一 tag 重建并推送）；后端全部不可用时报错并给出安装/构建指引。任何后端动手前先跑几何自查：error 级毛病（拐点入框、多边共用拐点）直接拒绝渲染并退回修改清单，warning（缺锚点、共走廊）附在成功返回里。
 - `lint_drawio_figure(source)` — 在渲染前对 `.drawio` 源做几何自查（figure-design 技能绘制纪律的机器化）：缺显式 exit/entry 锚点的连线（自动布线拐点不受控的根源）、拐点落入所绕行框内、多边共用同一拐点（线段搭接重叠之源）、平行线段共走廊。逐条给出修法；error 级发现正是 render_drawio_figure 拒绝渲染的那几类——画完先 lint，把几何修在源头。
 - `render_html_figure(source, fmt)` — 经 Edge/Chrome 无头截图把自包含 HTML 附图（diagram-design 产物）栅格化为 png/jpg 到源旁（`DSH_HTML_BROWSER` 可指定浏览器可执行文件）；源在 `figures/source/` 下时成品落 `figures/` 根。
@@ -28,7 +29,7 @@
 
 ```sh
 uv run --project python/patent-services python -m patent_services   # stdio server
-uv run --project python/patent-services pytest                      # tests
+uv run --project python/patent-services --group test pytest               # tests
 uv build                                                            # wheel + sdist into dist/
 ```
 

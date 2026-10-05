@@ -233,7 +233,33 @@ async function chapterGaps(root: string): Promise<string[]> {
       details.push(`chapters/${name} 为占位/空白`)
     }
   }
+  const nameGap = await nameChapterGap(root)
+  if (nameGap !== undefined) details.push(nameGap)
   return details
+}
+
+/** A drafting-note marker in the name chapter: a name-drafting session's
+ * candidate list (名称备选/候选名称/名称一/方案2) parked in the file. */
+const NAME_NOTE = /备选|候选|(?:名称|方案|名字)\s*[一二三四五六七八九十\d]/
+
+/**
+ * The name chapter's whole legitimate content is the final name — one
+ * non-heading line. Candidate lists and structure notes ship verbatim into
+ * the deliverable's 一、名称 section, so anything beyond the single line is
+ * a chapter-stage gap naming the remedy.
+ * @param root - the project directory.
+ * @returns the gap detail, or undefined when the chapter carries one line.
+ */
+async function nameChapterGap(root: string): Promise<string | undefined> {
+  const body = await readText(join(root, 'chapters', '01-name.md'))
+  if (body === undefined) return undefined
+  const lines = body.split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '' && !line.startsWith('#'))
+  if (lines.length > 1 || lines.some(line => NAME_NOTE.test(line))) {
+    return 'chapters/01-name.md 应只包含最终名称一行——备选清单与名称拆解等起草注释请移出章节文件（进会话或 review/）'
+  }
+  return undefined
 }
 
 /** A figure declaration line in 08-drawings.md: `图N 为……`. */

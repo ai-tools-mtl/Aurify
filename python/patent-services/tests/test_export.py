@@ -49,7 +49,7 @@ def build_project(root):
 
 def test_export_docx_uses_the_agency_template(tmp_path):
     project = build_project(tmp_path / "project")
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     assert output.endswith("exports" + "\\" + "一种测试存储装置-交底书.docx") or output.endswith(
         "exports/一种测试存储装置-交底书.docx"
     )
@@ -113,7 +113,7 @@ def test_export_docx_uses_the_agency_template(tmp_path):
 def test_export_docx_appends_unknown_chapters_as_extra_sections(tmp_path):
     project = build_project(tmp_path / "project")
     (project / "chapters" / "09-extra.md").write_text("# 附加说明\n\n额外章节内容。\n", encoding="utf-8")
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     document = Document(output)
     texts = [paragraph.text for paragraph in document.paragraphs]
     # Extras continue the sequential numbering after the present sections.
@@ -126,7 +126,7 @@ def test_export_skips_missing_template_sections_in_template_order(tmp_path):
     # Remove chapters 01/03: only extras and other chapters would remain —
     # instead verify a project with a single late section keeps its number.
     (project / "chapters" / "01-name.md").unlink()
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     document = Document(output)
     texts = [paragraph.text for paragraph in document.paragraphs]
     assert texts[0] == "一、背景技术："
@@ -182,7 +182,7 @@ def add_figures(root, captions="# 附图说明\n\n图1 为本发明所述方法�
 
 def test_export_docx_embeds_figures_with_labels_below(tmp_path):
     project = add_figures(build_project(tmp_path / "project"))
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     document = Document(output)
     assert len(document.inline_shapes) == 2
     texts = [p.text for p in document.paragraphs]
@@ -197,7 +197,7 @@ def test_export_docx_embeds_figures_with_labels_below(tmp_path):
 def test_export_docx_without_drawings_chapter_appends_figure_section(tmp_path):
     project = add_figures(build_project(tmp_path / "project"))
     (project / "chapters" / "08-drawings.md").unlink()
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     document = Document(output)
     texts = [p.text for p in document.paragraphs]
     assert any(text.endswith("、附图") for text in texts)
@@ -209,7 +209,7 @@ def test_export_docx_skips_non_root_figure_files(tmp_path):
     source_dir = project / "figures" / "source"
     source_dir.mkdir()
     (source_dir / "图3.png").write_bytes(TINY_PNG)
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     assert len(Document(output).inline_shapes) == 2
 
 
@@ -218,7 +218,7 @@ def test_export_collects_suffixed_figure_names(tmp_path):
     figures = project / "figures"
     (figures / "图1.png").rename(figures / "图1-流程总览.png")
     (figures / "图2.png").rename(figures / "图2-系统架构.png")
-    output = export_project(str(project))
+    output, _warnings = export_project(str(project))
     document = Document(output)
     assert len(document.inline_shapes) == 2
     texts = [p.text for p in document.paragraphs]
@@ -263,7 +263,7 @@ def test_export_project_stamps_a_fingerprint_sidecar_beside_the_docx(tmp_path):
     from patent_services.fingerprint import source_fingerprint
 
     project = add_figures(build_project(tmp_path / "project"))
-    output = Path(export_project(str(project)))
+    output = Path(export_project(str(project))[0])
     sidecar = output.with_suffix(".fingerprint")
     assert sidecar.name == "一种测试存储装置-交底书.fingerprint"
     assert sidecar.read_text(encoding="ascii") == source_fingerprint(project)
@@ -338,7 +338,7 @@ def build_application_project(root):
 
 def test_export_application_docx_round_trip(tmp_path):
     project = build_application_project(tmp_path / "project")
-    output = export_application(str(project))
+    output, _warnings = export_application(str(project))
     assert output.endswith("一种测试存储装置-申请文件.docx")
     document = Document(output)
 
@@ -393,7 +393,7 @@ def test_export_application_skips_missing_files_in_order(tmp_path):
     (project / "application").mkdir()
     (project / "patent.yml").write_text("name: partial\n", encoding="utf-8")
     (project / "application" / "abstract.md").write_text("部分摘要。\n", encoding="utf-8")
-    output = export_application(str(project))
+    output, _warnings = export_application(str(project))
     assert output.endswith("partial-申请文件.docx")
     document = Document(output)
     assert len(document.sections) == 1
@@ -425,7 +425,7 @@ def test_export_application_rejects_unknown_format(tmp_path):
 
 def test_export_application_appends_figure_sections(tmp_path):
     project = add_figures(build_application_project(tmp_path / "project"))
-    output = export_application(str(project))
+    output, _warnings = export_application(str(project))
     document = Document(output)
     headers = [section.header.paragraphs[0].text for section in document.sections]
     assert headers == ["说  明  书  摘  要", "摘  要  附  图", "权   利   要   求   书", "说    明    书", "说  明  书  附  图"]
@@ -434,7 +434,7 @@ def test_export_application_appends_figure_sections(tmp_path):
 
 
 def test_export_application_without_figures_keeps_three_sections(tmp_path):
-    output = export_application(str(build_application_project(tmp_path / "project")))
+    output, _warnings = export_application(str(build_application_project(tmp_path / "project")))
     assert len(Document(output).sections) == 3
 
 
@@ -448,8 +448,97 @@ def test_export_pdf_converts_through_word_com(tmp_path, monkeypatch):
         return True, None
 
     monkeypatch.setattr(export_module, "_word_com_pdf", fake_com)
-    output = export_project(str(project), fmt="pdf")
+    output, _warnings = export_project(str(project), fmt="pdf")
     assert output.endswith("一种测试存储装置-交底书.pdf")
     assert Path(output).read_bytes().startswith(b"%PDF")
     # The docx stays beside the pdf either way.
     assert (project / "exports" / "一种测试存储装置-交底书.docx").is_file()
+
+
+def test_export_warns_when_the_name_chapter_carries_candidates(tmp_path):
+    """A name-drafting session's candidate list parked in 01-name.md rides
+    straight into the deliverable's 一、名称 section — the export names it."""
+    project = build_project(tmp_path / "project")
+    (project / "chapters" / "01-name.md").write_text(
+        "# 名称\n\n一种测试存储装置\n\n备选名称：一种分布式测试存储方法\n\n"
+        "名称一：一种测试存储设备\n",
+        encoding="utf-8")
+    output, warnings = export_project(str(project))
+    texts = [paragraph.text for paragraph in Document(output).paragraphs]
+    # The candidates ship verbatim — the deliverable is the projection — but
+    # the warning names the violation and the remedy.
+    assert "备选名称：一种分布式测试存储方法" in texts
+    assert len(warnings) == 1
+    assert "名称章只应包含最终名称一行" in warnings[0]
+    assert "备选" in warnings[0] and "review/" in warnings[0]
+
+
+def test_export_name_chapter_warning_counts_extra_lines_without_markers(tmp_path):
+    project = build_project(tmp_path / "project")
+    (project / "chapters" / "01-name.md").write_text(
+        "# 名称\n\n一种测试存储装置\n\n名称以技术特征开头，突出存储领域。\n",
+        encoding="utf-8")
+    _output, warnings = export_project(str(project))
+    assert len(warnings) == 1 and "2 行" in warnings[0]
+
+    # The normal single-name chapter stays warning-free.
+    clean = build_project(tmp_path / "clean")
+    _output, warnings = export_project(str(clean))
+    assert warnings == []
+
+
+def test_export_strips_subheading_numbering(tmp_path):
+    """A subheading carrying the model's own counter (``3.1`` under what the
+    export numbers 五) reads as a restarting top level — the exporter strips
+    the leading number so the deliverable has exactly one numbering system."""
+    project = build_project(tmp_path / "project")
+    (project / "chapters" / "05-solution.md").write_text(
+        "# 技术方案\n\n总体说明。\n\n## 3.1 意图声明组件\n\n组件一。\n\n"
+        "## 一、冲突预检组件\n\n组件二。\n\n## （2）分层仲裁组件\n\n组件三。\n\n"
+        "## S1 分区采集\n\n步骤不动。\n",
+        encoding="utf-8")
+    output, warnings = export_project(str(project))
+    texts = [paragraph.text for paragraph in Document(output).paragraphs]
+    assert "意图声明组件" in texts and "3.1 意图声明组件" not in texts
+    assert "冲突预检组件" in texts and "一、冲突预检组件" not in texts
+    assert "分层仲裁组件" in texts and "（2）分层仲裁组件" not in texts
+    # Semantic prefixes (step numbers) are not hierarchical numbering.
+    assert "S1 分区采集" in texts
+    assert warnings == []
+
+
+def test_export_folds_deeper_headings_into_subheadings(tmp_path):
+    """``### `` lines used to fall through as plain paragraphs with literal
+    ``###`` markers in the deliverable; they fold into bold sub-paragraphs
+    now, and no ``#`` marker ever reaches the document."""
+    project = build_project(tmp_path / "project")
+    (project / "chapters" / "03-background.md").write_text(
+        "# 背景技术\n\n开头。\n\n### 细分类\n\n内容。\n",
+        encoding="utf-8")
+    output, warnings = export_project(str(project))
+    document = Document(output)
+    texts = [paragraph.text for paragraph in document.paragraphs]
+    assert "细分类" in texts
+    assert not any(text.lstrip().startswith("#") for text in texts)
+    subheading = next(paragraph for paragraph in document.paragraphs if paragraph.text == "细分类")
+    assert subheading.runs[0].font.bold is True
+    assert warnings == []
+
+
+def test_export_warns_and_folds_extra_level1_headings(tmp_path):
+    """A revision that added content with ``# `` headings used to lose the
+    heading silently (the line was dropped) — the extra level-1 headings now
+    fold into sub-paragraphs and travel back as named warnings."""
+    project = build_project(tmp_path / "project")
+    (project / "chapters" / "05-solution.md").write_text(
+        "# 技术方案\n\n开头。\n\n# 新加的组件\n\n新内容。\n",
+        encoding="utf-8")
+    output, warnings = export_project(str(project))
+    texts = [paragraph.text for paragraph in Document(output).paragraphs]
+    # The chapter's own title is dropped by design; the extra one survives.
+    assert "技术方案" not in texts
+    assert "新加的组件" in texts
+    subheading = next(paragraph for paragraph in Document(output).paragraphs
+                      if paragraph.text == "新加的组件")
+    assert subheading.runs[0].font.bold is True
+    assert len(warnings) == 1 and "新加的组件" in warnings[0]

@@ -1,10 +1,10 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-**0.1.6-alpha.6** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.6 / wheel=0.1.1（npm 已发布 alpha.6；PyPI 已发布 0.1.1）
+**0.1.6-alpha.7** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.7（已有 Word 文档导入＋导出标题归一化＋名称章单行门＋整项审查范围/总分解析/实验门修复）/ wheel=0.1.2（均待发布 registry）
 
-**源码与分发包状态**：本目录安装包已包含整项审查范围、报告总分解析、失败实验日志误判完成及依赖安装失败仍继续执行的修复。TS 三个包已发布 npm，latest 为 `0.1.6-alpha.6`，可通过插件市场或 npm 在线路线安装；Python `0.1.1` 已发布 PyPI，wheel 模式可在线获取；离线机器仍可安装本地 0.1.1 wheel。
+**源码与分发包状态（版本分叉注意）**：本目录安装包是**全量并集构建**——alpha.5 三特性（`import_patent_document` 已有 Word 文档按节名导入为项目章节、导出器标题层级归一化并回传警告、名称章单行门）叠加审查/实验门修复（整项审查范围、报告总分解析、失败实验日志判定、依赖安装失败即中止）。npm 已发布的 `0.1.6-alpha.6` 与 PyPI 已发布的 `0.1.1` 出自修复线构建，**不含**导入与标题归一化三项特性；要在 registry 拿到全量特性，发布本目录的 alpha.7 三包与 0.1.2 wheel/sdist（`npm publish <tgz> --registry=https://registry.npmjs.org --access public --tag latest`，`uv publish <wheel> <sdist>`）。
 
-**本版要点**：MCP 装载前校验（相对路径、缺 `pyproject.toml` 直接拒绝）、env 模式补绝对路径校验、wheel 模式探测 uv 工具、安装器 overrides 原位刷新，且 `-DistDir` 自动锚定为绝对路径。更早的变更见 `git log` 与本仓库的 Release 说明。
+**本版要点**：`import_patent_document` 把已有 Word 交底书/申请文件按节名一键导入为项目章节（缺章点名、已有内容拒覆写）；导出器归一化标题层级（剥小节自带编号、`###` 折叠、多余 `#` 具名警告）并随返回值带回警告；名称章超出最终名称一行时导出告警、流程门拦截候选清单进交付物。更早的变更见 `git log` 与本仓库的 Release 说明。
 
 这是 DeepSeek Harness（dsh）的专利交底书撰写插件「点金」——不是每块石头都值得点，先验金，再点金。丢一个技术点子，它先检索中国专利给出「值不值得写」的评估（可以反驳它），确认方向后走完五方对齐访谈、八章交底书撰写、附图与仿真实验、确定性审查、docx/PDF 导出，以及可选的 Python 导出/渲染/检索/查新服务。
 
@@ -130,7 +130,7 @@ overrides:
 
 ## 三、可选功能
 
-### 导出/检索/实验/查新服务（9 个 MCP 工具）
+### 导出/检索/实验/查新服务（10 个 MCP 工具）
 
 需要 [uv](https://docs.astral.sh/uv/)（安装：`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`）。
 
@@ -173,7 +173,7 @@ mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（离线机器�
 | `mtl-academic-dsh-tool-patent-*.tgz` | 依赖：就绪度打分、权利要求/正文检查、全流程推进工具 |
 | `mtl-academic-dsh-command-patent-review-*.tgz` | 依赖：/patent-review 审查命令 + patent_review 直通工具 |
 | `deepseek-ai-schemastery-*.tgz` / `deepseek-ai-cosmokit-*.tgz` | 依赖：配置校验库（vendored 构建版） |
-| `deepseek_harness_patent_services-*.whl` / `.tar.gz` | 可选 Python 服务（9 个 MCP 工具：导出/渲染/检索/实验/查新） |
+| `deepseek_harness_patent_services-*.whl` / `.tar.gz` | 可选 Python 服务（10 个 MCP 工具：导入/导出/渲染/检索/实验/查新） |
 | `install-patent-profile.ps1` | 一键安装器（方式 B） |
 | `persona.patch.yml` | persona 档案补丁正本（装 persona 用） |
 | `INSTALL-NEW-PROFILE.md` | 安装器配套的英文分步指南与故障排查 |

@@ -18,11 +18,19 @@ spacing, first-line two-character indent, no page numbers. Claims fold back
 into one paragraph per numbered claim — the Markdown source's continuation
 lines are readability line breaks, not paragraphs.
 
-Markdown folding is shared: ``#`` lines carry structure the export supplies
-itself, ``##`` lines become unindented sub-paragraphs, ``- `` bullets and
-emphasis markers dissolve into plain paragraphs. PDF export is best-effort:
-weasyprint needs system GTK libraries, so an unavailable install fails loud
-with guidance instead of producing a broken file.
+Markdown folding is shared and normalizing: the first ``#`` line is the
+chapter title the export supplies itself; any later ``#`` line folds into a
+bold sub-paragraph and travels back as a warning (a revision that added
+content at the wrong level must be visible, not silently dropped);
+``##``/``###`` lines become unindented bold sub-paragraphs with any
+model-authored leading number (``3.1``、``一、``、``（2）``) stripped — the
+exporter owns section numbering, so a subheading can never carry a second,
+conflicting counter into the deliverable; ``- `` bullets and emphasis
+markers dissolve into plain paragraphs. The export functions return
+``(path, warnings)`` so the folded-heading warnings reach the caller.
+PDF export is best-effort: weasyprint needs system GTK libraries, so an
+unavailable install fails loud with guidance instead of producing a broken
+file.
 """
 
 from __future__ import annotations
@@ -44,7 +52,21 @@ from .fingerprint import source_fingerprint
 #: A Markdown chapter file's level-1 heading, or None when the file opens
 #: with other content and the filename provides the heading.
 _HEADING1 = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+
+#: A Markdown ATX heading line: level group, text group. ``#NoSpace`` is not
+#: a heading (Markdown requires the space) and stays a plain paragraph.
+_ATX_HEADING = re.compile(r"^(#{1,6})\s+(.+)$")
 _BULLET = re.compile(r"^[-*]\s+(.*)$")
+
+#: Model-authored hierarchical numbering leading a subheading — ``3.1``、
+#: ``12.3.4`` (2-digit-per-level cap keeps years and dates unstripped),
+#: ``一、``/``十二.`` (separator required, so ``三是`` survives), ``（2）``/
+#: ``（三）``. Stripped on export: the deliverable's numbering is the
+#: exporter's own (一、二、三 sections); a subheading carrying its own
+#: counter reads as a second, restarting top level.
+_LEAD_NUMBERING = re.compile(
+    r"^(?:\d{1,2}(?:\.\d{1,2}){0,2}|[一二三四五六七八九十]{1,3}[、.．]|[（(][0-9一二三四五六七八九十]{1,3}[)）])[、.．:：]?\s*"
+)
 _EMPHASIS = re.compile(r"\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _CLAIM = re.compile(r"^\d+[.、]\s*")
@@ -97,6 +119,34 @@ _FIGURE_LOOKALIKE = re.compile(r"^图\s*\d+")
 
 #: Embedded figure width on export — fits the template's text column with margin.
 FIGURE_WIDTH = Cm(14)
+
+#: Drafting-note markers in the name chapter: a name-drafting session's
+#: candidate list (名称备选/候选名称/名称一) parked in 01-name.md rides
+#: straight into the deliverable's 一、名称 section — the chapter's whole
+#: legitimate content is the final name.
+_NAME_NOTE_MARK = re.compile(r"备选|候选|(?:名称|方案|名字)\s*[一二三四五六七八九十\d]")
+
+
+def _name_chapter_warnings(sections: list[tuple[str, str]]) -> list[str]:
+    """Warn when the name chapter carries anything beyond the final name.
+
+    The deliverable's 一、名称 section projects the chapter body verbatim, so
+    a candidate list or structure note there ships with the document. The
+    chapter's shape is deterministic — one non-heading line — so the check is
+    exact, and markers (备选/候选/名称一) name themselves in the warning.
+    """
+    for heading, body in sections:
+        if heading != "名称：":
+            continue
+        lines = [line.strip() for line in body.splitlines()
+                 if line.strip() and not line.strip().startswith("#")]
+        notes = any(_NAME_NOTE_MARK.search(line) for line in lines)
+        if len(lines) > 1 or notes:
+            detail = "（检测到备选/候选等起草注释）" if notes else f"（当前 {len(lines)} 行）"
+            return [f"名称章只应包含最终名称一行{detail}——备选清单与名称拆解等起草注释"
+                    "请移出章节文件（进会话或 review/），文件里只留最终名称"]
+        return []
+    return []
 
 
 def _collect_figures(root: Path) -> list[tuple[int, Path, str | None]]:
@@ -329,26 +379,44 @@ def _add_paragraph(document, text: str, *, east_asia: str, size: Pt, indent: str
     return paragraph
 
 
-def _markdown_paragraphs(body: str, *, keep_subheadings: bool) -> list[tuple[str, str]]:
-    """Fold a Markdown body into (text, kind) paragraphs.
+def _markdown_paragraphs(body: str, *, keep_subheadings: bool) -> tuple[list[tuple[str, str]], list[str]]:
+    """Fold a Markdown body into (text, kind) paragraphs plus heading warnings.
 
-    Kind is ``"subheading"`` (a ``## `` line, unindented and bold),
-    ``"bullet"`` (a ``- `` line, rendered with the ``●`` marker), or
-    ``"paragraph"`` (plain, first-line indent). ``# `` lines carry structure
-    the export supplies itself and are dropped.
+    Kind is ``"subheading"`` (an ``## ``/``### ``+ line, unindented and bold,
+    leading hierarchical numbering stripped), ``"bullet"`` (a ``- `` line,
+    rendered with the ``●`` marker), or ``"paragraph"`` (plain, first-line
+    indent). The first ``# `` line carries the chapter title the export
+    supplies itself and is dropped; any later ``# `` line is a revision that
+    added content at the wrong level — folded into a subheading (never
+    silently dropped) and reported in the returned warnings so the source
+    file gets fixed.
     """
     paragraphs: list[tuple[str, str]] = []
+    warnings: list[str] = []
+    title_seen = False
     for raw_line in body.splitlines():
         line = raw_line.strip()
-        if not line or line.startswith("# "):
+        if not line:
             continue
-        if keep_subheadings and line.startswith("## "):
-            paragraphs.append((_plain(line[3:].strip()), "subheading"))
-        elif (bullet := _BULLET.match(line)) is not None:
+        heading = _ATX_HEADING.match(line)
+        if heading is not None:
+            level, text = len(heading.group(1)), heading.group(2).strip()
+            if not text:
+                continue
+            if level == 1 and not title_seen:
+                title_seen = True
+                continue
+            if keep_subheadings:
+                stripped = _LEAD_NUMBERING.sub("", text) or text
+                paragraphs.append((stripped, "subheading"))
+                if level == 1:
+                    warnings.append(text)
+            continue
+        if (bullet := _BULLET.match(line)) is not None:
             paragraphs.append((_light(bullet.group(1)), "bullet"))
         else:
             paragraphs.append((_light(line), "paragraph"))
-    return paragraphs
+    return paragraphs, warnings
 
 
 def _claim_paragraphs(body: str) -> list[str]:
@@ -423,8 +491,9 @@ def _markdown_to_html(body: str, *, keep_subheadings: bool = True,
     """Render one Markdown body to simple HTML for weasyprint; ``images``
     (when given) append as centered ``<img>`` + 图N caption blocks after the
     text — the HTML path of the insertion discipline."""
+    paragraphs, _warnings = _markdown_paragraphs(body, keep_subheadings=keep_subheadings)
     parts: list[str] = []
-    for text, kind in _markdown_paragraphs(body, keep_subheadings=keep_subheadings):
+    for text, kind in paragraphs:
         if kind == "subheading":
             parts.append(f"<h3>{escape(text)}</h3>")
         elif kind == "bullet":
@@ -483,13 +552,15 @@ _WEASYPRINT_UNAVAILABLE = (
 )
 
 
-def export_project(project_dir: str, fmt: str = "docx") -> str:
+def export_project(project_dir: str, fmt: str = "docx") -> tuple[str, list[str]]:
     """Export one patent project to ``exports/<name>-交底书.<fmt>`` on the
     agency template.
 
     The chapters fill the template's eight sections (一、名称 through 八、附图)
     in template order; chapters outside the eight append as extra numbered
-    sections. Returns the written file's path. Raises ``ValueError`` for an
+    sections. Returns ``(path, warnings)`` — the written file's path plus the
+    heading-normalization warnings (extra level-1 headings folded into
+    sub-paragraphs, named per section). Raises ``ValueError`` for an
     unknown format, a directory without ``patent.yml``, or a project with no
     chapters, and ``RuntimeError`` with install guidance when PDF export is
     requested without weasyprint.
@@ -510,10 +581,10 @@ def export_project(project_dir: str, fmt: str = "docx") -> str:
     exports_dir = root / "exports"
     exports_dir.mkdir(parents=True, exist_ok=True)
     figures = _collect_figures(root)
-    docx_path = _build_disclosure_docx(root, exports_dir, name, sections, figures)
+    docx_path, warnings = _build_disclosure_docx(root, exports_dir, name, sections, figures)
 
     if fmt == "docx":
-        return str(docx_path)
+        return str(docx_path), warnings
 
     # PDF: hidden-window Word COM first (the template's typography survives
     # verbatim); weasyprint's HTML re-render is the non-Windows fallback, and
@@ -521,7 +592,7 @@ def export_project(project_dir: str, fmt: str = "docx") -> str:
     pdf_path = exports_dir / f"{name}-交底书.pdf"
     converted, detail = _word_com_pdf(docx_path, pdf_path)
     if converted:
-        return str(pdf_path)
+        return str(pdf_path), warnings
     try:
         from weasyprint import HTML
     except ImportError as cause:
@@ -532,17 +603,20 @@ def export_project(project_dir: str, fmt: str = "docx") -> str:
         html.append(_markdown_to_html(body, images=figures))
     html.append("</body></html>")
     HTML(string="\n".join(html), base_url=str(root)).write_pdf(str(pdf_path))
-    return str(pdf_path)
+    return str(pdf_path), warnings
 
 def _build_disclosure_docx(root: Path, exports_dir: Path, name: str, sections: list[tuple[str, str]],
-                           figures: list[tuple[int, Path, str | None]]) -> Path:
-    """Build the disclosure docx on the agency template and return its path."""
+                           figures: list[tuple[int, Path, str | None]]) -> tuple[Path, list[str]]:
+    """Build the disclosure docx on the agency template; return path + warnings."""
     document = _template_document()
     figures = _collect_figures(root)
+    warnings: list[str] = _name_chapter_warnings(sections)
     for index, (heading, body) in enumerate(sections, start=1):
         _add_paragraph(document, f"{_chinese_numeral(index)}、{heading}",
                        east_asia=DISCLOSURE_FONT, size=DISCLOSURE_SIZE, bold=True, space_before=Pt(10))
-        for text, kind in _markdown_paragraphs(body, keep_subheadings=True):
+        paragraphs, folded = _markdown_paragraphs(body, keep_subheadings=True)
+        warnings.extend(f"{heading}：多余一级标题「{text}」已按小节折叠——源文件请改用「## 」" for text in folded)
+        for text, kind in paragraphs:
             if kind == "subheading":
                 _add_paragraph(document, text, east_asia=DISCLOSURE_FONT, size=DISCLOSURE_SIZE,
                                indent=None, bold=True, space_before=Pt(6))
@@ -564,7 +638,7 @@ def _build_disclosure_docx(root: Path, exports_dir: Path, name: str, sections: l
     # The loop's export gate reads this digest sidecar instead of trusting
     # mtimes (see fingerprint.py for the cross-language contract).
     (exports_dir / f"{name}-交底书.fingerprint").write_bytes(source_fingerprint(root).encode("ascii"))
-    return str(output)
+    return output, warnings
 
 
 #: The application document set in the submitted package's order: 说明书摘要,
@@ -657,7 +731,7 @@ def _label_header(section, label: str) -> None:
     run.font.size = APPLICATION_SIZE
 
 
-def export_application(project_dir: str, fmt: str = "docx") -> str:
+def export_application(project_dir: str, fmt: str = "docx") -> tuple[str, list[str]]:
     """Export the application document set to ``exports/<name>-申请文件.<fmt>``.
 
     The application files export in the submitted package's shape: one Word
@@ -669,11 +743,11 @@ def export_application(project_dir: str, fmt: str = "docx") -> str:
     page numbers are shown. When the project has final figure images, the
     submitted package's two figure documents join the set: 摘要附图 (图1)
     after the abstract and 说明书附图 (all figures, 图N labeled below each
-    image) after the description. Returns the written file's path. Raises
-    ``ValueError`` for an unknown format, a directory without ``patent.yml``,
-    or a project without any application file; PDF converts through
-    hidden-window Word COM (falling back to weasyprint) exactly like
-    :func:`export_project`.
+    image) after the description. Returns ``(path, warnings)`` — the written
+    file's path plus the heading-normalization warnings. Raises ``ValueError``
+    for an unknown format, a directory without ``patent.yml``, or a project
+    without any application file; PDF converts through hidden-window Word COM
+    (falling back to weasyprint) exactly like :func:`export_project`.
     """
     if fmt not in ("docx", "pdf"):
         raise ValueError(f"unknown export format: {fmt}")
@@ -698,15 +772,15 @@ def export_application(project_dir: str, fmt: str = "docx") -> str:
 
     exports_dir = root / "exports"
     exports_dir.mkdir(parents=True, exist_ok=True)
-    docx_path = _build_application_docx(root, exports_dir, name, sources, figures)
+    docx_path, warnings = _build_application_docx(root, exports_dir, name, sources, figures)
 
     if fmt == "docx":
-        return str(docx_path)
+        return str(docx_path), warnings
 
     pdf_path = exports_dir / f"{name}-申请文件.pdf"
     converted, detail = _word_com_pdf(docx_path, pdf_path)
     if converted:
-        return str(pdf_path)
+        return str(pdf_path), warnings
     try:
         from weasyprint import HTML
     except ImportError as cause:
@@ -729,14 +803,15 @@ def export_application(project_dir: str, fmt: str = "docx") -> str:
             html.append(_markdown_to_html(body or ""))
     html.append("</body></html>")
     HTML(string="\n".join(html), base_url=str(root)).write_pdf(str(pdf_path))
-    return str(pdf_path)
+    return str(pdf_path), warnings
 
 
 def _build_application_docx(root: Path, exports_dir: Path, name: str,
                             sources: list[tuple[str, str | None]],
-                            figures: list[tuple[int, Path, str | None]]) -> Path:
+                            figures: list[tuple[int, Path, str | None]]) -> tuple[Path, list[str]]:
     """Build the application docx in the submitted package's shape."""
     document = _application_document()
+    warnings: list[str] = []
     for index, (key, body) in enumerate(sources):
         if index:
             # Clones the previous section's geometry; headers are labeled
@@ -763,7 +838,9 @@ def _build_application_docx(root: Path, exports_dir: Path, name: str,
             if key == "description.md":
                 _add_paragraph(document, name, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE, indent=None,
                                centered=True)
-            for text, kind in _markdown_paragraphs(body or "", keep_subheadings=True):
+            paragraphs, folded = _markdown_paragraphs(body or "", keep_subheadings=True)
+            warnings.extend(f"说明书：多余一级标题「{text}」已按小节折叠——源文件请改用「## 」" for text in folded)
+            for text, kind in paragraphs:
                 if kind == "subheading":
                     _add_paragraph(document, text, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE,
                                    indent=None, bold=True)
@@ -777,4 +854,4 @@ def _build_application_docx(root: Path, exports_dir: Path, name: str,
     output = exports_dir / f"{name}-申请文件.docx"
     document.save(output)
     (exports_dir / f"{name}-申请文件.fingerprint").write_bytes(source_fingerprint(root).encode("ascii"))
-    return output
+    return output, warnings

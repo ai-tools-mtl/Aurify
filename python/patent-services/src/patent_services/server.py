@@ -1,6 +1,7 @@
 """MCP stdio server exposing the patent domain tools to the dsh patent profile.
 
-Eight tools land in the model's tool table under the ``mcp__patent__`` prefix:
+Ten tools land in the model's tool table under the ``mcp__patent__`` prefix:
+``import_patent_document`` (existing-document import into a project),
 ``parse_disclosure_docx`` (template/reference parsing), ``export_disclosure``
 and ``export_application_docs`` (the disclosure and application-set exports),
 ``render_drawio_figure`` and ``render_html_figure`` (figure rendering),
@@ -34,6 +35,10 @@ from .export import (
     export_project,
     review_gate_warning,
 )
+# Aliased: a tool function defined with the same name as its implementation
+# shadows it at module level, and a body calling the implementation's name
+# would then resolve to itself — RecursionError on every call.
+from .importing import import_patent_document as _import_document_impl
 from .parsing import parse_docx, parse_docx_to_file
 # Aliased: a tool function defined with the same name as its implementation
 # shadows it at module level, and a body calling `search_cn_patents(...)`
@@ -62,6 +67,43 @@ def fail_loud(tool):
             raise ToolError(f"{type(exc).__name__}: {exc}") from exc
 
     return wrapper
+
+
+@mcp.tool()
+@fail_loud
+def import_patent_document(project_dir: str, document_path: str, name: str | None = None,
+                           overwrite: bool = False) -> str:
+    """Import an existing Word patent document into a patent project's source files.
+
+    For a project that starts from an existing document instead of scratch:
+    the docx is split at its section headings (名称/技术领域/背景技术/技术问题/
+    发明内容/有益效果/关键点/附图, agency-template and CNIPA-description names
+    both recognized) and mapped into chapters/01-name.md … 08-drawings.md;
+    unmapped level-1 sections become 09- onward extra chapters; application-set
+    material (权利要求书、摘要) is named and left out — claims are rewritten from
+    the chapters later, never imported verbatim. brief.md gets a five-dimension
+    skeleton seeded from the imported bodies and patent.yml is created when the
+    project has none, so the flow's gates then name every remaining gap
+    (empty chapters, missing prior-art ledger) and the normal loop takes over.
+
+    Args:
+        project_dir: the patent project directory; an empty or not-yet-created
+            directory is scaffolded on the fly (chapters/, brief.md,
+            patent.yml) — the import IS the project's starting point.
+        document_path: the existing .docx to import (.doc/.wps/.pdf must be
+            saved as .docx first).
+        name: when given and patent.yml is absent, the manifest's发明名称;
+            otherwise derived from the imported 名称 section or the file stem.
+        overwrite: write over chapters/brief.md that already carry content
+            (default false — the import refuses and names the blocked files).
+
+    Returns:
+        A Chinese import report: every mapping with its content state, skipped
+        application-set sections, empty placeholder chapters the flow must
+        fill, table/image counts, and the prior-art ledger reminder when the
+        imported prose quotes publication numbers.
+    """
+    return _import_document_impl(project_dir, document_path, name, overwrite)
 
 
 @mcp.tool()
@@ -101,9 +143,10 @@ def export_disclosure(project_dir: str, fmt: str = "docx") -> str:
         it back and must not present an unreviewed or zero-figure export as
         complete.
     """
-    written = export_project(project_dir, fmt)
+    written, warnings = export_project(project_dir, fmt)
     root = Path(project_dir)
     lines = [_export_summary(written, root)]
+    lines.extend(warnings)
     gate = review_gate_warning(root)
     if gate:
         lines.append(gate)
@@ -128,9 +171,10 @@ def export_application_docs(project_dir: str, fmt: str = "docx") -> str:
         figures the export did not embed or when the disclosure (the default
         deliverable) was never exported — skipping it must be a visible choice.
     """
-    written = export_application(project_dir, fmt)
+    written, warnings = export_application(project_dir, fmt)
     root = Path(project_dir)
     lines = [_export_summary(written, root)]
+    lines.extend(warnings)
     absent = disclosure_absent_warning(root)
     if absent:
         lines.append(absent)
