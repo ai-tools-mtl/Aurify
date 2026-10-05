@@ -195,7 +195,7 @@ describe('buildProjectView', () => {
     const passing = buildProjectView(projectRoot, eightChapters, listing([{ name: 'p.review.md', type: 'file', size: 900 }]), null, null, base.patentYml, base.drawingsText, {
       ...base,
       exportsListing: listing([{ name: '测试-交底书.docx', type: 'file', size: 900 }]),
-      reportTexts: [{ name: 'p.review.md', text: '总分 88\n\n> 审查范围：整项（项目根）\n' }],
+      reportTexts: [{ name: 'p.review.md', text: '**总分**：88 / 100\n\n> 审查范围：整项（项目根）\n' }],
     })
     expect(passing.loop.stage).toBe('ready')
 

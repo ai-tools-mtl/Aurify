@@ -215,6 +215,30 @@ describe('the /patent-review command', () => {
     expect(request.args.fileContent).not.toContain('notes.txt')
   })
 
+  it('reviews a nested project root including chapters and application, without old reports', async () => {
+    const project = join(root, 'whole-project')
+    for (const dir of ['chapters', 'application', 'review', 'exports']) {
+      await mkdir(join(project, dir), { recursive: true })
+    }
+    await writeFile(join(project, 'patent.yml'), 'name: Whole project\n')
+    await writeFile(join(project, 'chapters', '05-solution.md'), 'Actual solution')
+    await writeFile(join(project, 'application', 'claims.md'), 'Claims')
+    await writeFile(join(project, 'application', 'description.md'), 'Description')
+    await writeFile(join(project, 'review', 'old.review.md'), 'Old report')
+    await writeFile(join(project, 'exports', 'old.md'), 'Old export')
+    const { handler, startedArgsContainer } = mount({ stopReason: 'completed', value: OUTCOME })
+    expect((await handler('whole-project')).kind).toBe('success')
+    const args = startedArgsContainer.args
+    expect(args.fileContent).toContain('Actual solution')
+    expect(args.fileContent).toContain('Claims')
+    expect(args.fileContent).not.toContain('Old report')
+    expect(args.fileContent).not.toContain('Old export')
+    expect(args.consistency).toEqual({ claims: 'Claims', description: 'Description' })
+    const reports = await readdir(join(project, 'review'))
+    const report = reports.find(name => name !== 'old.review.md' && name.endsWith('.review.md'))!
+    expect(await readFile(join(project, 'review', report), 'utf8')).toContain('审查范围：整项')
+  })
+
   it('returns the usage text for an empty argument without starting a run', async () => {
     const { handler, start } = mount({ stopReason: 'completed', value: OUTCOME })
     const result = await handler('  ')

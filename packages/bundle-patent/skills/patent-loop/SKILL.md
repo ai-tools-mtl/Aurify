@@ -14,7 +14,7 @@ description: 专利全流程循环推进的契约。当用户要求"loop""继续
 | init | 无 patent.yml | patent-init、patent-research |
 | align | brief.md 缺失或核心维度章节缺失 | patent-init、patent-research |
 | chapters | 八章任一缺失或占位空白；涉及实验/量化效果的项目还缺 chapters/09-verification.md；或正文/简报引用的公开号未见于 reference/prior-art.md | patent-chapters、patent-de-ai、patent-writing-quality、patent-effect-contrast（公开号缺口按 patent-research 补账） |
-| experiments | 效果章含量化数据但无运行记录、也无"无需实验"声明（转正后数字回填 09 章实验验证） | patent-experiment |
+| experiments | 效果章含量化数据，但没有任何实验的最新运行记录退出码为 0、也无"无需实验"或"不适用"声明；空日志、最新运行失败或超时不通过（转正后数字回填 09 章实验验证） | patent-experiment |
 | figures | 08 章声明与 figures/ 根成品对不上（缺失/多余/未规划），或正文引用了未声明的图号 | patent-figure-design |
 | review | 最新审查报告缺失、总分低于达标线（默认 80，patent.yml `reviewThreshold` 可调；查新不可用期间放宽 10 分），或报告早于源文件修改 | patent-review（工具） |
 | export | 无交底书导出物，或导出物早于源文件修改 | patent-services（工具） |

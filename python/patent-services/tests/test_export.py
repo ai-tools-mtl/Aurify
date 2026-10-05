@@ -278,7 +278,7 @@ def test_review_gate_warning_mirrors_the_loop_score_gate(tmp_path):
 
     review = project / "review"
     review.mkdir()
-    (review / "project.review.md").write_text("总分 85\n\n> 审查范围：整项（项目根）\n", encoding="utf-8")
+    (review / "project.review.md").write_text("**总分**：85 / 100\n\n> 审查范围：整项（项目根）\n", encoding="utf-8")
     assert review_gate_warning(project) == ""
 
     (review / "project.review.md").write_text("总分 70\n\n> 审查范围：整项（项目根）\n", encoding="utf-8")

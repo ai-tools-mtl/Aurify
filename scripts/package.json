@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build-dist.mjs" },
+  "devDependencies": { "esbuild": "0.28.2", "typescript": "5.9.3" }
+}

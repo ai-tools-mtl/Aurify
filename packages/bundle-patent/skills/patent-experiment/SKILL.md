@@ -50,6 +50,7 @@ experiments/
 
 `run_experiment` 每次运行自动向 `experiments/<slug>/results/run-log.md` 追加一条记录（时间、镜像、命令、退出码、输出尾部）。纪律：
 
+- 依赖安装失败立即停止，实验脚本不会执行；安装失败、脚本失败或超时的日志用于排错，不作为正式结果。修复后通过 `run_experiment` 重跑，确认最新记录退出码为 0。流程工具只检查至少一个实验的最新运行成功；仍须逐项核验引用数字与结果文件。
 - **不删不改 run-log.md**——它是数据出处账本；重跑产生新记录而不是覆盖旧记录。
 - 实验脚本自身写产物只写 `results/`（数据文件、图、日志），不写实验目录其他位置，更不写项目其他目录。
 - 向用户汇报实验结果时，带上运行记录位置（如"见 experiments/throughput-baseline/results/run-log.md 的 2026-09-17T… 记录"）。
@@ -74,7 +75,7 @@ experiments/
 
 - [ ] 实验在 `experiments/<slug>/`，带 README.md 与 requirements.txt
 - [ ] 数据来源按序取用：优先公开数据集，仿真参数标定到真实场景并留档
-- [ ] 正式数据来自 run_experiment 的运行记录，run-log.md 未被删改；转正的草稿数据已用工具重跑
+- [ ] 正式数据来自 run_experiment 的成功运行记录（最新记录退出码为 0），run-log.md 未被删改；转正的草稿数据已用工具重跑
 - [ ] 实验产物只在 results/，无散落文件
 - [ ] 正文引用的每个关键数字可溯源到一次运行记录
 - [ ] **每组进正文的结果数据都有对应结果图**：出图脚本入实验目录、图落 results/ 定稿后复制为 figures/图N.png、08 章有条目、经 subagent 验收

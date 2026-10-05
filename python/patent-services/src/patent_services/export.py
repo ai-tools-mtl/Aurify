@@ -151,7 +151,7 @@ def _export_summary(written: str, root: Path) -> str:
 
 
 #: The review score line a report carries: ``总分 81``.
-_REVIEW_SCORE = re.compile(r"总分\s*(\d+)")
+_REVIEW_SCORE = re.compile(r"^\s*(?:\*\*)?总分(?:\*\*)?\s*[:：]?\s*(\d+)", re.MULTILINE)
 
 #: The scope stamp marking a report as partial (never the whole-project verdict).
 _REVIEW_PARTIAL = "审查范围：部分"

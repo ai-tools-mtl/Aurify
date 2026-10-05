@@ -44,7 +44,7 @@ const DEFAULT_REVIEW_THRESHOLD = 80
 const DEGRADED_REVIEW_DELTA = 10
 
 /** The overall score line a review report carries: `总分 81`. */
-const REPORT_SCORE = /总分\s*(\d+)/
+const REPORT_SCORE = /^\s*(?:\*\*)?总分(?:\*\*)?\s*[:：]?\s*(\d+)/m
 
 /** The source-digest stamp a report carries: `> 源指纹：<16 hex chars>`. */
 const REPORT_FINGERPRINT = /^> 源指纹：([0-9a-f]{16})/m
@@ -340,8 +340,8 @@ async function priorArtGaps(root: string): Promise<string[]> {
 }
 
 /**
- * Whether the experiments stage is satisfied: a run log exists under any
- * experiment directory (official numbers recorded), or the project declared
+ * Whether the experiments stage is satisfied: the latest recorded run of an
+ * experiment succeeded, or the project declared
  * experiments not applicable via `experiments/README.md`.
  * @param root - the project directory.
  * @returns the unmet experiments requirement, or undefined when satisfied.
@@ -350,12 +350,16 @@ async function experimentsGap(root: string): Promise<string | undefined> {
   const experimentsDir = join(root, 'experiments')
   if (await exists(experimentsDir)) {
     for (const entry of await readdir(experimentsDir, { withFileTypes: true })) {
-      if (entry.isDirectory() && await exists(join(experimentsDir, entry.name, 'results', 'run-log.md'))) return undefined
+      if (!entry.isDirectory()) continue
+      const log = await readText(join(experimentsDir, entry.name, 'results', 'run-log.md'))
+      // Only metadata before the output block counts; experiment stdout is untrusted.
+      const latest = log?.replace(/```[\s\S]*?```/g, '').split(/^## /m).at(-1)?.split('- 输出尾部：')[0]
+      if (latest !== undefined && /^- 退出码：0\s*$/m.test(latest)) return undefined
     }
   }
   const readme = await readText(join(experimentsDir, 'README.md'))
   if (readme !== undefined && /无需实验|不适用/.test(readme)) return undefined
-  return 'experiments/ 下既无任何 results/run-log.md（正式运行记录）也无"无需实验"声明'
+  return 'experiments/ 下既无成功的最新实验运行记录 results/run-log.md，也无"无需实验"声明'
 }
 
 /** Whether the experiments tree exists with anything in it. */

@@ -9,7 +9,7 @@
  * @module @mtl-academic/dsh-command-patent-review
  */
 
-import { readFile, readdir, writeFile, mkdir, access } from 'node:fs/promises'
+import { readFile, readdir, writeFile, mkdir, access, stat } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { join, relative, resolve, dirname, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -132,7 +132,7 @@ async function exists(path: string): Promise<boolean> {
  * @returns the project root, or undefined when no ancestor holds `patent.yml`.
  */
 async function findEnclosingProject(targetPath: string): Promise<string | undefined> {
-  let dir = resolve(dirname(targetPath))
+  let dir = (await stat(targetPath)).isDirectory() ? resolve(targetPath) : resolve(dirname(targetPath))
   while (true) {
     if (await exists(join(dir, 'patent.yml'))) return dir
     const parent = dirname(dir)
@@ -157,7 +157,15 @@ async function readTarget(projectRoot: string, rawPath: string): Promise<{ label
     content = await readFile(absolute, 'utf8')
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== 'EISDIR') return undefined
-    const names = await collectMarkdownFiles(absolute)
+    const names = await exists(join(absolute, 'patent.yml'))
+      ? [
+          ...(await exists(join(absolute, 'brief.md')) ? ['brief.md'] : []),
+          ...await Promise.all(['chapters', 'application'].map(async dir =>
+            await exists(join(absolute, dir))
+              ? (await collectMarkdownFiles(join(absolute, dir))).map(name => `${dir}/${name}`)
+              : [])).then(groups => groups.flat()),
+        ]
+      : await collectMarkdownFiles(absolute)
     if (names.length === 0) return undefined
     const parts = await Promise.all(names.map(async (name) => {
       const body = await readFile(join(absolute, name), 'utf8')
@@ -180,7 +188,7 @@ async function readTarget(projectRoot: string, rawPath: string): Promise<{ label
 async function readConsistencyInputs(reportRoot: string, targetPath: string): Promise<{ claims: string; description: string } | undefined> {
   const applicationDir = join(reportRoot, 'application')
   const inside = targetPath === applicationDir || targetPath.startsWith(applicationDir + sep)
-  if (!inside) return undefined
+  if (!inside && targetPath !== resolve(reportRoot)) return undefined
   const read = async (name: string): Promise<string | undefined> => {
     try {
       return await readFile(join(applicationDir, name), 'utf8')

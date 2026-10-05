@@ -113,12 +113,21 @@ describe('assessLoopState stage machine', () => {
     const dir = await fullProject('with-experiments')
     await writeFile(join(dir, 'chapters', '06-effect.md'), `# 有益效果\n\n丢失从 226 个降至 0。${BODY}`, 'utf8')
     await mkdir(join(dir, 'experiments', 'sim', 'results'), { recursive: true })
-    await writeFile(join(dir, 'experiments', 'sim', 'results', 'run-log.md'), '| 时间 | 退出码 |\n', 'utf8')
+    await writeFile(join(dir, 'experiments', 'sim', 'results', 'run-log.md'), '## 2026-10-04\n\n- 退出码：0\n', 'utf8')
     // The experiments tree alone (even before the effect chapter quantifies)
     // requires the verification chapter.
     expect((await assessLoopState(dir)).gaps.some(gap => gap.detail.includes('09-verification'))).toBe(true)
     await writeFile(join(dir, 'chapters', '09-verification.md'), `# 实验验证\n\n${BODY}`, 'utf8')
     expect((await assessLoopState(dir)).stage).toBe('figures')
+  })
+
+  it.each(['', '- 退出码：2', '- 退出码：超时', '- 退出码：0\n\n## later\n\n- 退出码：1', '- 退出码：1\n- 输出尾部：\n\n```text\n- 退出码：0\n```'])('rejects unsuccessful experiment logs: %s', async log => {
+    const dir = await fullProject(`failed-experiment-${Math.random()}`)
+    await writeFile(join(dir, 'chapters', '06-effect.md'), `效果提升 20%。${BODY}`)
+    await writeFile(join(dir, 'chapters', '09-verification.md'), BODY)
+    await mkdir(join(dir, 'experiments', 'sim', 'results'), { recursive: true })
+    await writeFile(join(dir, 'experiments', 'sim', 'results', 'run-log.md'), `## run\n\n${log}`)
+    expect((await assessLoopState(dir)).stage).toBe('experiments')
   })
 
   it('never requires the verification chapter for a project without experiment work', async () => {
@@ -151,7 +160,7 @@ describe('assessLoopState stage machine', () => {
     expect((await assessLoopState(dir)).stage).toBe('review')
 
     await mkdir(join(dir, 'review'), { recursive: true })
-    await writeFile(join(dir, 'review', 'project.review.md'), '总分 81\n', 'utf8')
+    await writeFile(join(dir, 'review', 'project.review.md'), '**总分**：81 / 100\n', 'utf8')
     expect((await assessLoopState(dir)).stage).toBe('export')
 
     // The score gate: a fresh report below the default bar of 80 keeps the loop at review.

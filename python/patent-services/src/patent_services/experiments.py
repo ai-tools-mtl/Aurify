@@ -201,7 +201,7 @@ def run_experiment(
     # source-only package (the pip error names the culprit).
     pip_policy = "--only-binary :all:" if config_value(PIP_ALLOW_SOURCE_ENV) != "1" else ""
     script = (
-        f'if [ -f requirements.txt ]; then pip install --no-input -q {pip_policy} -r requirements.txt; fi; {command}'
+        f'set -e; if [ -f requirements.txt ]; then pip install --no-input -q {pip_policy} -r requirements.txt; fi; {command}'
     )
     started = _datetime.datetime.now().astimezone()
     timed_out = False

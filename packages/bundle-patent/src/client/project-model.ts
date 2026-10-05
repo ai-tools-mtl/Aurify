@@ -77,7 +77,7 @@ export interface ProjectExtras {
   readonly effectText?: string | null
   readonly priorArtText?: string | null
   readonly experimentsReadmeText?: string | null
-  /** Whether each experiments/ subdirectory carries results/run-log.md (body-resolved, capped). */
+  /** Whether each experiment has a successful latest run (body-resolved, capped). */
   readonly experimentRunLogs?: readonly boolean[]
   readonly exportsListing?: DirectoryListing | null
   /** First-page texts of the newest *.review.md reports (body-resolved, capped). */
@@ -188,7 +188,7 @@ function buildLoopSummary(
   const noFigures = drawingsText !== null && drawingsText.includes('无附图')
 
   const reports = (reportTexts ?? []).map(({ name, text }) => {
-    const scoreMatch = text === null ? undefined : /总分\s*(\d+)/.exec(text)
+    const scoreMatch = text === null ? undefined : /^\s*(?:\*\*)?总分(?:\*\*)?\s*[:：]?\s*(\d+)/m.exec(text)
     const score = scoreMatch?.[1] === undefined ? null : Number(scoreMatch[1])
     const partial = text !== null && text.includes('审查范围：部分')
     return { name, score, partial, passing: !partial && score !== null && score >= threshold }

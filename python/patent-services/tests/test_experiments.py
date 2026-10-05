@@ -9,6 +9,8 @@ import pytest
 
 from patent_services.experiments import run_experiment
 
+REAL_SUBPROCESS_RUN = subprocess.run
+
 
 @pytest.fixture
 def experiment_dir(tmp_path):
@@ -270,3 +272,27 @@ def test_requirements_install_allows_source_with_the_opt_in(tmp_path, monkeypatc
     monkeypatch.setattr(subprocess, "run", _capturing_run(sink))
     assert run_experiment(str(tmp_path), "sim")
     assert "--only-binary" not in sink[-1][-1]
+
+
+def test_dependency_install_failure_stops_experiment(docker_env, tmp_path, experiment_dir, monkeypatch):
+    import os
+    real_run = REAL_SUBPROCESS_RUN
+    (experiment_dir / "requirements.txt").write_text("missing-package\n")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name, body in (("pip", "exit 7"), ("python", "touch experiment-ran")):
+        executable = bin_dir / name
+        executable.write_text("#!/bin/sh\n" + body + "\n")
+        executable.chmod(0o755)
+
+    def fake_docker(cmd, **kwargs):
+        if cmd[1] != "run":
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        return real_run(["/bin/sh", "-c", cmd[-1]], cwd=experiment_dir,
+                        env={**os.environ, "PATH": str(bin_dir)}, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", fake_docker)
+    with pytest.raises(RuntimeError, match="exit 7"):
+        run_experiment(str(tmp_path / "proj"), "throughput-baseline")
+    assert not (experiment_dir / "experiment-ran").exists()
+    assert "退出码：7" in (experiment_dir / "results" / "run-log.md").read_text()

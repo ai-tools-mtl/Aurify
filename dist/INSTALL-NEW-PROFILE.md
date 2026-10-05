@@ -205,3 +205,7 @@ Recovery, in order of preference:
 | Wheel mode reports "uvx failed to fetch patent-services" | Since 0.1.6-alpha.3 the check runs the MCP row's exact `uvx --from deepseek-harness-patent-services python -c "import patent_services"`: a failure usually means `uv`/`uvx` missing from `PATH` or PyPI unreachable — follow the inline guidance. Offline machines: `uv tool install <DIST>\deepseek_harness_patent_services-<version>-py3-none-any.whl`, then relaunch |
 | Review reports "model not found" / auth errors | Switch to a model your gateway actually serves in the session — review really spawns scoring subagents. Calling the default deepseek line through a GLM gateway fails with "model not found"; this distribution pairs with a GLM gateway's GLM model group, whose exact group name is whatever your `Settings → Models` shows (`zai-coding-cn` in the docs is an example, not a requirement) |
 | A review dimension reports all scoring passes failed | Gateway rate limiting. The scripted review batches, backs off, and retries; running `patent_review` once more usually recovers the dimension |
+
+## Local rebuild (2026-10-05)
+
+The local artifacts are TS `0.1.6-alpha.5` and Python `0.1.1`. They include the review-scope, score-parser, experiment-status, and dependency-install fixes, but have not been published to npm/PyPI. Use the offline tarballs and local wheel (or Python source mode) for these fixes; registry installation still uses published releases.
