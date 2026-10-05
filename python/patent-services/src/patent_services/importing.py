@@ -135,6 +135,19 @@ def _section_kind(paragraph) -> str | None:
     text = paragraph.text.strip()
     if not text or len(text) > _HEADING_MAX_CHARS:
         return None
+    # A styled level-2/3 heading never splits — checked before the keyword
+    # and extra-name matches, which would otherwise claim it (a Heading-2
+    # ``技术方案细节`` prefix-matches the solution keyword, a Heading-3
+    # ``实施例一`` prefix-matches the 实施例 extra name) and tear it out of
+    # its section. It folds as a ``## ``/``### `` subheading wherever it
+    # landed. Only level-1 heading styles and unstyled paragraphs reach the
+    # keyword match; a heading style without a trailing level digit keeps
+    # the conservative no-split behavior.
+    style = (paragraph.style.name or "")
+    if "heading" in style.lower() or "标题" in style:
+        level = re.search(r"(\d+)\s*$", style.rstrip())
+        if level is None or level.group(1) != "1":
+            return None
     stripped = _strip_numbering(text)
     if _is_skip_title(stripped):
         return "skip"
@@ -147,15 +160,6 @@ def _section_kind(paragraph) -> str | None:
         return "chapter"
     if _EXTRA_HEADING.match(text) or _any_prefix(stripped, _EXTRA_SECTION_NAMES):
         return "extra"
-    style = (paragraph.style.name or "")
-    if "heading" in style.lower() or "标题" in style:
-        # Only a level-1 heading style starts a chapter (an unmapped one
-        # continues as an extra ``09-`` chapter); level 2/3 stay in the
-        # current section — the fold emits them as ``## ``/``### `` lines.
-        # A heading style without a trailing level digit keeps the old
-        # conservative no-split behavior.
-        level = re.search(r"(\d+)\s*$", style.rstrip())
-        return "extra" if level is not None and level.group(1) == "1" else None
     return None
 
 

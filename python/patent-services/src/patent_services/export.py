@@ -58,21 +58,23 @@ _HEADING1 = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 _ATX_HEADING = re.compile(r"^(#{1,6})\s+(.+)$")
 _BULLET = re.compile(r"^[-*]\s+(.*)$")
 
-#: Model-authored hierarchical numbering leading a subheading — ``3.1``、
-#: ``12.3.4`` (a multi-level counter is numbering-shaped on its own),
-#: ``一、``/``十二.`` (delimiter part of the branch, so ``三是`` survives),
-#: ``（2）``/``（三）`` (the closing bracket delimits). A lone number must
-#: end at an explicit delimiter or whitespace — prose that merely starts
-#: with digits (``3D模型构建``、``2026年实验环境``) keeps every character.
-#: Stripped on export: the deliverable's numbering is the
-#: exporter's own (一、二、三 sections); a subheading carrying its own
-#: counter reads as a second, restarting top level.
+#: Model-authored hierarchical numbering leading a subheading — ``3.1 ``、
+#: ``12.3.4 ``、``一、``/``十二.``、``（2）``/``（三）``. Every numeric form
+#: must end at an explicit delimiter or whitespace, so decimal parameters
+#: keep every character (``3.5毫米间距设计``、``3.14159参数设置``), and a
+#: lone digit never eats into a following number (``3:5比例``、``3.5毫米``
+#: survive; ``3：标题``、``3.模型`` still strip). Consequence: a multi-level
+#: counter written without a trailing separator (``3.1组件``) is
+#: indistinguishable from a parameter and stays — the spaced form strips.
+#: Stripped on export: the deliverable's numbering is the exporter's own
+#: (一、二、三 sections); a subheading carrying its own counter reads as a
+#: second, restarting top level.
 _LEAD_NUMBERING = re.compile(
     r"^(?:"
     r"[（(][0-9一二三四五六七八九十]{1,3}[)）]"
     r"|[一二三四五六七八九十]{1,3}[、.．]"
-    r"|\d{1,2}(?:\.\d{1,2})+"
-    r"|\d{1,2}(?:[、.．:：]|\s)"
+    r"|\d{1,2}(?:\.\d{1,2})+(?:[、.．:：]|\s)"
+    r"|\d{1,2}(?![.:：]?\d)(?:[、.．:：]|\s)"
     r")\s*"
 )
 _EMPHASIS = re.compile(r"\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`")

@@ -97,10 +97,12 @@ def test_import_writes_chapters_brief_and_manifest(tmp_path):
 
 
 def test_styled_subheadings_stay_inside_their_section(tmp_path):
-    """Only a level-1 heading style splits chapters: ``Heading 2`` sections
-    (组件设计、接口设计) inside 发明内容 used to be shredded into ``09-``/``10-``
-    extra chapters, tearing them out of the solution body; they stay in the
-    solution chapter as ``## `` subheadings now."""
+    """Only a level-1 heading style splits chapters, and the level check runs
+    BEFORE the keyword and extra-name matches: a ``Heading 2`` 组件设计 used
+    to be shredded into ``09-``/``10-`` extra chapters; a ``Heading 2``
+    技术方案细节 prefix-matched the solution keyword and lost its identity;
+    a ``Heading 3`` 实施例一 prefix-matched the 实施例 extra name. All of
+    them stay in the solution chapter as ``## ``/``### `` subheadings now."""
     document = Document()
     add_heading_like(document, "五、发明内容（应该结合图形详细阐述该技术方案）：")
     document.add_paragraph("总体架构分为两层。")
@@ -108,6 +110,10 @@ def test_styled_subheadings_stay_inside_their_section(tmp_path):
     document.add_paragraph("组件负责意图声明与冲突预检。")
     document.add_heading("接口设计", level=2)
     document.add_paragraph("接口走消息总线。")
+    document.add_heading("技术方案细节", level=2)
+    document.add_paragraph("细节展开如下。")
+    document.add_heading("实施例一", level=3)
+    document.add_paragraph("第一组实施例参数。")
     add_heading_like(document, "六、有益效果")
     document.add_paragraph("检索时延下降三成。")
     source = tmp_path / "styled.docx"
@@ -118,6 +124,8 @@ def test_styled_subheadings_stay_inside_their_section(tmp_path):
     solution = (project / "chapters" / "05-solution.md").read_text(encoding="utf-8")
     assert "## 组件设计" in solution and "组件负责意图声明与冲突预检。" in solution
     assert "## 接口设计" in solution and "接口走消息总线。" in solution
+    assert "## 技术方案细节" in solution and "细节展开如下。" in solution
+    assert "### 实施例一" in solution and "第一组实施例参数。" in solution
     extras = sorted(path.name for path in (project / "chapters").glob("*.md")
                     if path.name[:2] >= "09")
     assert extras == []
