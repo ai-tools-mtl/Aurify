@@ -102,7 +102,10 @@ def test_styled_subheadings_stay_inside_their_section(tmp_path):
     to be shredded into ``09-``/``10-`` extra chapters; a ``Heading 2``
     技术方案细节 prefix-matched the solution keyword and lost its identity;
     a ``Heading 3`` 实施例一 prefix-matched the 实施例 extra name. All of
-    them stay in the solution chapter as ``## ``/``### `` subheadings now."""
+    them stay in the solution chapter as ``## ``/``### `` subheadings now.
+    The fallback direction is preserved: an unmapped level-1 heading
+    (系统架构) is still a chapter of its own — an earlier fix dropped the
+    fallback and demoted it to plain text inside the previous section."""
     document = Document()
     add_heading_like(document, "五、发明内容（应该结合图形详细阐述该技术方案）：")
     document.add_paragraph("总体架构分为两层。")
@@ -114,6 +117,8 @@ def test_styled_subheadings_stay_inside_their_section(tmp_path):
     document.add_paragraph("细节展开如下。")
     document.add_heading("实施例一", level=3)
     document.add_paragraph("第一组实施例参数。")
+    document.add_heading("系统架构", level=1)
+    document.add_paragraph("架构分为采集层与仲裁层。")
     add_heading_like(document, "六、有益效果")
     document.add_paragraph("检索时延下降三成。")
     source = tmp_path / "styled.docx"
@@ -128,7 +133,9 @@ def test_styled_subheadings_stay_inside_their_section(tmp_path):
     assert "### 实施例一" in solution and "第一组实施例参数。" in solution
     extras = sorted(path.name for path in (project / "chapters").glob("*.md")
                     if path.name[:2] >= "09")
-    assert extras == []
+    assert extras == ["09-系统架构.md"]
+    architecture = (project / "chapters" / "09-系统架构.md").read_text(encoding="utf-8")
+    assert "架构分为采集层与仲裁层。" in architecture
 
 
 def test_manifest_name_survives_yaml_metacharacters(tmp_path):

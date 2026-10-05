@@ -140,14 +140,19 @@ def _section_kind(paragraph) -> str | None:
     # ``技术方案细节`` prefix-matches the solution keyword, a Heading-3
     # ``实施例一`` prefix-matches the 实施例 extra name) and tear it out of
     # its section. It folds as a ``## ``/``### `` subheading wherever it
-    # landed. Only level-1 heading styles and unstyled paragraphs reach the
-    # keyword match; a heading style without a trailing level digit keeps
-    # the conservative no-split behavior.
+    # landed. A level-1 heading style keeps falling through: keyword and
+    # extra-name matches map it first, and one that matches nothing is still
+    # a chapter — the unmapped-top-level ``extra`` below (dropping the
+    # fallback merged 系统架构-style sections into the previous chapter as
+    # plain text). A heading style without a trailing level digit keeps the
+    # conservative no-split behavior.
     style = (paragraph.style.name or "")
+    level_one = False
     if "heading" in style.lower() or "标题" in style:
         level = re.search(r"(\d+)\s*$", style.rstrip())
         if level is None or level.group(1) != "1":
             return None
+        level_one = True
     stripped = _strip_numbering(text)
     if _is_skip_title(stripped):
         return "skip"
@@ -160,7 +165,7 @@ def _section_kind(paragraph) -> str | None:
         return "chapter"
     if _EXTRA_HEADING.match(text) or _any_prefix(stripped, _EXTRA_SECTION_NAMES):
         return "extra"
-    return None
+    return "extra" if level_one else None
 
 
 def _any_prefix(text: str, prefixes) -> bool:
