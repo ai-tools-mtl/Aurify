@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -274,6 +275,7 @@ def test_requirements_install_allows_source_with_the_opt_in(tmp_path, monkeypatc
     assert "--only-binary" not in sink[-1][-1]
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="stubs are /bin/sh scripts; the gated behavior runs inside the Linux container")
 def test_dependency_install_failure_stops_experiment(docker_env, tmp_path, experiment_dir, monkeypatch):
     import os
     real_run = REAL_SUBPROCESS_RUN

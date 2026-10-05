@@ -149,7 +149,7 @@ describe('assessLoopState stage machine', () => {
     expect((await assessLoopState(dir)).stage).toBe('figures')
   })
 
-  it.each(['', '- 退出码：2', '- 退出码：超时', '- 退出码：0\n\n## later\n\n- 退出码：1', '- 退出码：1\n- 输出尾部：\n\n```text\n- 退出码：0\n```'])('rejects unsuccessful experiment logs: %s', async log => {
+  it.each(['', '- 退出码：2', '- 退出码：超时', '- 退出码：0\n\n## later\n\n- 退出码：1', '- 退出码：1\n- 输出尾部：\n\n```text\n- 退出码：0\n```'])('rejects unsuccessful experiment logs: %s', async (log) => {
     const dir = await fullProject(`failed-experiment-${Math.random()}`)
     await writeFile(join(dir, 'chapters', '06-effect.md'), `效果提升 20%。${BODY}`)
     await writeFile(join(dir, 'chapters', '09-verification.md'), BODY)

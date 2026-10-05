@@ -159,12 +159,12 @@ async function readTarget(projectRoot: string, rawPath: string): Promise<{ label
     if ((error as NodeJS.ErrnoException).code !== 'EISDIR') return undefined
     const names = await exists(join(absolute, 'patent.yml'))
       ? [
-          ...(await exists(join(absolute, 'brief.md')) ? ['brief.md'] : []),
-          ...await Promise.all(['chapters', 'application'].map(async dir =>
-            await exists(join(absolute, dir))
-              ? (await collectMarkdownFiles(join(absolute, dir))).map(name => `${dir}/${name}`)
-              : [])).then(groups => groups.flat()),
-        ]
+        ...(await exists(join(absolute, 'brief.md')) ? ['brief.md'] : []),
+        ...await Promise.all(['chapters', 'application'].map(async dir =>
+          await exists(join(absolute, dir))
+            ? (await collectMarkdownFiles(join(absolute, dir))).map(name => `${dir}/${name}`)
+            : [])).then(groups => groups.flat()),
+      ]
       : await collectMarkdownFiles(absolute)
     if (names.length === 0) return undefined
     const parts = await Promise.all(names.map(async (name) => {

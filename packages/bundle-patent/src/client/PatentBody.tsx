@@ -69,7 +69,7 @@ export function PatentBody({ listDirectory, readProjectFile, t }: PatentBodyProp
         ...experimentDirs.map(name => readProjectFile(`experiments/${name}/results/run-log.md`, new AbortController().signal)),
       ])
       const reportTexts = reportNames.map((name, index) => ({ name, text: rest[index] ?? null }))
-      const experimentRunLogs = rest.slice(reportNames.length).map(text => {
+      const experimentRunLogs = rest.slice(reportNames.length).map((text) => {
         const latest = text?.replace(/```[\s\S]*?```/g, '').split(/^## /m).at(-1)?.split('- 输出尾部：')[0]
         return latest !== undefined && /^- 退出码：0\s*$/m.test(latest)
       })
