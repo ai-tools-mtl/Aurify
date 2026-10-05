@@ -6,5 +6,5 @@
 # verify-translation-pairing script expects, so the record is maintained by hand:
 # after editing either side, bring the other along and re-record both lines with
 #   git hash-object dist/README.md dist/INSTALL-NEW-PROFILE.md
-README.md: 4c14366558e87fccf80cd7de2053adb21aed8255
-INSTALL-NEW-PROFILE.md: 205e6084ce51659edabaed5c79f0a7545e151c5d
+README.md: 79ba0f39b5f7d6f852025935d0b3668ea0b17c2b
+INSTALL-NEW-PROFILE.md: 24e21bf7805bebb6eeef39148b8705afbdc18f2d

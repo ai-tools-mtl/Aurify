@@ -208,4 +208,4 @@ Recovery, in order of preference:
 
 ## Local rebuild (2026-10-05)
 
-The local artifacts are TS `0.1.6-alpha.6` and Python `0.1.1`. They include the review-scope, score-parser, experiment-status, and dependency-install fixes, and the three TS packages have been published to npm with `latest` set to `0.1.6-alpha.6`. Python `0.1.1` has not yet been published to PyPI; use the local wheel or Python source mode for the Python fixes.
+The local artifacts are TS `0.1.6-alpha.6` and Python `0.1.1`. They include the review-scope, score-parser, experiment-status, and dependency-install fixes, and the three TS packages have been published to npm with `latest` set to `0.1.6-alpha.6`. Python `0.1.1` has also been published to PyPI; wheel mode can fetch it online. The local wheel and Python source mode remain available.

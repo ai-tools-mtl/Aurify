@@ -1,8 +1,8 @@
 # 点金 Aurify · dsh 专利撰写插件 · 离线分发包
 
-**0.1.6-alpha.6** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.6 / wheel=0.1.1（npm 已发布 alpha.6；PyPI 0.1.1 待发布）
+**0.1.6-alpha.6** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.6 / wheel=0.1.1（npm 已发布 alpha.6；PyPI 已发布 0.1.1）
 
-**源码与分发包状态**：本目录安装包已包含整项审查范围、报告总分解析、失败实验日志误判完成及依赖安装失败仍继续执行的修复。TS 三个包已发布 npm，latest 为 `0.1.6-alpha.6`，可通过插件市场或 npm 在线路线安装；Python `0.1.1` 尚未发布 PyPI，Python 修复需安装本地 0.1.1 wheel 或启用源码模式。
+**源码与分发包状态**：本目录安装包已包含整项审查范围、报告总分解析、失败实验日志误判完成及依赖安装失败仍继续执行的修复。TS 三个包已发布 npm，latest 为 `0.1.6-alpha.6`，可通过插件市场或 npm 在线路线安装；Python `0.1.1` 已发布 PyPI，wheel 模式可在线获取；离线机器仍可安装本地 0.1.1 wheel。
 
 **本版要点**：MCP 装载前校验（相对路径、缺 `pyproject.toml` 直接拒绝）、env 模式补绝对路径校验、wheel 模式探测 uv 工具、安装器 overrides 原位刷新，且 `-DistDir` 自动锚定为绝对路径。更早的变更见 `git log` 与本仓库的 Release 说明。
 

@@ -34,7 +34,7 @@ uv build                                                            # wheel + sd
 
 wheel 是可安装形态：自带模板与 Dockerfile 资产和 `patent-services` console script。`patent` bundle 挂载的客户端行藏在若干 opt-in 门之后，默认全关（disabled——在 `dsh --profile patent --dump-config` 中可见，但不出现在工具表）：
 
-- **单文件方式（首选）**：`~/.dsh/patent-services.yaml` 写 `mcp_enabled: true`——**总开关，两种模式都必须写**——再加 `mcp_project_dir: <本检出的绝对路径>`（源码模式；相对路径、或缺 `pyproject.toml` 的目录会被拒绝并给出可读原因）或 `mcp_wheel: true`（wheel 模式）。wheel 模式要求先把 wheel 装成 uv 工具：`uv tool install <dist-dir>/deepseek_harness_patent_services-<version>-py3-none-any.whl`——本包未发布 PyPI，`uvx` 只解析 `uv tool install` 装过的东西。tool-patent 插件在加载时读该文件并自行装载客户端。
+- **单文件方式（首选）**：`~/.dsh/patent-services.yaml` 写 `mcp_enabled: true`——**总开关，两种模式都必须写**——再加 `mcp_project_dir: <本检出的绝对路径>`（源码模式；相对路径、或缺 `pyproject.toml` 的目录会被拒绝并给出可读原因）或 `mcp_wheel: true`（wheel 模式）。本包已发布 PyPI（0.1.1），wheel 模式通过 `uvx --from deepseek-harness-patent-services patent-services` 自动获取，无需先装成 uv 工具。离线机器可用 `uv tool install <dist-dir>/deepseek_harness_patent_services-<version>-py3-none-any.whl` 安装本地 wheel。tool-patent 插件在加载时读该文件并自行装载客户端。
 - **环境变量方式（脚本化场景）**：设 `DSH_PATENT_SERVICES` 经 `uvx --from deepseek-harness-patent-services patent-services` 运行已安装的包；或设 `DSH_PATENT_SERVICES_DIR`（本检出的绝对路径）直接从源码运行模块。
 
 两种方式下该行都在**进程启动时**装载：新写的文件要到下一个 dsh 进程才生效，仅新开会话不够；`patent_setup_check` 区分「已装载/待重启」。
