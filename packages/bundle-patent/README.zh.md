@@ -28,7 +28,7 @@ kind: "package-bundle"
 
 ### 安装进 profile
 
-桌面版自带插件市场（dshmarket，**设置 → 插件市场**）：搜 **Aurify** 即可把本 npm 包的 latest 一键装进当前活动档案。市场只装 bundle 本体——persona 与 MCP 服务行都在包外（见 [persona 在 profile 层](#the-persona-lives-in-the-profile) 与 [MCP 服务行](#the-mcp-services-row)）。
+推荐在桌面版 **设置 → 插件市场**搜索 **Aurify** 或 **点金**，安装到当前活动档案，然后在该档案会话中输入「**帮我初始化点金插件的运行环境，检查并配置所需依赖和服务**」。助手通过 `patent_setup_check` 自检并协助配置；MCP 配置变更后按提示完整重启桌面版，再要求复检确认服务已装载。无需先下载分发包或手动编辑配置。详见[安装与环境指南](../../dist/README.md)。专用 persona 是可选的档案配置，通用档案可保留原 persona（见 [persona 在 profile 层](#the-persona-lives-in-the-profile)）。以下命令是手动安装的替代路径。
 
 已验证的安装路径——发布的 bundle 把 [`tool-patent`](../../patent/tool-patent/README.zh.md) 与 [`command-patent-review`](../../patent/command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性：
 

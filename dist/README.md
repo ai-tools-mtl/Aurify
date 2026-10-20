@@ -1,4 +1,4 @@
-# 点金 Aurify · dsh 专利撰写插件 · 离线分发包
+# 点金 Aurify · 安装与环境指南
 
 **0.1.6-alpha.7** · 2026-10-05 本地重建 · tarball=@mtl-academic alpha.7（已有 Word 文档导入＋导出标题归一化＋名称章单行门＋整项审查范围/总分解析/实验门修复）/ wheel=0.1.2（均待发布 registry）
 
@@ -10,7 +10,7 @@
 
 ---
 
-## 一、装插件（必选，约 5 分钟）
+## 一、安装与初始化
 
 前提：已安装 [DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或任意 dsh ≥0.1.5 安装），并能正常打开其 Web 界面。
 
@@ -18,14 +18,23 @@
 
 ### 方式 A：插件市场一键安装（桌面版内，推荐）
 
-桌面版自带插件市场（dshmarket）：打开 **设置 → 插件市场**，搜索 **Aurify** 或 **点金**（分类 tools，条目 `Aurify#bundle-patent`），点安装——它把 npm 上 `@mtl-academic/dsh-patent` 的 **latest** 装进**当前活动档案**（目录条目上显示的版本号可能滞后，装的始终是 npm 最新版）。多数情况下刷新页面即生效。
+1. 在桌面版 **设置 → 插件市场**中搜索 **Aurify** 或 **点金**，安装到当前活动档案。此路线无需下载本分发包。
+2. 在该档案的会话中输入：
 
-市场只装插件本体；装完还有两步配置（各一两行，不做插件也能跑、但功能不完整）：
+   > 帮我初始化点金插件的运行环境，检查并配置所需依赖和服务。
 
-1. **装 persona（强烈建议）**——把关人行为纪律不在 npm 包里：把本目录 `persona.patch.yml` 的 yaml 块**追加**进当前档案的 `cordis.patch.yml`（即 `~/.dsh/profiles/<档案名>/cordis.patch.yml`；档案里已有补丁条目——比如模型配置——时务必**追加**而不是整个覆盖，覆盖会把已有补丁抹掉）。
-2. **启用检索/导出/实验服务**——在 `~/.dsh/patent-services.yaml` 写 `mcp_wheel: true`（uvx 从 PyPI 自动拉取，需已装 uv；源码模式见「三、可选功能」），然后**完整重启桌面壳**（MCP 行在进程启动时装载）。
+3. 助手调用 `patent_setup_check`，根据自检结果协助配置服务、检查 uv/uvx、Docker、镜像与检索通道。可执行的配置由助手处理，需要手动安装依赖或操作桌面版时按提示完成。
+4. MCP 服务配置变更后，**完整退出并重启桌面版**（仅新开会话无效），再输入：
 
-验收与方式 C 相同：`dsh --profile <档案名> --dump-config` 退出码 0。
+   > 帮我复检点金插件的环境，确认所需服务已就绪。
+
+以复检报告为准确认环境就绪，再开始专利评估或文档处理。网络或依赖受限时按报告修复，不把配置已保存当作服务已装载。
+
+以下是排障或手动配置时的参考，通常可先让助手完成初始化：
+
+- **Python MCP 服务**：市场安装通常使用 PyPI 模式，在 `~/.dsh/patent-services.yaml` 合并写入 `mcp_enabled: true` 和 `mcp_wheel: true`，确保 uv/uvx 可用，再完整重启桌面版。两项都需要；只有 `mcp_wheel` 不会启用服务。源码与离线模式见「三、可选功能」。
+- **persona（可选）**：通用档案可保留原 persona；专用专利档案可将本目录 `persona.patch.yml` 的条目追加到 `~/.dsh/profiles/<档案名>/cordis.patch.yml`，保留已有补丁。persona 与环境自检分别配置。
+- **档案配置验收**：手动修改档案后可运行 `dsh --profile <档案名> --dump-config`，退出码应为 0；服务是否已装载仍需会话内自检确认。
 
 ### 方式 B：一键安装器（npm，Windows）
 

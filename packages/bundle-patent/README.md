@@ -30,7 +30,7 @@ A personal invention-disclosure drafting layer over [`dsh-base`](../base/README.
 
 ### Install into a profile
 
-The desktop distribution ships a plugin marketplace (dshmarket, **Settings → Plugin marketplace**): searching **Aurify** there installs this npm package's latest into the active profile with one click. The marketplace ships the bundle only — the persona and the MCP services row live outside the package ([The persona lives in the profile](#the-persona-lives-in-the-profile), [The MCP services row](#the-mcp-services-row)).
+Install from the desktop's **Settings → Plugin marketplace** by searching **Aurify** or **点金**, then ask in that profile: **“Help me initialize the Aurify plugin environment. Check and configure the required dependencies and services.”** The assistant uses `patent_setup_check` to inspect and help configure the environment. After MCP configuration changes, fully restart the desktop app as prompted, then request a recheck to confirm services are loaded. No distribution download or manual configuration is required to begin. See the [installation guide](../../dist/INSTALL-NEW-PROFILE.md). A dedicated persona is optional; general-purpose profiles can retain their own ([The persona lives in the profile](#the-persona-lives-in-the-profile)). The commands below are a manual alternative.
 
 The verified install path — the published bundle pulls the [`tool-patent`](../../patent/tool-patent/README.md) and [`command-patent-review`](../../patent/command-patent-review/README.md) packages as its own dependencies, so one install brings the whole feature:
 

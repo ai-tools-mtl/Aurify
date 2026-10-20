@@ -24,29 +24,27 @@
 
 ## 安装
 
-安装细节只维护一份正本（`dist/` 内），根 README 只保留最短路径与跳转：
+推荐直接从 **DeepSeek Harness 桌面版的插件市场**安装，再通过自然语言初始化环境，无需先克隆仓库或下载 `dist/`。
 
-| 文档 | 管什么 |
+1. 打开桌面版 **设置 → 插件市场**，搜索 **Aurify** 或 **点金**，安装到当前活动档案。
+2. 在安装插件的档案中发送：
+
+   > 帮我初始化点金插件的运行环境，检查并配置所需依赖和服务。
+
+3. 助手会调用 `patent_setup_check` 自检，按结果协助配置 Python MCP 服务、检查 uv/uvx、Docker、镜像及检索通道；需要你操作的步骤会明确列出。
+4. 如果启用或修改了 MCP 服务配置，按提示**完整退出并重启桌面版**，然后发送：
+
+   > 帮我复检点金插件的环境，确认所需服务已就绪。
+
+复检通过后即可描述技术点子开始评估，或提供已有 Word 文档继续处理。初始化过程中若有依赖缺失或网络受限，按自检提示处理；输入初始化指令本身不代表环境已经就绪。
+
+| 文档 | 用途 |
 |---|---|
-| 本节 | 最短路径——能直接复制跑通的最少命令 |
-| [dist/README.md](dist/README.md) | **完整接收方指南**（中文）：手动安装逐步命令、验收方法、模型配置、可选功能、核心兼容表、已知边界 |
-| [dist/INSTALL-NEW-PROFILE.md](dist/INSTALL-NEW-PROFILE.md) | 安装器参数、手动步骤（英文）、macOS/Linux 路径替换表、故障排查 |
+| [安装与环境指南](dist/README.md) | 自然语言初始化、手动配置参考、模型配置与故障排查 |
+| [英文安装指南](dist/INSTALL-NEW-PROFILE.md) | 对应英文说明、安装器参数与跨平台路径替换 |
+| [Bundle 说明](packages/bundle-patent/README.zh.md) | 技能、persona 与 MCP 服务的组成及开发细节 |
 
-前置：[DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或 dsh ≥0.1.5）；可选 uv（Python 服务）与 Docker Desktop（附图渲染、仿真实验）。
-
-**方式 A · 插件市场一键安装（桌面版内，最简）**——桌面版 **设置 → 插件市场**，搜 **Aurify** 或 **点金**，一键装进当前活动档案（npm latest）。装完两步：把 `dist/persona.patch.yml` 的 yaml 块**追加**进该档案的 `cordis.patch.yml`；在 `~/.dsh/patent-services.yaml` 写 `mcp_wheel: true` 并完整重启桌面壳。细节见 [dist/README.md 的方式 A](dist/README.md)。
-
-**方式 B · 一键安装器（Windows，npm 路线）**——从 npm 解析 `@mtl-academic/dsh-patent`（无需解包任何 tarball），建档案、装 persona、dump-config 验证全自动，幂等可重跑（已在市场装过的档案同样适用）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File dist\install-patent-profile.ps1 -Name patent-demo
-```
-
-**方式 C · 手动安装（跨平台，npm）**——两条命令：档案不存在时先 `dsh --profile patent-demo --from-default-profile web` 建档，然后 `dsh plugin --profile patent-demo add @mtl-academic/dsh-patent`；再装 persona（`dist/persona.patch.yml` 拷为档案的 `cordis.patch.yml`，已有补丁时改为追加 persona 条目）；可选追加 Python 服务（已发布 PyPI：`~/.dsh/patent-services.yaml` 开 `mcp_enabled` + `mcp_wheel` 即可，`uvx` 自动拉取，重启桌面版）。装完先跑 `dsh --profile patent-demo --dump-config`（退出码必须为 0）再重启桌面版。装过旧版离线形态的档案，先删掉档案 `pnpm-workspace.yaml` 里旧安装器写入的 4 行 `overrides:`（会钉死本地 tarball）。逐步说明见 [dist/README.md 的方式 C](dist/README.md)。
-
-**方式 D/E · 离线安装（无网环境）**——用本仓库 `dist/` 自带的 tarball：解包 tarball 为 `bundle/` 目录（桌面端必须目录形态）→ 安装器加 `-Offline -DistDir`（或手动写 `file:` 依赖 + pnpm overrides）。**`<DIST>` 与清单里所有 `file:` 路径都必须是绝对路径**（`file:./bundle` 这类相对值会按档案目录解析，直接让档案不可启动）；解包出的 `bundle\` 与 tarball 是安装源，装完别删别移动。逐步命令见 [dist/README.md 的方式 D/E](dist/README.md)。
-
-**装进已有档案（包括桌面版自建的档案）**——安装器是合并写入：档案清单里既有的依赖与 bundles 层（桌面版自己的 `dsh-tauri*`、`dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`）会保留，只新增本插件需要的条目。**不要用编辑器整个覆盖 `package.json`**：清单外的包会被 pnpm 当多余包删掉，档案就丢了桌面版插件。装完先跑 `dsh --profile <档案名> --dump-config`（退出码必须为 0）再重启桌面版——清单解析不了时桌面版会直接打不开该档案。细节与恢复步骤见 [dist/README.md 的「装进已有档案」](dist/README.md)。
+npm 命令、Windows 安装器与离线安装仍可用，见安装与环境指南的方式 B–E。专用档案的 persona 补丁属于可选配置，见该指南的「装 persona」；通用档案可保留原 persona。附图渲染与仿真实验需要 Docker，检索需要能访问 Google Patents。
 
 ## 仓库结构
 

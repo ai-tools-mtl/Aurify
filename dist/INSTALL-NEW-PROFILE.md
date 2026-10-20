@@ -36,9 +36,17 @@
 
 ## Marketplace install (desktop, no terminal)
 
-If the dshmarket plugin is present (preset on the desktop shell), open **Settings → Plugin marketplace**, search **Aurify** (category `tools`, entry `Aurify#bundle-patent`), and install — the marketplace resolves the npm **latest** of `@mtl-academic/dsh-patent` into the active profile (a stale version shown on the catalog card does not affect what gets installed). The marketplace does not cover the two follow-ups: merge `persona.patch.yml` into the active profile's `cordis.patch.yml` (append the entry — overwriting the file drops existing patch rows), and write `mcp_wheel: true` into `~/.dsh/patent-services.yaml`, then fully restart the desktop shell. Details: route A in [README.md](README.md).
+Open **Settings → Plugin marketplace**, search **Aurify** or **点金**, and install into the active profile. No repository checkout or distribution download is required. In a conversation in that profile, ask:
 
-## Quick install (recommended, Windows)
+> Help me initialize the Aurify plugin environment. Check and configure the required dependencies and services.
+
+The assistant uses `patent_setup_check` to inspect the environment and help configure Python MCP services, uv/uvx, Docker, images, and prior-art connectivity. Follow any steps that require your intervention. After changing MCP configuration, **fully quit and relaunch the desktop app** (a new conversation is insufficient), then ask:
+
+> Recheck the Aurify environment and confirm the required services are ready.
+
+Use the recheck results to confirm readiness before starting patent work. For manual setup or troubleshooting, merge both `mcp_enabled: true` and `mcp_wheel: true` into `~/.dsh/patent-services.yaml`, ensure uv/uvx is available, and restart the app. The wheel flag alone does not enable MCP. A dedicated patent persona is optional: append the entries from `persona.patch.yml` to the active profile's `cordis.patch.yml`, preserving existing rows; general-purpose profiles may retain their own persona. For manual profile changes, `dsh --profile <name> --dump-config` should exit with code 0; confirm actual service loading with the in-session check. Details: route A in [README.md](README.md).
+
+## Installer alternative (Windows)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <DIST>\install-patent-profile.ps1 -Name patent-test
