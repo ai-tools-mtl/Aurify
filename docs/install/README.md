@@ -1,222 +1,136 @@
 # 点金 Aurify · 安装与环境指南
 
-**源码版本：TS 0.1.6-alpha.7 / Python 0.1.2。** 安装包请从 [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases) 下载；克隆仓库后不会自带 `dist/` 产物。GitHub Release 不代表 npm/PyPI 或插件市场已同步本版，请核对所用通道的实际版本。
+[English](INSTALL-NEW-PROFILE.md) · [文档索引](../README.md)
 
-这是 DeepSeek Harness（dsh）的专利交底书撰写插件「点金」——不是每块石头都值得点，先验金，再点金。丢一个技术点子，它先检索中国专利给出「值不值得写」的评估（可以反驳它），确认方向后走完五方对齐访谈、八章交底书撰写、附图与仿真实验、确定性审查、docx/PDF 导出，以及可选的 Python 导出/渲染/检索/查新服务。
+适用于已安装 DeepSeek Harness 桌面版或兼容 dsh 宿主的用户。先配置宿主可用的模型与 API Key；插件不附带模型。宿主兼容代码面向 0.1.5-rc 至 0.1.6-alpha 线，本次文档整理未重新实测版本矩阵。
 
----
+源码版本见[仓库首页](../../README.md)。GitHub Release、npm/PyPI 和插件市场分别发布；选用哪条安装路线，就核对该渠道实际版本。
 
-## 一、安装与初始化
+## 插件市场与自然语言初始化（推荐）
 
-前提：已安装 [DeepSeek Harness 桌面版](https://github.com/hairyf/deepseek-harness-desktop)（或任意 dsh ≥0.1.5 安装），并能正常打开其 Web 界面。
-
-**三条路线**：桌面版用户首选**插件市场一键安装**（方式 A，零命令行）；能访问 npm registry（官方源或 npmmirror 等镜像均可）也可走 **npm 直装**（方式 B/C）——不需要下载解压本分发包，插件三个包在 npm、Python 服务在 PyPI；内网或网络受限机器可用 **本地包安装**（方式 D/E，下载 Release 资产后操作；完整断网还需提前缓存宿主、npm/Python 传递依赖和 Docker 镜像）。
-
-### 方式 A：插件市场一键安装（桌面版内，推荐）
-
-1. 在桌面版 **设置 → 插件市场**中搜索 **Aurify** 或 **点金**，安装到当前活动档案。此路线无需下载本分发包。
-2. 在该档案的会话中输入：
+1. 桌面版 **设置 → 插件市场**搜索 **Aurify** 或 **点金**，安装到当前活动档案。
+2. 在该档案会话中输入：
 
    > 帮我初始化点金插件的运行环境，检查并配置所需依赖和服务。
 
-3. 助手调用 `patent_setup_check`，根据自检结果协助配置服务、检查 uv/uvx、Docker、镜像与检索通道。可执行的配置由助手处理，需要手动安装依赖或操作桌面版时按提示完成。
-4. MCP 服务配置变更后，**完整退出并重启桌面版**（仅新开会话无效），再输入：
+3. 按 `patent_setup_check` 报告处理依赖与配置。MCP 配置变更后**完整退出并重启桌面版**，再输入：
 
    > 帮我复检点金插件的环境，确认所需服务已就绪。
 
-以复检报告为准确认环境就绪，再开始专利评估或文档处理。网络或依赖受限时按报告修复，不把配置已保存当作服务已装载。
+服务是否可用以复检为准，保存配置或新开会话不能代替重启。就绪后可描述点子，或提供已有 docx 导入。以下章节用于手动安装和排障。
 
-以下是排障或手动配置时的参考，通常可先让助手完成初始化：
+## npm 与 Windows 安装器
 
-- **Python MCP 服务**：市场安装通常使用 PyPI 模式，在 `~/.dsh/patent-services.yaml` 合并写入 `mcp_enabled: true` 和 `mcp_wheel: true`，确保 uv/uvx 可用，再完整重启桌面版。两项都需要；只有 `mcp_wheel` 不会启用服务。源码与离线模式见「三、可选功能」。
-- **persona（可选）**：通用档案可保留原 persona；专用专利档案可将[`scripts/persona.patch.yml`](../../scripts/persona.patch.yml) 的条目追加到 `~/.dsh/profiles/<档案名>/cordis.patch.yml`，保留已有补丁。persona 与环境自检分别配置。
-- **档案配置验收**：手动修改档案后可运行 `dsh --profile <档案名> --dump-config`，退出码应为 0；服务是否已装载仍需会话内自检确认。
+跨平台手动安装：
 
-脚本和 persona 源文件位于仓库 `scripts/`；Release 中两者与安装包同级。以下方式 B 的命令从仓库根目录运行，下载 Release 的用户去掉 `scripts/` 前缀。
+```sh
+dsh plugin --profile patent-demo add @mtl-academic/dsh-patent
+dsh --profile patent-demo --dump-config
+```
 
-### 方式 B：一键安装器（npm，Windows）
+若找不到命令，检查桌面版 dsh 垫片：Windows 为 `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`，macOS/Linux 通常为 `~/.local/bin/dsh`。配置目录默认 `~/.dsh/`（Windows 为 `%USERPROFILE%\.dsh`）。
+
+Windows 用户可从仓库根目录运行安装器；使用 Release 时去掉 `scripts/` 前缀：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/install-patent-profile.ps1 -Name patent-demo
 ```
 
-安装器默认走 npm：`dsh plugin add @mtl-academic/dsh-patent`（档案不存在会自动按 web 模板建档并写入依赖与 bundles 声明）→ 装 persona（取自同目录 `persona.patch.yml`）→ dump-config 验证。幂等可重跑；打印 `DONE` 即成功。装过旧版离线形态（`file:` 依赖 + overrides）的档案，安装器会先清掉 `overrides:` 钉死行再换成 npm 依赖。参数说明与故障排查见 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
+安装器合并档案依赖、从同目录 `persona.patch.yml` 安装专用 persona，并执行 `--dump-config`。参数：`-Name` 指定档案；`-PersonaFrom` 指定已有档案（默认 `auto` 使用随附 persona，空字符串跳过）；`-NoVerify` 跳过验证。安装器仅支持 Windows，macOS/Linux 使用手动命令。
 
-安装器仅面向 **Windows**（系统自带 PowerShell）。macOS/Linux 用户直接走方式 C：把 `%USERPROFILE%\.dsh` 换成 `~/.dsh`、桌面版 dsh 垫片在 `~/.local/bin/dsh`（而非 `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`）。
+通用档案可保留原 persona。需要专用 persona 时，将 [`persona.patch.yml`](../../scripts/persona.patch.yml) 条目合并到 `~/.dsh/profiles/<档案>/cordis.patch.yml`，不要覆盖已有补丁。Bundle 本身不携带 persona。
 
-### 方式 C：npm 手动安装（跨平台）
+装过旧本地包版本时，换回 npm 前移除 `pnpm-workspace.yaml` 中 Aurify 的四个 `file:` overrides；保留不相关配置。安装器的 npm 路径会清理这组旧条目。
 
-#### 1. 找到 dsh 命令
+## 本地包安装
 
-桌面版用户：dsh 命令行在桌面版安装时已配置，打开 **Windows 终端（PowerShell）** 直接输入 `dsh` 能看到帮助即可。若提示找不到命令，用桌面版自带的：
+从 [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases) 下载同一版本 ZIP 并核对 `SHA256SUMS`。源码检出不自带 `dist/`。ZIP 含三个插件 tarball、两个配置库 tarball、Python wheel/sdist、安装器、persona 与双语指南；`bundle/` 需手动解包生成。
 
-```text
-%LOCALAPPDATA%\deepseek-harness\bin\dsh
-```
+本地包只替代部分下载，完全断网仍需预备宿主、npm/Python 传递依赖和 Docker 镜像。
 
-（`%LOCALAPPDATA%` 即 `C:\Users\<你的用户名>\AppData\Local`。）
-
-#### 2. 安装插件（档案不存在会自动创建）
-
-```sh
-dsh plugin --profile patent-demo add @mtl-academic/dsh-patent
-```
-
-这一条从 npm 安装插件并写入依赖与 bundles 声明（含自动按 web 模板建档）。**装过旧版离线形态（`file:` 依赖 + overrides）的档案**：先把档案 `pnpm-workspace.yaml` 里旧安装器写入的 `overrides:` 段（4 行 `file:` 钉死）删掉再跑，否则 npm 依赖会被钉在本地 tarball 上不升级。
-
-#### 3. 装 persona（可选）
-
-专用专利档案可以追加专利把关人的 persona；通用档案可保留自己的 persona。把[`scripts/persona.patch.yml`](../../scripts/persona.patch.yml) 复制为 `C:\Users\<你的用户名>\.dsh\profiles\patent-demo\cordis.patch.yml`（注意：这会**整个覆盖**该档案原有的 `cordis.patch.yml`，档案里已有别的补丁条目时改为把 persona 条目**追加**进现有文件）；或把已装好的 `node_modules\@mtl-academic\dsh-patent\README.md` 里「The persona lives in the profile」一节的 yaml 块原样拷入新建的 `cordis.patch.yml`。
-
-#### 4. 验收（重启前必须做）
-
-```sh
-dsh --profile patent-demo --dump-config
-```
-
-命令**退出码为 0**、输出里能看到 `tool-patent`、`patent-assets`、`command-patent-review`、`mcp-patent-services` 四行（选装 persona 时还有 `persona:` 键），才算装好。若报错**先把档案修好再重启桌面版**：损坏的清单会让桌面版连该档案都打不开（不是「插件不生效」，而是整个档案起不来）。
-
-然后重启 DeepSeek Harness 桌面版，切换到 `patent-demo` 档案开始会话。
-
-**验收**：新会话直接丢一个技术点子（比如"一种校园快递取件码防泄漏的方法"），它应该先检索再给「建议写/收窄后写/不建议写」的评估；或输入「请调用 patent_brief_coverage 打分：field=测试」，展开"1 次工具调用"看到"五方对齐"结构化卡片即插件完整生效。
-
-#### 装进已有档案（含桌面版自建档案）
-
-桌面版会在**它自己建、自己在用**的档案里放一批它自己的依赖与 bundles 层：`dsh-tauri`、`dsh-tauri-connection`、`dsh-tauri-model-config`、`dsh-tauri-panel-extension`、`dsh-tauri-panel-scheduler`、`dsh-tauri-pet`、`dsh-tauri-rightclick`、`dsh-tauri-session`、`dsh-tauri-turnrewind`、`dsh-tauri-ui`、`dsh-tauri-worktree`（`link:` 形态）与 `dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`。**这些条目必须留在清单里**：
-
-- 安装器是**合并**写入——npm 模式只确保 `@mtl-academic/dsh-patent` 依赖与 bundles 条目，其它条目原样保留，重跑不会抹掉它们；
-- **手改时只加不删**。用编辑器整个覆盖 `package.json` 会丢掉上面这些声明，接着 `dsh plugin install` 的 pnpm 段会把它们当**多余包删掉**——档案就丢了桌面版插件（市场、侧边栏、IM、rewind、Tauri 桥全没了）；
-- 已经丢了的恢复：安装器每次刷新**已有**档案前，会自动把 `package.json`、`pnpm-workspace.yaml`、`pnpm-lock.yaml`、`cordis.patch.yml` 备份到 `~/.dsh/.plugin-backups/<档案名>-<时间戳>/`，先看那里；没有备份就按该档案自己的 `pnpm-lock.yaml` 顶部 `importers:` 段把依赖键值抄回 `package.json` 的 `dependencies`，并把对应名字补回 `dsh.profile.bundles`，然后重跑安装器。
-
-装完**别急着重启**：先按第 4 步的验收命令确认 `--dump-config` 退出码为 0。
-
-### 方式 D：离线一键安装器（本地包安装，Windows）
-
-无法访问 npm registry 的机器，用本分发包的 tarball 离线装（安装器加 `-Offline`）。先在本目录（tarball 所在目录）把插件解包成**目录**——离线安装要求 `<DIST>\bundle\` 与那几个 `.tgz` 同级（桌面端必须目录形态安装：指向 .tgz 文件的依赖会被桌面壳启动自愈判为死链卸载）：
+在发行目录中解包（将 `<版本>` 替换为实际文件名中的版本）：
 
 ```sh
 mkdir bundle
-tar -xzf mtl-academic-dsh-patent-0.1.6-alpha.7.tgz -C bundle --strip-components=1
+tar -xzf mtl-academic-dsh-patent-<版本>.tgz -C bundle --strip-components=1
 ```
+
+Windows 优先使用 `C:\Windows\System32\tar.exe`，避免 Git MSYS tar 在受限 shell 中报 signal pipe 错误。解包后，`bundle/` 与五个 `.tgz` 应位于同一目录。
+
+Windows 安装：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo -Offline -DistDir "G:/dsh-patent-dist"
+powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo -Offline -DistDir "C:/aurify-release"
 ```
 
-`-DistDir` 就是 `<DIST>`：**绝对路径、正斜杠**（相对路径安装器会自动锚定成当前目录的绝对路径）。这个值会原样写进档案清单的 `file:` 依赖，而 dsh 按**档案目录**解析 `file:`（不是按你运行命令时所在的目录）：写成相对路径装出来的档案，`dsh --profile <名>` 会报 `cannot resolve profile bundle`，桌面版直接打不开该档案。
+`-DistDir` 使用正斜杠绝对路径。安装完成后保留发行目录：档案运行时引用其中的 `bundle/`，移动或删除会使档案无法解析。
 
-> **解包出来的 `bundle\` 目录是运行期依赖，装完别删也别移动。** 档案清单用绝对路径引用它，桌面壳每次启动都会解析一遍清单里的 `file:` 依赖，指向不存在目录的会被判为死链卸掉。
->
-> Windows 上如果 `tar` 命中 Git 自带的那份（`C:\Program Files\Git\usr\bin\tar.exe`），在受限 shell / 沙箱环境里会以 `couldn't create signal pipe, Win32 error 5` 直接崩掉；改用系统自带的 `C:\Windows\System32\tar.exe`（Win10 1803+ 起随系统提供）即可。
->
-> 离线模式会在档案 `pnpm-workspace.yaml` 里写入 4 行 `overrides:`（把内部包钉到本地 tarball）。之后想换回 npm 路时，删掉那段 overrides 再按方式 B 重跑即可（安装器也会自动清）。
+跨平台手动替代步骤：
 
-### 方式 E：离线手动安装（本地包安装）
+1. 为新档案先执行 `dsh plugin --profile patent-demo add "file:<DIST>/bundle"` 建立清单。依赖未配置齐时可能失败；确认清单已建立后继续。
+2. 合并档案 `package.json` 的依赖 `"@mtl-academic/dsh-patent": "file:<DIST>/bundle"`，并确保 `dsh.profile.bundles` 包含该包。保留原有宿主层和其他依赖。
+3. 在档案 `pnpm-workspace.yaml` 合并以下四项。替换 `<DIST>` 与 `<版本>`，配置库版本以实际附件名为准：
 
-方式 D 的手动版：解包 bundle 为目录 → 档案 `package.json` 写 `"@mtl-academic/dsh-patent": "file:<DIST>/bundle"`（**绝对路径**）→ `pnpm-workspace.yaml` 追加下面的 overrides → `dsh plugin --profile patent-demo add "file:<DIST>/bundle"` → 装 persona → `--dump-config` 验收：
+   ```yaml
+   overrides:
+     '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-<版本>.tgz'
+     '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-<版本>.tgz'
+     '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
+     '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
+   ```
+
+4. 执行 `dsh plugin --profile patent-demo install`，选装 persona，再执行 `dsh --profile patent-demo --dump-config`。
+
+所有 `file:` 值均使用绝对路径。Bundle 指向解包目录，不指向 `.tgz`。升级时使用新版本附件并重跑安装器，勿混放多个版本或覆盖同版本已发布文件。
+
+## 服务与运行依赖
+
+需要 [uv/uvx](https://docs.astral.sh/uv/) 才能启动 Python MCP 服务。合并配置到 `$DSH_HOME/patent-services.yaml`（默认 `~/.dsh/patent-services.yaml`），选择一种模式：
 
 ```yaml
-overrides:
-  '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-0.1.6-alpha.7.tgz'
-  '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-0.1.6-alpha.7.tgz'
-  '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
-  '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
+mcp_enabled: true
+mcp_wheel: true  # uvx 从 PyPI 解析，未锁定为本仓库版本
 ```
 
-全部 `<DIST>` 替换为解压目录（**正斜杠、绝对路径**——`file:` 值按档案目录解析，相对路径让档案起不来）。persona、验收与桌面版自建档案的注意事项与方式 C 共通，见上文对应小节与 [`INSTALL-NEW-PROFILE.md`](INSTALL-NEW-PROFILE.md)（英文）。
-
----
-
-## 二、模型配置（必选）
-
-插件本身不带模型。桌面版界面 **Settings → Models** 里选择并配置你的模型与 API Key（任意 dsh 支持的 provider 均可）。
-
-审查链路（`/patent-review`、`patent_review`）要真跑评分子代理，所以模型必须是**你所用网关确实支持**的那个：经 GLM 网关调用默认 deepseek 线会报 `model not found`。使用你实际配置且可调用的模型组，组名以你 `Settings → Models` 里的实际配置为准（文档中的 `zai-coding-cn` 只是本机配置示例）。
-
----
-
-## 三、可选功能
-
-### 导出/检索/实验/查新服务（10 个 MCP 工具）
-
-需要 [uv](https://docs.astral.sh/uv/)（安装：`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`）。
-
-wheel 模式无需预装任何包：`mcp_wheel: true` 启用后，`uvx` 会从 [PyPI](https://pypi.org/project/deepseek-harness-patent-services/) 自动拉取 `deepseek-harness-patent-services` 并在首次使用时运行。离线机器的替代路径：预先缓存全部 Python 依赖，并用源码模式运行本版服务。`mcp_wheel` 的实际命令仍为 `uvx --from deepseek-harness-patent-services patent-services`，不锁定本地 wheel 的版本；仅 `uv tool install` 不保证该命令使用本版。准确复现本版时建议采用下方源码模式。
-
-> 若 `irm` 在受限 shell / 沙箱里报「基础连接已经关闭」或 `SEC_E_NO_CREDENTIALS`（.NET schannel 取不到凭证），改用系统自带的 curl 下载再执行：
-> ```powershell
-> curl.exe -LsSf -o "$env:TEMP\uv-install.ps1" https://astral.sh/uv/install.ps1
-> powershell -ExecutionPolicy Bypass -File "$env:TEMP\uv-install.ps1"
-> ```
-> 安装脚本把 `uv`/`uvx` 放到 `%USERPROFILE%\.local\bin` 并写进用户 PATH；**PATH 变更对已运行的进程无效**，所以 uv 装完后要重启桌面版才会被 MCP 行找到（正好和「MCP 行在进程启动时装载」是同一次重启）。安装脚本会打印一句 `warning: ...\.local\bin is not on your PATH`——那是**当前这个 shell** 的 PATH 还没刷新（用户级 PATH 已经写好），重启终端/桌面版即消失，不用处理。
-
-启用方式（首选，单文件）：在 `~/.dsh/patent-services.yaml` 写——
+精确使用本版或预缓存依赖后离线运行时，使用源码模式：
 
 ```yaml
-mcp_enabled: true          # 总开关，两种模式都必须写；只写下面那行不会生效
-mcp_wheel: true            # wheel 模式：uvx 从 PyPI 拉取（本版精确复现请改用源码模式）
+mcp_enabled: true
+mcp_project_dir: /absolute/path/to/Aurify/python/patent-services
 ```
 
-用源码的机器则写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（相对路径会被拒绝；目录里必须有 `pyproject.toml`）。布尔值 `true`/`1`/`yes`/`on` 均可，注释用 `#`。
+源码目录须为含 `pyproject.toml` 的绝对路径。wheel 模式执行 `uvx --from deepseek-harness-patent-services patent-services`，无需先 `uv tool install`，也不保证使用已安装的本地 wheel。两种模式均需 `mcp_enabled: true`。
 
-保存后**完整重启桌面版**：MCP 行在进程启动时装载，仅新开会话不生效；会话内可用 `patent_setup_check` 自检（区分「已装载/待重启」）。脚本化场景也可改用用户环境变量 `DSH_PATENT_SERVICES=1`（系统设置→环境变量）。
+脚本化场景可改用 `DSH_PATENT_SERVICES=1` 或 `DSH_PATENT_SERVICES_DIR`。变更启用方式、源码路径或 PATH 后，完整重启桌面版并复检；图形应用不一定继承 shell 配置中的变量。
 
-### 附图渲染（drawio → PNG/PDF）与仿真实验
-
-装了上面的 Python 服务后可用。需本机有 Docker Desktop（渲染与实验镜像 `q771103517/dsh-patent`、`q771103517/dsh-patent-experiment` 首次使用自动从 Docker Hub 拉取，无需手动构建）；本机装有 [draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) 则附图渲染无需 Docker。
-
-### 从源码使用（面向开发者）
-
-本仓库包含三个 TS 包与 Python 服务源码。独立构建、测试和完整 monorepo 类型检查的限制见[开发指南](../DEVELOPMENT.md)。发布包的生成与上传见[发布流程](../RELEASING.md)。
-
----
-
-## 文件清单
-
-| 文件 | 说明 |
+| 能力 | 额外依赖 |
 |---|---|
-| `mtl-academic-dsh-patent-*.tgz` | 插件本体（含 14 个技能 + Web UI 卡片/面板），解包为 `bundle/` 目录安装 |
-| `bundle/` | 上一条解包出来的**目录**（安装源的真正形态，与 tarball 同级由安装器校验；装完别删别移动——档案清单用绝对路径引用它） |
-| `mtl-academic-dsh-tool-patent-*.tgz` | 依赖：就绪度打分、权利要求/正文检查、全流程推进工具 |
-| `mtl-academic-dsh-command-patent-review-*.tgz` | 依赖：/patent-review 审查命令 + patent_review 直通工具 |
-| `deepseek-ai-schemastery-*.tgz` / `deepseek-ai-cosmokit-*.tgz` | 依赖：配置校验库（从 npm 官方 registry 获取） |
-| `deepseek_harness_patent_services-*.whl` / `.tar.gz` | 可选 Python 服务（10 个 MCP 工具：导入/导出/渲染/检索/实验/查新） |
-| `install-patent-profile.ps1` | 一键安装器（方式 B） |
-| `persona.patch.yml` | persona 档案补丁正本（装 persona 用） |
-| `INSTALL-NEW-PROFILE.md` | 安装器配套的英文分步指南与故障排查 |
-| `README.md` | 本文件——中文接收方指南 |
+| docx 导入/导出、归档检索 | Python MCP 服务 |
+| PDF | Windows Word COM，或另行配置 weasyprint 及系统库；回退版式可能不同 |
+| drawio 渲染 | draw.io CLI 或 Docker；默认镜像 `q771103517/dsh-patent:latest` |
+| HTML 渲染 | Edge/Chrome；固定视口可能裁切过高画布 |
+| 仿真实验 | 运行中的 Docker；默认镜像 `q771103517/dsh-patent-experiment:latest` |
+| 中国专利检索 | 可访问 `patents.google.com` 的网络 |
 
-## 核心版本兼容表
+镜像首次使用可能需要拉取。自检会报告各通道状态，项目起步按技能要求处理受限项；检索通道跳过须由用户明确选择并保留待补查标记。服务接口和设置项见 [Python 服务说明](../../python/patent-services/README.zh.md)。
 
-插件跨 dsh 核心版本可用（部分旧核心能力按兼容分支降级；下表是设计范围，本次发布未逐版本复测），但部分能力需要较新的核心才完整生效：
+## 验收、恢复与排障
 
-| 能力 | 旧核心（0.1.5-rc 线） | 新核心（0.1.6-alpha 线） |
-|---|---|---|
-| patent_loop 全流程推进 / 分数门 / 查新债放宽 | ✅ 完整可用 | ✅ 完整可用 |
-| 纯函数工具（patent_brief_coverage / patent_claims_lint / patent_prose_lint） | ✅ 完整可用 | ✅ 完整可用 |
-| 审查温度（reviewTemperature=0.2） | ⚠️ 自动降级：旧引擎不识别该选项，评分子代理用模型默认温度，审查照常运行 | ✅ 完整生效 |
-| 讨论温度（顶层会话 0.7） | ⚠️ 视核心是否在请求载荷注入会话主体而定，未注入则自动关闭 | ✅ 完整生效 |
-| 实验自动出图 + 代码指纹入 run-log | ✅ 完整可用（随 Python 服务生效，与核心版本无关） | ✅ 完整可用 |
+手动安装后，先确认 `--dump-config` 退出码为 0，再重启桌面版。应出现 `tool-patent`、`patent-assets`、`command-patent-review`、`mcp-patent-services` 行；MCP 行存在不等于服务已启用，仍需会话内自检。可请求 `patent_brief_coverage` 检查 `field=测试`，核对工具结果；旧宿主可能仅显示文本卡片。
 
-升级核心后无需重装插件，重启桌面版即带全新行为。
+已有档案的 `package.json`、bundle 层与补丁只合并修改。安装器刷新已有档案前备份到 `~/.dsh/.plugin-backups/<档案>-<时间戳>/`；误删宿主插件声明时优先从备份恢复，或按该档案 lockfile 的 `importers` 重建依赖与 bundle 层后重装。
 
-## 常见故障
-
-| 现象 | 原因与处理 |
+| 现象 | 处理 |
 |---|---|
-| `dsh --profile <名> --dump-config` 报 `cannot resolve profile bundle "@mtl-academic/dsh-patent"`；桌面版重启后打不开该档案 | 档案清单里的 `file:` 指向了解析不到的位置。dsh 按**档案目录**解析 `file:`，所以 `file:./bundle` 这类相对值、或已被删除/移动的 release 目录都会命中：把 `package.json` 的 `@mtl-academic/dsh-patent` 改成 `file:<DIST的绝对路径>/bundle`，`pnpm-workspace.yaml` 的 4 行 overrides 同样改成绝对路径，再跑一次 `dsh plugin --profile <名> install`（或直接重跑方式 B 安装器，它会原位刷新这 4 行） |
-| 重启后市场/侧边栏/IM/rewind/Tauri 桥全没了，或安装日志出现 `Packages: +N -M` 把桌面版插件删掉 | 装插件时把档案 `package.json` 整个覆盖了，桌面版自己那批依赖（`dsh-tauri*`、`dshmarket`、`dsh-better-sidebar`、`dsh-rewind-plugin`、`@xmanrui/dsh-im`）掉出清单，pnpm 当多余包清掉。见[「装进已有档案」](#装进已有档案含桌面版自建档案)的恢复步骤 |
-| `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`（`workspace:^`） | `pnpm-workspace.yaml` 的 overrides 块缺失或路径不对；对照 `<DIST>` 里实际存在的 4 个 tarball 名字逐行核对。注意 overrides 只能写在 `pnpm-workspace.yaml`（pnpm 11 忽略 `package.json` 里的 `pnpm` 字段） |
-| 日志出现 `DANGLING_LINK_UNINSTALLING`，插件重启后消失 | bundle 是以 `.tgz` 文件形态装进去的。桌面壳启动自愈会把指向非目录的 `file:` 依赖卸掉；删掉该档案重装，`add`/依赖必须指向解包出来的 `bundle` **目录** |
-| 装完测试 `dsh ... --dump-config` 报 `EPERM: operation not permitted, open '...\cordis.yml'` | 不是档案坏了：`--dump-config` 会重写档案根部的 `cordis.yml`，只读/受限 shell（或 AI 沙箱）里跑就会这样。用有写权限的普通终端重跑即可 |
-| Windows 上 `tar -xzf` 报 `couldn't create signal pipe, Win32 error 5` | `tar` 命中了 Git 自带的 MSYS 版，在受限 shell / 沙箱里起不来。改用 `C:\Windows\System32\tar.exe -xzf ... -C ... --strip-components=1` |
-| 模型看不到导出/渲染/检索工具 | Python 服务门没开：`~/.dsh/patent-services.yaml` 缺 `mcp_enabled: true`（总开关，只有 `mcp_wheel`/`mcp_project_dir` 不生效），或配置写得晚于进程启动——MCP 行在进程启动时装载，**完整重启桌面壳**才对（新开会话不够）。会话内 `patent_setup_check` 区分「已装载/待重启」 |
-| wheel 模式自检说「uvx 拉取 patent-services 失败」 | 自检（0.1.6-alpha.3 起）直接跑 MCP 行同款 `uvx --from deepseek-harness-patent-services python -c "import patent_services"`：失败通常是 `uv`/`uvx` 不在 PATH 或 PyPI 不可达，按行内指引处理；网络受限时提前缓存依赖并使用源码模式，完整重启后复检 |
-| 审查报 "model not found" / 鉴权错误 | 会话里换一个你所用网关**确实支持**的模型（审查要真跑评分子代理）。经 GLM 网关调用默认 deepseek 线会报 model not found；使用你实际配置且可调用的模型组，组名以你 `Settings → Models` 实际配置为准（文档里的 `zai-coding-cn` 只是示例） |
-| 某个审查维度报全部评分失败 | 网关限流。脚本化审查会分批退避重试，再跑一次 `patent_review` 通常就恢复 |
+| `cannot resolve profile bundle` / 插件重启后消失 | 核对 `file:` 绝对路径和 `bundle/` 是否保留；修复目录依赖后重装，无需删除整个档案 |
+| `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` | 检查本地包路径及 overrides；确认使用本版构建产物，不是未转换的源码 manifest |
+| `--dump-config` 报 `EPERM` | 命令需写入档案 `cordis.yml`，从有写权限的终端重跑 |
+| 看不到 MCP 工具 / 显示待重启 | 检查总开关、模式、uv/uvx 的 PATH；完整退出桌面版再启动 |
+| wheel 拉取失败 | 检查 PyPI 连通性及 uv/uvx；精确版本或受限网络使用已缓存依赖的源码模式 |
+| 审查鉴权失败 / `model not found` | 在宿主模型设置中选择网关实际支持且已配置密钥的模型 |
+| 某审查维度全部失败 | 查看报告中的失败原因，排除限流、网络或模型错误后重试；不只看总分 |
+| 检索不可达 | 检查网络和代理，保留失败原因；不要用编造命中替代 |
 
-## 已知边界
+旧核心的评分温度、讨论温度和 Web 卡片依能力检测回退。升级宿主后仍需复检，不把兼容分支视为全版本实测证明。
 
-- 面向 dsh 0.1.5-rc 至 0.1.6-alpha 线核心（本次未重新验证宿主版本矩阵）；旧核心缺 Web 卡片时工具显示为文本行，功能不受影响。
-- 中国专利查新（search_cn_patents）需要本机能访问 patents.google.com（通常走代理）；检索不可达时工具会明确报错提示，不会返回编造的结果。
-- GitHub Release 与 npm/PyPI 独立，后者不一定包含本版。精确使用本版时下载 Release；Python 服务推荐源码模式。完全断网还需提前缓存宿主、传递依赖和镜像。
+开发、测试和打包见[开发指南](../DEVELOPMENT.md)与[发布流程](../RELEASING.md)。

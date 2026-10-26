@@ -1,5 +1,5 @@
 ---
-description: "确定性专利工具面：交底书 brief 的五方对齐就绪度打分、权利要求书的 CNIPA 格式静态检查、去 AI 味正文检查，以及把项目从任意阶段推进到导出成稿的 patent-loop 状态评估。"
+description: "Aurify 原生工具：就绪度、权利要求与正文检查、流程推进、环境自检。"
 kind: "package-reference"
 ---
 
@@ -7,117 +7,61 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概述
+注册五个原生工具与 `/patent-loop` 命令；独立审查工具 `patent_review` 由[审查包](../command-patent-review/README.zh.md)提供。安装和环境配置见[安装指南](../../docs/install/README.md)。
 
-模型可见的确定性专利工具面。`patent_brief_coverage` 按五方对齐就绪判据为交底书 brief 打分，给 Init 对话一个确定性的「何时停止提问、开始动笔」信号；`patent_claims_lint` 按中国专利申请（CNIPA）格式最低要求对起草的权利要求书（及可选的摘要）做静态检查；`patent_loop` 从任意流水线阶段评估项目目录并指认下一个阶段，配套的 `/patent-loop` 命令把评估结果注入会话做全流程推进。在 patent profile 内使用；两个纯函数工具不带任何配置，loop 工具对读盘项目状态做判定。
+## 工具
 
-## 目录
+| 工具 | 输入与判定 |
+|---|---|
+| `patent_brief_coverage` | 接受五个核心维度和三个辅助维度的文本；返回缺失维度、条数对齐和 `ready` |
+| `patent_claims_lint` | 接受权利要求文本及可选摘要，返回权项结构和 C1–C6 / A1–A2 违规 |
+| `patent_prose_lint` | 接受正文，检查套话、长句、排比、总结和定义式表述 |
+| `patent_loop` | 读取项目目录，返回首个未完成阶段、全部缺口和执行指令 |
+| `patent_setup_check` | 检查 MCP 装载、uv/uvx、Docker/镜像、draw.io 和检索通道，逐项报告修法 |
 
-- [做什么](#what-it-does)
-- [打分语义](#scoring-semantics)
-- [权利要求检查语义](#claims-lint-semantics)
-- [环境自检](#setup-check)
-- [循环语义](#loop-semantics)
-- [渲染](#rendering)
-- [导出形态](#export-shape)
-- [Model Experience](#model-experience)
-- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
-- [开发备注](#dev-note)
+前三项按传入文本检查。`patent_loop` 读取磁盘状态，`patent_setup_check` 在宿主侧运行，因此 MCP 关闭时仍可用。覆盖率、权利要求和审查卡片由 Bundle 的 Web 客户端渲染。
 
-<a id="what-it-does"></a>
-## 做什么
+## 就绪度与静态规则
 
-在 `ctx.tools` 上注册五个工具、在 `ctx.commands` 上注册一个命令。`patent_setup_check` 是宿主面环境自检（见[环境自检](#setup-check)）。`patent_brief_coverage`：模型按维度传入已收集的草稿内容——`field`、`background`、`problem`、`solution`、`effect` 五个核心维度，外加 `name`、`drawings`、`key_points` 三个边缘维度（省略即未收集）——返回已收集/缺失清单、三方对齐判定与就绪信号。`patent_claims_lint`：模型传入起草的权利要求书文本（及可选摘要），返回权项数量结构与规则违例。两个纯函数工具的调用与结果经 loop 的 `tool/call` 与 `tool/result` session 事件记录，不追加任何其他事件。`patent_prose_lint` 是 patent-de-ai 技能的机器半边：套话与道歉式措辞、超 150 字长句为必须清除的 error，三连排比、段末总结与教科书定义为 warning 提示。`patent_loop` 与 `/patent-loop` 共用一个读盘评估器（见[循环语义](#loop-semantics)）。
+就绪度要求 `field`、`background`、`problem`、`solution`、`effect` 全部非空；`background`、`problem`、`effect` 的估算条数最大偏差不超过 1。三者有未收集项时，对齐检查暂放行，但缺维度仍阻止就绪。`name`、`drawings`、`key_points` 仅展示，不参与门禁。计数语义移植自 TianGong 的 `brief_dimensions.py`，无可调容差。
 
-<a id="scoring-semantics"></a>
-## 打分语义
+| 规则 | 当前实现 |
+|---|---|
+| C1 | 从 1 连续编号，引用权项必须存在 |
+| C2 | 从属权项只引用更早权项 |
+| C3 | 多项引用须采用择一引用形式 |
+| C4 | 多项从属权项不得以另一多项从属权项为基础 |
+| C5（warning） | 独立权项缺少「其特征在于」提示 |
+| C6 | 权项中出现「如图N所示」等附图引用报错 |
+| A1 | 提供摘要时，非空白字符数不得超过 300 |
+| A2（warning） | 提供摘要时，提示商业宣传措辞 |
 
-打分器移植自天工的 `brief_dimensions.py`（参照实现的 Init 就绪唯一权威）：
+以上描述代码启发式检查，不替代实质审查。正文检查将套话、道歉措辞和超过 150 字的句子列为 error；三连排比、段末总结和教科书定义列为 warning。
 
-- **核心维度**——`field`、`background`、`problem`、`solution`、`effect`。全部非空才就绪。
-- **对齐检查**——`background`、`problem`、`effect` 三方的条数（按 ①②/`1.`/`(1)`/`一、` 等序号与分号、换行切分取较大者估算）最大偏差不得超过容差 1。三方任一未收集时对齐判定空放通过：缺维度是「还没收集到」，不是「未对齐」。
-- **边缘维度**——`name`、`drawings`、`key_points` 接受并展示，但不参与就绪判定；它们通常在生成期补全。
+## 流程门禁
 
-容差与启发式计数是移植资产语义（init 阶段信息粒度粗），不是部署可调项，因此没有配置。
+`patent_loop` 与 `/patent-loop` 共用 `src/loop.ts`，按以下顺序返回首个未完成阶段：
 
-<a id="claims-lint-semantics"></a>
-## 权利要求检查语义
+| 阶段 | 主要门禁 |
+|---|---|
+| init | 根目录存在 `patent.yml` |
+| align | `brief.md` 五个核心维度有内容 |
+| chapters | 八章完成；名称章仅含最终名称；量化效果或已有实验目录时补 `09-verification.md`；正文公开号须记入 `reference/prior-art.md` |
+| experiments | 量化效果须有至少一个实验的最新记录退出码为 0，或在 `experiments/README.md` 声明「无需实验 / 不适用」 |
+| figures | `08-drawings.md` 的图号与 `figures/` 根目录成品双向对应，或明确声明「无附图」 |
+| review | 最新报告可解析、达到 `reviewThreshold`（默认 80）并与当前源一致；需整项目审查 |
+| export | 存在与当前源一致的交底书 docx |
 
-`patent_claims_lint` 解析带编号的权利要求（"1." 至 "N."，一条权项可跨行），检查的是法定格式最低要求，不是实质审查：
+审查和导出优先比较源指纹，旧文件缺指纹时回退 mtime。源内容改变需重新审查/导出；仅改时间戳不使带指纹的文件过期。
 
-- **C1** 编号：必须从 1 连续编号；引用不存在的权项同属本规则。
-- **C2** 从属权利要求只能引用在前的权利要求（引用自身或更晚为错误）。
-- **C3** 引用形式：引用多项必须用「根据权利要求N至M中任一项所述的」择一引用形式。
-- **C4** 多项从属权利要求不得以另一多项从属权利要求为基础。
-- **C5**（警告）独立权利要求未出现「其特征在于」，缺少改进型发明应采用的两部分式写法。
-- **A1** 摘要非空白字符不得超过 300 字；仅在传入摘要时运行。
+`reference/prior-art.md` 中的「查新不可用」使审查线临时降低 10 分，并持续提示待补查；通道恢复后补检索、移除标记并重审。它不免除来源核对。`complete=true` 只表示文件门禁通过，不能证明内容充分或每项指标都有证据。覆盖率依赖模型传入文本，流程中的 brief/量化效果识别也只是启发式检查。
 
-解析出的权项刻意不进入模型可见结果：模型刚提交过全文，回显每条权项只是白白消耗 token。
+审查门还读取 `review/attempts.md`：连续低分触发停止自动重审并请求用户决策，不应静默降低门槛或重置账本。
 
-<a id="setup-check"></a>
-## 环境自检
+`/patent-loop` 经 `agent.followup()` 注入循环指令，UI 摘要不进模型历史。每完成一阶段需再次调用工具；方向确认和访谈仍需等待用户输入。
 
-`patent_setup_check` 逐通道探测——MCP 服务行（~/.dsh/patent-services.yaml 的 mcp 键、home 补丁行、或启用环境变量——这是 MCP 工具永远做不到的那项检查）、docker 与两个镜像、draw.io 原生 CLI、patents.google.com 可达性、实验命令策略，以及仅在检索探测失败时出现的代理环境变量（作为该次失败的排障线索，不是常驻行）——逐项返回中文结论行，缺什么附修法。刻意在宿主面：MCP 行未启用时本工具依然可用，所以点名「缺 MCP 行」的正是它；通道坏了是报告行，绝不抛异常。同一组 settings 键也驱动插件自己的 MCP 装载：静态行未被其他方式启用时，`apply` 读 `mcp_enabled`/`mcp_project_dir`/`mcp_wheel` 并经 `ctx.plugin` 装载 mcp 客户端——一个文件承载全部偏好。装载在 spawn 前拒绝相对路径或缺 pyproject.toml 的项目目录（原因落进「装载失败」报告行）；wheel 模式要求 uvx 能从 PyPI 解析该包——自检直接跑 MCP 行同款的 `uvx --from deepseek-harness-patent-services python -c "import patent_services"` 导入，该命令未锁定版本，精确使用本版或离线运行时应采用源码模式并提前缓存依赖。patent-init 技能把它作为每个新项目的第 0 步，且在那里是一道门：报告呈现给用户后即结束本轮——除检索通道外的每个受限通道都必须修复并复检（只给一句话修复步骤，不提供跳过选项）；唯一可跳过的是检索通道，且须用户明确拍板（通常只是 VPN/代理没连，此时问「是否跳过查新、先继续写作？」）；点子评估、访谈或回答点子本身的问题，要等所有通道就绪或修复、或用户明确跳过检索通道之后才开始；报告全部就绪时可以直接推进。
+## 装载与开发
 
-<a id="loop-semantics"></a>
-## 循环语义
+工具包导出 `name`、`inject` 和 `apply`，保留命名导出结构，不添加 default export。MCP 配置在进程启动时装载；`patent_setup_check` 区分「已装载」和「待重启」，已保存配置不代表服务可用。
 
-`patent_loop` 只读磁盘事实，返回第一个未完成的流水线阶段——init（无 `patent.yml`）→ align（brief.md 缺失或核心维度章节缺失）→ chapters（八章任一缺失或占位；名称章必须恰好一行最终名称——候选清单（名称备选）与结构拆解写进文件就是缺口，指令点名移进会话或 `review/`；携带实验工作——效果章含量化数据或 experiments/ 非空——的项目还必须有实验验证章 chapters/09-verification.md，占位空白同样算缺；brief.md 或 chapters/ 里引用的公开号若未见于查新出处账本 `reference/prior-art.md`，同样停在 chapters 阶段——每个被引用的公开号都必须能溯源到一条检索记录，绝不凭记忆写号）→ experiments（效果章含量化数据，但没有任何实验的最新运行记录为退出码 0、也无「无需实验」声明；空日志、最新运行失败或超时均不通过，代码块中的输出不作为运行元数据）→ figures（08 章声明与 figures/ 根成品双向对账）→ review（最新一份 `*.review.md` 必须解析出达到达标线的总分——默认 80，项目可在 patent.yml 写 `reviewThreshold` 覆盖；`reference/prior-art.md` 存在查新不可用标记时放宽 10 分——且对所审源文件保持新鲜：以报告内盖的「源指纹」摘要为准，无戳的旧报告退回按修改时间判定）→ export（exports/ 无交底书 docx，或其随附的 `.fingerprint` sidecar（导出器写入）与当前源文件不符；无 sidecar 的旧导出物退回按修改时间判定）——并给出当前阶段的 directive：加载哪些技能、遵守哪些纪律。指纹优于 mtime：git 检出与目录同步会改写 mtime 而不动字节，审查或导出物恰在字节变化时才算过期。低于达标线的 gap 还会引用报告修订清单的前几条作为优先项，模型不必打开报告就知道先修什么。`complete=true` 要求全部关卡通过；它是「成稿」的唯一权威，工具描述与 patent-loop skill 要求模型每完成一阶段就回来复检，而不是自行宣布项目完成。三个磁盘逃生口防止合法项目卡死循环：`experiments/README.md` 声明无需实验、08-drawings.md 标注无附图、查新不可用标记——第三个用 10 分换一笔记录在案的债，通道恢复后必须补检索并重审偿还；标记存续期间每条 directive（含成稿结论）都携带常驻债务提示，工具还会探测通道是否恢复，连接一回来，下一次调用的待办清单就变成偿债步骤。`/patent-loop` 命令先评估，再经 `agent.followup()` 把循环契约作为持久用户面输入注入会话，返回仅 UI 可见的摘要——命令结果不进模型历史；需要用户的阶段（方向拍板、访谈问答）以问题收尾等用户回答。
-
-<a id="rendering"></a>
-## 渲染
-
-规范结果为 `{ covered, missing, ready, coreFilled: { done, total }, aligned, alignmentCounts }`；Native 渲染返回一个文本块，具名缺失维度（带中文章节名）、对齐计数与容差判定、就绪判定与下一步动作。
-
-<a id="export-shape"></a>
-## 导出形态
-
-函数插件：只导出 `name` / `inject` / `apply`，禁止 default export。多余的 `export default` 会被 Loader 的 `unwrapExports` 折叠模块并丢掉 `inject`（见 docs/postmortem/0001（上游 monorepo 文档））。`inject` 为 `['tools', 'commands']`——命令注册与工具同插件。
-
-<a id="model-experience"></a>
-## Model Experience
-
-### Tool schema
-
-#### What the model sees
-
-模型看到生成的 `patent_brief_coverage` schema（上游 monorepo 文档）。
-
-#### Token effect
-
-工具可见的每个请求上都是固定 schema 开销。
-
-#### KV Cache effect
-
-定义与可见性不变时前缀稳定。
-
-### Tool-call history and result
-
-#### What the model sees
-
-每次调用携带草稿维度内容作为参数。成功返回一个定形文本块（覆盖进度、具名缺口、对齐判定、下一步动作）。无稳定失败模式：空白参数是合法的「尚未收集」输入，schema 违规由 registry 以标准 `INVALID_ARGS` 结果拒绝。
-
-#### Token effect
-
-随模型每次提交的草稿文本量增长；结果小而定形。
-
-#### KV Cache effect
-
-只追加；新出现的内容跟在可复用的请求前缀之后。
-
-<a id="known-limitations-and-deferred-work"></a>
-## Known Limitations and Deferred Work
-
-- **工具只对传入内容打分**——维度内容由模型从其上下文提供；模型可能提交删减版 brief 而得到误导性 `ready`。`patent-init` skill 的程序约束这一点，审查引擎会对落盘文件复查。
-- **不支持路径输入**——两个纯函数工具接收文本而非 `brief.md` 路径；读文件先经 `fs` 工具完成，本包因此不沾文件系统策略（loop 工具对是刻意的例外：它自己读项目状态，判定才不会被模型提交的内容左右）。
-- **循环的 brief 与效果章启发式只判存在性**——标题下有非空正文即过 align，效果章出现任一「数字+单位」即触发 experiments 关卡；内容单薄与数字无据是各技能与审查引擎的职责，不是评估器的。
-
-<a id="dev-note"></a>
-### 开发备注
-
-<details>
-<summary>维护者的工作上下文——点击展开</summary>
-
-打分器移植自天工的 `brief_dimensions.py`；容差与启发式计数是移植资产语义，不是部署可调项。检查规则对齐 CNIPA 法定格式最低要求（C1-C6、A1-A2），不是实质审查。循环评估器刻意只信磁盘产物——对话里怎么说都不算，产物缺失的阶段保持未完成；所有逃生口本身也是磁盘文件。
-
-</details>
+完整类型检查和宿主测试需要兼容的 monorepo，见[开发指南](../../docs/DEVELOPMENT.md)。

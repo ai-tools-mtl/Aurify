@@ -41,6 +41,8 @@ Gate-only choices use the same finish:
 
 ---
 
+<a id="url"></a>
+
 ## § URL
 
 ### Invocation
@@ -175,6 +177,8 @@ After onboarding, the user should:
 
 ---
 
+<a id="skill"></a>
+
 ## § Skill
 
 Extract tokens from an installed Agent Skill that carries its own design system (e.g. a `brand-design` or `ui-kit` skill).
@@ -283,6 +287,8 @@ Same as the URL method: fill the role table, run contrast checks, show the diff,
 - **Skill is dark-mode first**: ask whether to treat the dark values as the `paper`/`ink` defaults or to invert.
 
 ---
+
+<a id="folder"></a>
 
 ## § Folder
 

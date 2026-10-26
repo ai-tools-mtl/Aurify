@@ -1,3 +1,3 @@
 # Bilingual README blob hashes; update both languages, then run git hash-object on each.
-README.md: 472ddbaf75df659f5470d1461d6828f8d9fb4f3e
-INSTALL-NEW-PROFILE.md: b064c666a66ef7eebfdfcf7000dcd55a607bcab0
+README.md: 6d24e65cf6685b1010ed09f4fdd2966819d4377c
+INSTALL-NEW-PROFILE.md: 84e08778d89ae292b5beebd88ac04354a0b16081

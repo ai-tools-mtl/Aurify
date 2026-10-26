@@ -1,3 +1,3 @@
 # Bilingual README blob hashes; update both languages, then run git hash-object on each.
-README.md: c519b49f3e91d9bb70ed353df595ae0cd36f6997
-README.zh.md: 04a0cf682ea79035aebfe2f10123e14f43191239
+README.md: bc3e1bc2c433674be2f88720c49b763c60c76f4f
+README.zh.md: 7f4c084408349e18ec8fb6c750f4035245826f0f

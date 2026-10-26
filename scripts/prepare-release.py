@@ -19,6 +19,9 @@ for name in ('README.md', 'INSTALL-NEW-PROFILE.md'):
     guide = guide.replace('../../scripts/', 'https://github.com/ai-tools-mtl/Aurify/tree/main/scripts/')
     guide = guide.replace('../DEVELOPMENT.md', 'https://github.com/ai-tools-mtl/Aurify/blob/main/docs/DEVELOPMENT.md')
     guide = guide.replace('../RELEASING.md', 'https://github.com/ai-tools-mtl/Aurify/blob/main/docs/RELEASING.md')
+    for target in ('../../README.md', '../README.md', '../../python/patent-services/README.md', '../../python/patent-services/README.zh.md'):
+        source = (root / 'docs/install' / target).resolve().relative_to(root)
+        guide = guide.replace('](' + target, '](https://github.com/ai-tools-mtl/Aurify/blob/main/' + source.as_posix())
     guide = guide.replace('-File scripts/install-patent-profile.ps1', '-File install-patent-profile.ps1')
     (dist / name).write_text(guide)
 for spec in ('@deepseek-ai/schemastery@3.18.2', '@deepseek-ai/cosmokit@1.8.3'):

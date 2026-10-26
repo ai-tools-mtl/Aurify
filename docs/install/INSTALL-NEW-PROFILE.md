@@ -1,221 +1,136 @@
-# Aurify (dsh-patent) — installing into a new dsh profile
+# Aurify · Installation and environment guide
 
-> Audience: anyone with the Deepseek Harness Desktop (Tauri) app installed who
-> wants the Aurify patent-writing plugin in a **fresh dsh profile**, without
-> touching existing profiles.
->
-> Everything happens inside the `.dsh` directory under your home — no admin
-> rights needed. The default route resolves the plugin from npm (the Chinese
-> walkthrough lives in [README.md](README.md)); an offline route uses the
-> shipped tarballs and still needs cached host and transitive dependencies for a fully disconnected machine.
->
-> **Windows vs macOS/Linux** — the quick-install script is Windows-only: it
-> locates the dsh CLI through the desktop app's Windows shim directory and
-> defaults to `%USERPROFILE%` paths. On macOS/Linux skip to
-> [Manual install](#manual-install-what-the-script-does-step-by-step) with the
-> substitution table below — the manual steps are the cross-platform path.
+English · [中文](README.md) · [Documentation index](../README.md)
 
-Download packages from [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases). The source tree does not contain generated archives. Current source versions: TS **0.1.6-alpha.7**, Python **0.1.2**. GitHub Releases do not publish to npm/PyPI or update the marketplace; check your installed versions. Installer and persona sources live in [`scripts/`](../../scripts/); Release attachments put them beside the archives.
+For users with DeepSeek Harness Desktop or a compatible dsh host. Configure a working model and API key in the host first; Aurify includes no model. Compatibility branches target the 0.1.5-rc through 0.1.6-alpha host lines; this documentation update did not retest the version matrix.
 
-## Prerequisites
+See the [repository README](../../README.md) for source versions. GitHub Release, npm/PyPI and the marketplace publish independently; check the version in your chosen channel.
 
-| Requirement | Notes | How to check |
-|---|---|---|
-| Desktop app installed | Provides the dsh core and the `dsh` CLI shim | `dsh --version` prints a version (Windows shim: `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd`; macOS/Linux: `~/.local/bin/dsh`) |
-| Release artifacts unpacked (**offline route only**) | The npm route needs no unpacked release. For the offline route: unpack the bundle tarball into a `bundle/` directory beside the package tarballs — `tar -xzf mtl-academic-dsh-patent-*.tgz -C bundle --strip-components=1`, run from the directory holding the tarballs — and put them anywhere, e.g. `%USERPROFILE%\.dsh\plugin-dist\patent`. That directory is the installer's `-DistDir`: **pass it as an absolute path** (a relative one is anchored to the shell's current directory, and the value it writes into the profile manifest is resolved against the *profile* directory, not the shell's — see the offline steps) | The offline installer's first step validates this |
-| `tar` (Windows, offline route only) | System bsdtar (`C:\Windows\System32\tar.exe`, shipped since Win10 1803), **not** Git's MSYS tar: under a restricted shell or a sandboxed agent, `C:\Program Files\Git\usr\bin\tar.exe` dies with `fatal error - couldn't create signal pipe, Win32 error 5` | `C:\Windows\System32\tar.exe --version` |
-| Python services (optional) | The 10 MCP tools (document import, export, Word parsing, figure linting/rendering, experiments, prior-art search) | Preferred single file: `~/.dsh/patent-services.yaml` with `mcp_enabled: true` — the master switch, required in both modes, so a file carrying only the mode key stays off — plus `mcp_project_dir: <absolute path to a patent-services source checkout>` or `mcp_wheel: true`; wheel mode needs nothing pre-installed: `uvx` fetches the package from PyPI on first use; For this exact release, prefer source mode with cached Python dependencies: the configured `uvx --from deepseek-harness-patent-services` command is not pinned to a locally installed wheel. [uv](https://docs.astral.sh/uv/) must be on PATH; if `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"` fails in a restricted shell (`基础连接已经关闭` / `SEC_E_NO_CREDENTIALS`), download it with `curl.exe -LsSf -o "$env:TEMP\uv-install.ps1" https://astral.sh/uv/install.ps1` and run that file instead — either route updates the *user* PATH, which only a new process sees, and the `warning: ...\.local\bin is not on your PATH` line refers to the shell you ran it in. Scripted setups may instead set a user-level env var — `DSH_PATENT_SERVICES=1` (installed wheel) or `DSH_PATENT_SERVICES_DIR` (source checkout); `setx` on Windows, `export` in your shell profile on macOS/Linux. Either way, fully restart the desktop app — the MCP row loads at process start, so a new conversation is not enough; all profiles inherit it. In-session, `patent_setup_check` reports 已装载 (loaded) versus 待重启 (restart pending) |
-| Docker Desktop (optional) | Only for simulation experiments and drawio figure rendering | Start it manually when needed |
+## Marketplace and natural-language initialization (recommended)
 
-## macOS/Linux substitutions for the manual steps
+1. In the desktop app, open **Settings → Plugin marketplace**, search **Aurify** or **点金**, and install into the active profile.
+2. In that profile, ask:
 
-| Windows path / command as written below | macOS / Linux |
-|---|---|
-| `%USERPROFILE%\.dsh\profiles\<name>\...` | `~/.dsh/profiles/<name>/...` |
-| `%LOCALAPPDATA%\deepseek-harness\bin\dsh` | `~/.local/bin/dsh` (the desktop app's shim; XDG convention, usually already on PATH) |
-| `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\dependencies\dsh\...` | `~/.local/share/io.github.hairyf.deepseek-harness-desktop/dependencies/dsh/...` (macOS: `~/Library/Application Support/...`) |
-| `setx <VAR> <value>` (user env var) | add `export <VAR>=<value>` to `~/.zshrc` / `~/.bashrc` |
+   > Help me initialize the Aurify plugin environment. Check and configure the required dependencies and services.
 
-## Marketplace install (desktop, no terminal)
+3. Follow the `patent_setup_check` report. After changing MCP configuration, **fully quit and relaunch the desktop app**, then ask:
 
-Open **Settings → Plugin marketplace**, search **Aurify** or **点金**, and install into the active profile. No repository checkout or distribution download is required. In a conversation in that profile, ask:
+   > Recheck the Aurify environment and confirm the required services are ready.
 
-> Help me initialize the Aurify plugin environment. Check and configure the required dependencies and services.
+Use the recheck as evidence of readiness. Saving settings or opening a new conversation does not replace a restart. Then describe an idea or supply an existing docx. The remaining sections cover manual alternatives and troubleshooting.
 
-The assistant uses `patent_setup_check` to inspect the environment and help configure Python MCP services, uv/uvx, Docker, images, and prior-art connectivity. Follow any steps that require your intervention. After changing MCP configuration, **fully quit and relaunch the desktop app** (a new conversation is insufficient), then ask:
+## npm and the Windows installer
 
-> Recheck the Aurify environment and confirm the required services are ready.
-
-Use the recheck results to confirm readiness before starting patent work. For manual setup or troubleshooting, merge both `mcp_enabled: true` and `mcp_wheel: true` into `~/.dsh/patent-services.yaml`, ensure uv/uvx is available, and restart the app. The wheel flag alone does not enable MCP. A dedicated patent persona is optional: append the entries from `persona.patch.yml` to the active profile's `cordis.patch.yml`, preserving existing rows; general-purpose profiles may retain their own persona. For manual profile changes, `dsh --profile <name> --dump-config` should exit with code 0; confirm actual service loading with the in-session check. Details: route A in [README.md](README.md).
-
-## Installer alternative (Windows)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File <DIST>\install-patent-profile.ps1 -Name patent-test
-```
-
-- Default route (**npm**): the installer runs `dsh plugin add @mtl-academic/dsh-patent` — the registry resolves the plugin, no unpacked release needed. On a fresh profile this also creates the scaffold (base + web-app + patent bundle stack). It then installs the persona and verifies via dump-config. On a profile carrying a **legacy offline install**, it strips the `overrides:` block first (those pins would defeat registry resolution) and replaces the `file:` dependency with the npm one.
-- `-Name <name>` — the new profile's name (created under `%USERPROFILE%\.dsh\profiles\<name>`). Default `patent-test`.
-- `-Offline -DistDir <DIST>` — the local-package route: validates the unpacked release, installs the `bundle/` directory as a `file:` dependency, and pins the internal packages to the local tarballs via 4 `overrides:` lines in `pnpm-workspace.yaml` (details in [Offline manual install](#offline-manual-install-what-the-scripts--offline-route-does-step-by-step)). **Give an absolute path**: the installer writes it verbatim into the profile manifest as a `file:` dependency, and dsh resolves every `file:` value against the *profile* directory.
-- `-PersonaFrom auto` (default) — installs the persona from a shipped `persona.patch.yml` in the script's directory; with `-PersonaFrom <existing-profile>` it copies that profile's patch instead; `-PersonaFrom ""` skips.
-- Idempotent — re-running on an existing profile refreshes it in place, **merging** into `package.json` (an existing profile's other dependencies and bundle layers, e.g. the desktop app's own `dsh-tauri*`/`dshmarket`/`@xmanrui/dsh-im` entries, are preserved).
-
-When it prints `DONE`, **fully quit and relaunch the desktop app**, pick the new profile, and open a session in a patent project directory.
-
-> Verify before you relaunch anything: `dsh --profile <name> --dump-config` must exit 0. A manifest that cannot be resolved does not merely leave the plugin off — the desktop app cannot launch that profile at all (`cannot resolve profile bundle "@mtl-academic/dsh-patent"`). Note that `--dump-config` rewrites the profile's root `cordis.yml`, so it needs write access to the profile directory; a read-only shell (or an agent sandbox) fails with `EPERM: operation not permitted, open '...\cordis.yml'`, which is a shell permission problem, not a broken profile.
-
-## Manual install (npm, cross-platform)
+Cross-platform manual installation:
 
 ```sh
-dsh plugin --profile <name> add @mtl-academic/dsh-patent
+dsh plugin --profile patent-demo add @mtl-academic/dsh-patent
+dsh --profile patent-demo --dump-config
 ```
 
-One command: the registry resolves the plugin, and dsh writes the dependency plus the bundles stack (creating the profile from the web template first if it does not exist). Then optionally append the persona (step 6) and verify (step 7) below, preserving existing profile patches. On a profile carrying a **legacy offline install**, delete the 4 `overrides:` lines the old installer wrote into `pnpm-workspace.yaml` first; they pin the dependency to stale local tarballs and block upgrades.
+If `dsh` is missing, check the desktop shim: `%LOCALAPPDATA%\deepseek-harness\bin\dsh.cmd` on Windows, usually `~/.local/bin/dsh` on macOS/Linux. Configuration defaults to `~/.dsh/` (`%USERPROFILE%\.dsh` on Windows).
 
-## Offline manual install (what the script's `-Offline` route does, step by step)
-
-For local-package installation. Fully disconnected machines also need cached host, npm/Python transitive dependencies, and Docker images. The npm route skips the tarball and override steps.
-
-### 1. Validate the dist layout
-
-```
-<DIST>\
-├─ bundle\                                        # @mtl-academic/dsh-patent (directory form; the 14 skills live here)
-├─ mtl-academic-dsh-patent-<version>.tgz
-├─ mtl-academic-dsh-tool-patent-<version>.tgz
-├─ mtl-academic-dsh-command-patent-review-<version>.tgz
-├─ deepseek-ai-schemastery-<version>.tgz          # the registry only carries the 3.18.x line; the bundle builds against the vendored fork
-├─ deepseek-ai-cosmokit-<version>.tgz
-├─ persona.patch.yml                              # the persona as a ready profile patch (optional but recommended)
-├─ deepseek_harness_patent_services-<version>.whl # optional Python services (mcp_wheel: true - uvx fetches from PyPI - or DSH_PATENT_SERVICES=1; exact-version use: prefer source mode with cached dependencies)
-├─ install-patent-profile.ps1                     # the quick-install script this guide documents
-└─ README.md                                      # the Chinese receiver guide (manual walkthrough)
-```
-
-`<DIST>` must be an **absolute path you keep**: the profile manifest references `<DIST>/bundle` verbatim, and the desktop shell re-resolves every `file:` dependency at launch (one whose directory has vanished is uninstalled as a dangling link). Unpacking `bundle/` anywhere else — e.g. next to the repository root instead of beside the tarballs — fails the installer's first validation.
-
-### 2. Initialize the profile and declare the bundle
-
-```cmd
-dsh plugin --profile <name> add file:<DIST>/bundle
-```
-
-- **The `file:` target must be the DIRECTORY, never the tgz** — the desktop app's self-heal resolves every `file:`/`link:` dependency in a profile manifest and uninstalls ones that are not directories. A tarball-shaped install disappears on the next launch.
-- **Every `file:` value must be an absolute path** (`file:C:/dsh-patent-dist/bundle`, not `file:./bundle`). dsh resolves these against the **profile directory**, never against the shell you typed them in — a relative value installs a profile that cannot boot at all, which is worse than a missing plugin: `dsh --profile <name> --dump-config` fails with `cannot resolve profile bundle "@mtl-academic/dsh-patent"` and the desktop app refuses to launch that profile until it is repaired. The same rule applies to the 4 `overrides:` values in step 4.
-- This initializes the profile (`dsh.profile.bundles` + `patchReload: live`). The pnpm leg **fails on the bundle's internal `workspace:^` dependencies (they are not published to npm) — expected**; steps 4–5 repair it.
-
-### 3. Write `<profile-dir>\package.json`
-
-Declare the bundle as a directory dependency (`file:` value **absolute**) and complete the bundle stack:
-
-```json
-{
-  "name": "dsh-profile-<name>",
-  "private": true,
-  "dependencies": {
-    "@mtl-academic/dsh-patent": "file:<DIST>/bundle"
-  },
-  "dsh": {
-    "profile": {
-      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "@mtl-academic/dsh-patent"],
-      "patchReload": "live"
-    }
-  }
-}
-```
-
-If the profile already exists, **merge into it — add only, never delete**. A desktop-managed profile carries the desktop app's own dependencies and bundle layers (`dsh-tauri`, `dsh-tauri-connection`, `dsh-tauri-model-config`, `dsh-tauri-panel-extension`, `dsh-tauri-panel-scheduler`, `dsh-tauri-pet`, `dsh-tauri-rightclick`, `dsh-tauri-session`, `dsh-tauri-turnrewind`, `dsh-tauri-ui`, `dsh-tauri-worktree` as `link:` deps, plus `dshmarket`, `dsh-better-sidebar`, `dsh-rewind-plugin`, `@xmanrui/dsh-im`). Overwriting the file drops those declarations, and the next `dsh plugin install` then prunes them out of `node_modules` as extraneous packages — the profile silently loses the desktop's plugins (market, sidebar, IM, rewind, Tauri bridge). See [Installing into an existing profile](#installing-into-an-existing-desktop-managed-profile) for the recovery path.
-
-### 4. Write `<profile-dir>\pnpm-workspace.yaml` (overrides)
-
-The internal packages are not on npm; pnpm overrides point them at the local tarballs (**pnpm 11 reads overrides from this yaml only — a `pnpm` field in package.json is ignored**). All 4 values must be **absolute** paths for the same reason as step 2:
-
-```yaml
-packages:
-  - .
-
-nodeLinker: hoisted
-autoInstallPeers: false
-
-overrides:
-  '@mtl-academic/dsh-tool-patent': file:<DIST>/mtl-academic-dsh-tool-patent-<version>.tgz
-  '@mtl-academic/dsh-command-patent-review': file:<DIST>/mtl-academic-dsh-command-patent-review-<version>.tgz
-  '@deepseek-ai/schemastery': file:<DIST>/deepseek-ai-schemastery-<version>.tgz
-  '@deepseek-ai/cosmokit': file:<DIST>/deepseek-ai-cosmokit-<version>.tgz
-```
-
-### 5. Install
-
-```cmd
-dsh plugin --profile <name> install
-```
-
-Success: pnpm prints `Done`, and `node_modules` under the profile contains `@mtl-academic/dsh-patent` plus `@deepseek-ai/{dsh-tool-patent,dsh-command-patent-review,schemastery,cosmokit}`.
-
-### 6. Install the persona
-
-The bundle ships **persona-free on purpose** (it is a capability layer any profile can mount). The persona lives in the profile's patch layer:
+On Windows, run from the repository root; omit `scripts/` when using Release attachments:
 
 ```powershell
-Copy-Item <DIST>\persona.patch.yml %USERPROFILE%\.dsh\profiles\<name>\cordis.patch.yml
+powershell -ExecutionPolicy Bypass -File scripts/install-patent-profile.ps1 -Name patent-demo
 ```
 
-**This overwrites the whole patch file.** On a profile that already has loader patch entries of its own, append the persona's `- id: system-prompt` entry to `<profile-dir>\cordis.patch.yml` instead of copying the file over it. (The quick-install script takes the safe route: it installs the persona only when the profile's patch has no `persona:` yet.)
+The installer merges profile dependencies, installs the persona from `persona.patch.yml` beside itself, and runs `--dump-config`. Options: `-Name` selects the profile; `-PersonaFrom` selects an existing profile (`auto` uses the shipped persona, an empty string skips it); `-NoVerify` skips validation. The installer is Windows-only; use manual commands on macOS/Linux.
 
-The canonical text is also documented in the bundle README ("The persona lives in the profile") — hand-write `cordis.patch.yml`'s `system-prompt.config.persona` from it if you prefer. **Without the persona the assistant has no gatekeeper behavior**: it will not assess ideas before drafting, route through the skills, or push back with publication numbers.
+A general-purpose profile can keep its persona. For a dedicated patent persona, merge entries from [`persona.patch.yml`](../../scripts/persona.patch.yml) into `~/.dsh/profiles/<name>/cordis.patch.yml`, preserving existing patches. The Bundle itself is persona-free.
 
-### 7. Verify
+When switching a legacy local-package install back to npm, remove Aurify's four `file:` overrides from `pnpm-workspace.yaml`, preserving unrelated configuration. The installer's npm route cleans up these legacy entries.
 
-```cmd
-dsh --profile <name> --dump-config
+## Local-package installation
+
+Download the matching version ZIP from [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases) and verify `SHA256SUMS`. Source checkouts do not include `dist/`. The ZIP contains three plugin tarballs, two configuration-library tarballs, Python wheel/sdist, installer, persona and bilingual guides; create `bundle/` by unpacking it yourself.
+
+Local packages replace only part of the downloads. Fully disconnected machines also need the host, npm/Python transitive dependencies and Docker images prepared in advance.
+
+In the release directory, substitute the actual version:
+
+```sh
+mkdir bundle
+tar -xzf mtl-academic-dsh-patent-<version>.tgz -C bundle --strip-components=1
 ```
 
-The command must **exit 0**. Then check three things: the `tool-patent` / `patent-assets` / `command-patent-review` / `mcp-patent-services` rows are present; a `persona:` key appears; the log shows no `DANGLING`/`UNINSTALLING` lines (those mean step 2 was not directory-shaped). `workflow-ptc not found`-style warnings are benign cross-core no-ops.
+On Windows prefer `C:\Windows\System32\tar.exe` to avoid Git MSYS tar's signal-pipe failure in restricted shells. Keep `bundle/` beside the five `.tgz` files.
 
-Do this **before** relaunching the desktop app, and treat a non-zero exit as blocking: `cannot resolve profile bundle` means the app cannot open that profile at all. `EPERM ... open '...\cordis.yml'` is different — `--dump-config` rewrites the profile's root `cordis.yml`, so a read-only shell or an agent sandbox hits that even on a perfectly good profile; rerun from a normal terminal.
+Windows installation:
 
-## Installing into an existing (desktop-managed) profile
+```powershell
+powershell -ExecutionPolicy Bypass -File install-patent-profile.ps1 -Name patent-demo -Offline -DistDir "C:/aurify-release"
+```
 
-A profile the desktop app created and runs carries the app's own dependencies and bundle layers (listed in step 3). The quick-install script merges into `package.json` and preserves them; a hand-edit or an **older** installer copy overwrote the file and dropped them, and the ensuing `dsh plugin install` pruned the corresponding packages out of `node_modules` (`Packages: +N -M` in the pnpm output).
+Use a forward-slash absolute `-DistDir`. Keep the release directory after installation: the profile references its `bundle/` at runtime, and moving or deleting it breaks resolution.
 
-Signs: after relaunch the market / sidebar / IM / rewind / Tauri-bridge plugins are gone in that profile (`CORE_PLUGIN_PROFILE_ENTRY_MISSING` or a new `CORE_PLUGIN_LINKED` burst in `%APPDATA%\io.github.hairyf.deepseek-harness-desktop\logs\desktop.log`).
+Cross-platform manual alternative:
 
-Recovery, in order of preference:
+1. For a new profile, run `dsh plugin --profile patent-demo add "file:<DIST>/bundle"` to create its manifest. Dependency resolution may fail before configuration is complete; confirm the manifest exists, then continue.
+2. Merge `"@mtl-academic/dsh-patent": "file:<DIST>/bundle"` into the profile's `package.json` dependencies and ensure `dsh.profile.bundles` includes the package. Preserve host layers and other dependencies.
+3. Merge these four entries into the profile's `pnpm-workspace.yaml`. Replace `<DIST>` and `<version>`; use configuration-library versions matching the downloaded filenames:
 
-1. Restore the manifest from the installer's snapshot: refreshing an existing profile copies `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml` and `cordis.patch.yml` into `~/.dsh/.plugin-backups/<name>-<timestamp>/` first.
-2. Rebuild it from the profile's own lockfile: `pnpm-lock.yaml` has an `importers:` → `.:` → `dependencies:` block listing every specifier (including the `link:` ones) — copy those keys/values back into `package.json#dependencies`, and add the matching names back to `dsh.profile.bundles` (order in the desktop's own profiles: the 11 `dsh-tauri*` entries, then `dsh-better-sidebar`, `dsh-rewind-plugin`, `dshmarket`, `dsh-tauri-connection`, `@xmanrui/dsh-im`).
-3. Re-run the installer (or `dsh plugin --profile <name> install`) and verify with `--dump-config` before relaunching.
+   ```yaml
+   overrides:
+     '@mtl-academic/dsh-tool-patent': 'file:<DIST>/mtl-academic-dsh-tool-patent-<version>.tgz'
+     '@mtl-academic/dsh-command-patent-review': 'file:<DIST>/mtl-academic-dsh-command-patent-review-<version>.tgz'
+     '@deepseek-ai/schemastery': 'file:<DIST>/deepseek-ai-schemastery-3.18.2.tgz'
+     '@deepseek-ai/cosmokit': 'file:<DIST>/deepseek-ai-cosmokit-1.8.3.tgz'
+   ```
 
-## What you get
+4. Run `dsh plugin --profile patent-demo install`, optionally merge the persona, then run `dsh --profile patent-demo --dump-config`.
 
-| Capability | Entry point | Needs |
-|---|---|---|
-| Idea assessment, five-party interview, chapter drafting, review, export — the whole pipeline | Just ask in a session, or `/patent-loop`, `/patent-review` | nothing |
-| Disclosure/application export, Word reference parsing | MCP tools, invoked by the model | the single-file gate `~/.dsh/patent-services.yaml`: `mcp_enabled: true` plus `mcp_project_dir` (absolute source path) or `mcp_wheel: true`; scripted setups may set `DSH_PATENT_SERVICES=1` / `DSH_PATENT_SERVICES_DIR` instead |
-| Simulation experiments, drawio/HTML figure rendering | MCP tools, invoked by the model | the above + Docker Desktop |
-| Chinese prior-art discovery | `search_cn_patents` (model-invoked) | network access to patents.google.com (a proxy is the usual route) |
+Every `file:` value must be absolute. Point the Bundle at its unpacked directory, not its `.tgz`. Upgrade with new-version attachments and rerun the installer; do not mix multiple versions or replace published same-version files.
 
-## Upgrading
+## Services and runtime dependencies
 
-**npm route**: re-run the installer (or `dsh plugin --profile <name> add @mtl-academic/dsh-patent`) — pnpm resolves the newly published version. The Python services resolve their new versions from PyPI via uvx the same way (source-checkout mode: updating that directory is enough — no reinstall). If a just-published version is "not found", the pnpm metadata cache is stale: clear `%LOCALAPPDATA%\pnpm-cache\v11\metadata*` and retry. Before refreshing a profile you care about, copy `package.json` / `pnpm-workspace.yaml` / `pnpm-lock.yaml` aside: the installer merges, but a hand-edit does not, and the lockfile's `importers:` block is the authoritative list of what the profile is supposed to declare.
+[uv/uvx](https://docs.astral.sh/uv/) must be available to launch Python MCP services. Merge one mode into `$DSH_HOME/patent-services.yaml` (default `~/.dsh/patent-services.yaml`):
 
-**Offline route**: drop the new release's tarballs and `bundle/` over the dist directory (**same absolute path** — every profile that installed from it points there), then re-run the installer with `-Offline` (it re-resolves the tarball names by pattern and refreshes the 4 `overrides:` lines to them). Note that pnpm integrity-checks same-version tarballs — after replacing a tarball in place, delete the `overrides:` block in the profile's `pnpm-workspace.yaml` (or just re-run the installer, which rewrites the manifest and forces a reinstall).
+```yaml
+mcp_enabled: true
+mcp_wheel: true  # resolves from PyPI, not pinned to this source version
+```
 
-## Troubleshooting
+For exact-version use, or offline use after caching dependencies, select source mode:
 
-| Symptom | Cause and fix |
+```yaml
+mcp_enabled: true
+mcp_project_dir: /absolute/path/to/Aurify/python/patent-services
+```
+
+The source path must be absolute and contain `pyproject.toml`. Wheel mode runs `uvx --from deepseek-harness-patent-services patent-services`; it needs no prior `uv tool install` and does not guarantee use of a locally installed wheel. Both modes require `mcp_enabled: true`.
+
+Scripted setups may use `DSH_PATENT_SERVICES=1` or `DSH_PATENT_SERVICES_DIR`. Fully restart and recheck after changing the mode, source path or PATH. GUI apps may not inherit shell-profile variables.
+
+| Capability | Extra dependency |
 |---|---|
-| `--dump-config` fails with `cannot resolve profile bundle "@mtl-academic/dsh-patent"`, and the desktop app cannot open that profile | The manifest's `file:` value points somewhere dsh cannot resolve. `file:` values are resolved against the **profile directory**, so `file:./bundle`, a moved/renamed `<DIST>`, or a deleted `bundle/` all hit this. Repoint `package.json#dependencies` and the 4 `overrides:` lines at the current absolute paths (re-running the installer refreshes the overrides in place), then `dsh plugin --profile <name> install` |
-| The plugin vanishes after a desktop relaunch; log shows `DANGLING_LINK_UNINSTALLING` | The bundle was installed tarball-shaped. Delete the profile and reinstall — step 2 must target the `bundle` directory |
-| After the install the profile has lost the desktop's own plugins (market, sidebar, IM, rewind, Tauri bridge); the pnpm output shows `Packages: +N -M` | `package.json` was overwritten instead of merged, so the desktop's dependency and bundle entries vanished and pnpm pruned the packages. See [Installing into an existing profile](#installing-into-an-existing-desktop-managed-profile) for the recovery path |
-| `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` (workspace:^) | The overrides block is missing or its paths are wrong. Check the 4 `overrides:` lines against the tarballs actually present |
-| `tar -xzf` fails with `fatal error - couldn't create signal pipe, Win32 error 5` | `tar` resolved to Git's MSYS build, which cannot run under a restricted shell / agent sandbox. Use `C:\Windows\System32\tar.exe` |
-| `--dump-config` fails with `EPERM: operation not permitted, open '...\profiles\<name>\cordis.yml'` | Not a profile problem: the command rewrites the profile's root `cordis.yml` and the shell has no write access there. Rerun from a normal (writable) terminal |
-| The model cannot see the export/render tools | No Python-services gate is enabled — the preferred single file is `~/.dsh/patent-services.yaml` with `mcp_enabled: true` **plus** `mcp_project_dir` (absolute path) or `mcp_wheel: true`; the `mcp_enabled` master switch is required in both modes (a file with only `mcp_wheel: true` stays off). Scripted setups use `DSH_PATENT_SERVICES=1` / `DSH_PATENT_SERVICES_DIR`. Or the gate was enabled after the app started: the MCP row loads at process start, so fully quit and relaunch the desktop app (a new conversation is not enough). In a session, `patent_setup_check` reports 已装载 (loaded) versus 待重启 (restart pending) |
-| Wheel mode reports "uvx failed to fetch patent-services" | Since 0.1.6-alpha.3 the check runs the MCP row's exact `uvx --from deepseek-harness-patent-services python -c "import patent_services"`: a failure usually means `uv`/`uvx` missing from `PATH` or PyPI unreachable — follow the inline guidance. For network-restricted machines, cache dependencies and use source mode, then fully relaunch |
-| Review reports "model not found" / auth errors | Switch to a model your gateway actually serves in the session — review really spawns scoring subagents. Calling the default deepseek line through a GLM gateway fails with "model not found"; choose an actually callable model group from your own gateway, whose exact group name is whatever your `Settings → Models` shows (`zai-coding-cn` in the docs is an example, not a requirement) |
-| A review dimension reports all scoring passes failed | Gateway rate limiting. The scripted review batches, backs off, and retries; running `patent_review` once more usually recovers the dimension |
+| docx import/export, archive search | Python MCP services |
+| PDF | Windows Word COM, or separately installed weasyprint and system libraries; fallback layout may differ |
+| drawio rendering | draw.io CLI or Docker; default image `q771103517/dsh-patent:latest` |
+| HTML rendering | Edge/Chrome; tall canvases may exceed the fixed viewport |
+| Simulation | Running Docker; default image `q771103517/dsh-patent-experiment:latest` |
+| CN patent search | Access to `patents.google.com` |
 
-## Building from source
+Images may need downloading on first use. Setup reports each channel; project initialization follows the skills' requirements for fixing unavailable channels. Skipping search requires an explicit user choice and a research-debt marker. See the [Python service reference](../../python/patent-services/README.md) for interfaces and preferences.
 
-See the [development guide](../DEVELOPMENT.md) for standalone builds and test limitations, and the [release guide](../RELEASING.md) for versioning and uploads. No full monorepo bundle is shipped.
+## Verification, recovery and troubleshooting
+
+After manual installation, require exit code 0 from `--dump-config` before relaunching. Check for `tool-patent`, `patent-assets`, `command-patent-review` and `mcp-patent-services`. An MCP row does not establish that services are enabled; run the in-session check. Request `patent_brief_coverage` with `field=测试` to inspect a tool result. Older hosts may show plain text instead of a structured card.
+
+Merge existing profile manifests, bundle layers and patches. Before refreshing an existing profile, the installer backs up state to `~/.dsh/.plugin-backups/<name>-<timestamp>/`. If host plugin declarations were lost, restore a backup first, or reconstruct dependencies and bundle layers from that profile's lockfile `importers`, then reinstall.
+
+| Symptom | Action |
+|---|---|
+| `cannot resolve profile bundle` / plugin vanishes after relaunch | Check absolute `file:` paths and the retained `bundle/`; repair the directory dependency and reinstall without deleting the profile |
+| `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` | Check paths and overrides; use built release manifests, not unconverted source manifests |
+| `--dump-config` reports `EPERM` | It writes the profile's `cordis.yml`; rerun with write access |
+| MCP tools missing / restart pending | Check master switch, mode and uv/uvx PATH; fully quit and relaunch |
+| Wheel fetch fails | Check PyPI access and uv/uvx; use source mode with cached dependencies for exact-version or restricted-network operation |
+| Review authentication error / `model not found` | Select a model the configured gateway supports, with valid credentials |
+| All passes for a dimension fail | Inspect the report, resolve rate limits, network or model errors, then retry; do not judge only the total |
+| Search unreachable | Check connectivity and proxy settings; retain the failure reason rather than inventing hits |
+
+Older hosts use capability fallbacks for scoring temperature, discussion temperature and Web cards. Recheck after host upgrades; compatibility branches are not evidence of a fully tested version matrix.
+
+See the [development guide](../DEVELOPMENT.md) and [release workflow](../RELEASING.md) for source builds, tests and packaging.

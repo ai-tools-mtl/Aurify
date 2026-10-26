@@ -1,5 +1,5 @@
 ---
-description: "The deterministic rubric review: the human /patent-review command and the model-facing patent_review tool share one host-plane pipeline with the report written under review/."
+description: "Fixed seven-dimension review pipeline shared by /patent-review and patent_review."
 kind: "package-reference"
 ---
 
@@ -7,92 +7,38 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
-> This repository contains the extracted Aurify sources. Full TypeScript type checks and host integration tests require a compatible deepseek-harness monorepo; see the [development guide](../../docs/DEVELOPMENT.md).
+`/patent-review` (user command) and `patent_review` (model tool) share a fixed workflow script and shipped rubric. Callers supply only the target path; reports go to `review/`. Orchestration and aggregation are deterministic; model scores still vary with sampling.
 
-## Summary
+## Targets and reports
 
-The deterministic patent review, reachable from two surfaces: the human-facing `/patent-review` command and the model-facing `patent_review` tool. Both review one disclosure file or a directory of Markdown files and write the report to `review/`. The model cannot skip, reshape, or dilute the review — the orchestration is host data, and the model-facing surface only supplies the target path.
+- File: review one Markdown file.
+- Ordinary directory: concatenate top-level `*.md` files in filename order.
+- Project root with `patent.yml`: collect `brief.md` and top-level Markdown in `chapters/` and `application/`, sorting each directory by name. Old reports, exports, references and experiment artifacts are excluded.
 
-## Table of Contents
+Reports go to `review/<label>.review.md` under the nearest ancestor containing `patent.yml`, or under the resolution base when no project ancestor exists. Only project-root targets receive a whole-project review fingerprint. File and other directory reviews are partial and cannot satisfy that gate.
 
-- [What it does](#what-it-does)
-- [The fixed script and the rubric](#the-fixed-script-and-the-rubric)
-- [Configuration](#configuration)
-- [Export shape](#export-shape)
-- [Model Experience](#model-experience)
-- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
-- [Dev Note](#dev-note)
+Scores render as `**总分**：85 / 100`; the loop and dashboard also accept legacy `总分 85`. Missing or nonnumeric scores do not pass. The tool returns a summary and path; read the report separately for full content. Command results are UI-only and do not enter model history.
 
-## What it does
+## Scoring and consistency
 
-Both surfaces read the target from the working directory (a file, or a directory whose top-level `*.md` files are concatenated in name order; a project root containing `patent.yml` instead collects `brief.md` when present, followed by the top-level Markdown files in `chapters/` and `application/`, each directory sorted by name), start the fixed workflow script through `ctx.workflowEngine`, and on completion write `review/<label>.review.md`. The command result is UI-only (`CommandResult` never enters model history); the tool returns the summary text to the model as its tool result. The report reaches the model in full only when it later reads the file through the fs tools, which keeps "model-visible ⟺ logged" intact with no new session event.
+[`rubric/default.json`](rubric/default.json) defines seven dimensions and weights: completeness 0.15, solution clarity 0.20, novelty presentation 0.15, writing conventions 0.15, claims quality 0.15, description support 0.15 and abstract compliance 0.05. It is validated on load and included through the package manifest's `files` list.
 
-A file target produces `review/<safe-name>.review.md`; a directory target concatenates its Markdown files with `<!-- name -->` markers and produces one report for the whole document.
+`src/script.ts` runs independent scoring passes per dimension, rounds their means and renormalizes weights over dimensions with valid scores. Failed children do not directly abort the run; the report records failures and effective pass counts. Interpret the total alongside any missing dimensions.
 
-Only a project-root target is stamped as a whole-project review; file and other directory targets are partial. Project-root collection excludes `review/`, `exports/`, `reference/`, and `experiments/`, so earlier reports and intermediate artifacts do not become scoring input. Reports render the score as `**总分**：85 / 100`; the loop gate, dashboard, and export warning also accept legacy plain lines such as `总分 85`. Missing or nonnumeric scores remain unparseable.
-
-## The fixed script and the rubric
-
-The script (`src/script.ts`, a plain-JS string executed by the workflow engine's worker) spawns one schema-carrying child per rubric dimension per configured pass, folds each dimension's pass scores into a rounded mean, and renormalizes the dimension weights over the dimensions that collected scores. A failed child resolves to `null` and lowers that dimension's pass count instead of failing the run. The scoring prompt judges the document alone: a chapter that legitimately does not cover a dimension is scored on the groundwork it provides, not punished for the complete application it is not. When the review target is the project root or sits inside the application document set (and both `claims.md` and `description.md` exist), an NLI-style consistency phase joins the run — per pass one claims→description support child and one terminology child, aggregated into a consistency score with the union of unsupported-claim findings, rendered as the report's 一致性检查 section. The rubric (`rubric/default.json`, extending TianGong's system review rubric to the application stage: 内容完整性 0.15 / 技术方案清晰度 0.20 / 新颖性表述 0.15 / 撰写规范性 0.15 / 权利要求质量 0.15 / 说明书支持度 0.15 / 摘要合规 0.05, each with a banded scoring guide) is versioned in git — git history is the anti-drift anchor, replacing TianGong's database-stored rubric. The rubric is parsed and validated at load (a durable file boundary); a malformed rubric fails loud.
-
-Determinism claim: the same input file and the same collected scores render the same report byte for byte; model scoring itself is of course sampling variance, which the per-pass scores and the spread in the report make visible.
+Project-root or application targets with both `claims.md` and `description.md` also run claims-to-description support and terminology checks. Equal input and collected scores yield an equal report; repeated model calls need not yield equal scores.
 
 ## Configuration
 
-`scoringPasses` (integer 1-5, default 2): independent scoring passes per dimension. Two gives a self-consistency signal at twice the child count; one is the cheap mode. A project overrides the profile-wide value with `reviewPasses: 1-5` in its patent.yml (the same project-beats-profile relationship `reviewThreshold` has with the default bar).
+| Key | Default and behavior |
+|---|---|
+| `scoringPasses` | 2, integer 1–5; passes per dimension. Project `patent.yml` can override with `reviewPasses` |
+| `reviewTemperature` | 0.2, range 0–2; older engines without child temperature support use the provider default |
+| `projectRoot` | Unset; resolve relative targets against the current agent session cwd. Fail if neither base is available |
 
-`reviewTemperature` (number 0-2, default 0.2): the sampling temperature pinned on every scoring child's requests through the workflow's per-child temperature override. Scoring is a mechanical rubric application, so the default sits near deterministic; engines whose `agent()` predates the temperature option are detected at call time and the child degrades to the provider default instead of failing.
+Report ownership follows project ancestry after path resolution. Users need not launch the session from the project root. `reviewThreshold` belongs to the [pipeline assessor](../tool-patent/README.md#pipeline-gates), not this package's pass-count configuration.
 
-`projectRoot` (optional string): the base for relative review targets. Unset resolves each invocation against the receiving agent's session cwd — the workspace a web composition created the session in. Set it explicitly only when the fs world differs from that session workspace (e.g. a composed `fs-local` cwd); an invocation with neither a configured root nor a session cwd fails loud instead of reviewing against the wrong directory.
+## Development and limitations
 
-Report placement anchors to the file-first project model: after the target resolves, the nearest ancestor directory holding `patent.yml` owns the `review/` folder, so a target like `<project>/chapters/03-background.md` reports into `<project>/review/` even when the working directory is the workspace above it; without an enclosing `patent.yml` the report lands under `projectRoot/review/` as before.
+Keep the named `name`, `inject`, `Config` and `apply` exports; do not add a default export. Review needs the host `workflowEngine`, enabled by the Bundle's compatibility rows. See the [development guide](../../docs/DEVELOPMENT.md) for host validation boundaries.
 
-## Export shape
-
-A function plugin: it exports `name` / `inject` / `Config` / `apply` and NO default. A stray `export default` would collapse the module via the Loader's `unwrapExports` and drop `inject` (see docs/postmortem/0001 (upstream monorepo reference)).
-
-## Model Experience
-
-### The patent_review tool
-
-#### What the model sees
-
-The `patent_review` tool in the tool table: one `target` parameter (file or directory path). A conversational review request ("审查一下这份交底书") resolves to calling this tool — the model confirms the target and invokes it; the fixed script, the rubric, and the report path are host data the model never supplies. The tool result carries the same UI summary the command shows (overall score, notes, report path); the full report becomes model-visible through a later fs read.
-
-#### Token effect
-
-The tool schema rides every request in profiles composing this package; each run adds one tool result (the short summary).
-
-#### KV Cache effect
-
-Prefix-stable: the schema is constant; summaries append after the prefix.
-
-### Command surface
-
-#### What the model sees
-
-Nothing. `/patent-review` is a human command: dispatch bypasses the model turn, `CommandResult` is UI-only, and only the log-only `command/run`/`command/done` events record the attempt.
-
-#### Token effect
-
-Zero per invocation.
-
-#### KV Cache effect
-
-None; the command adds nothing to the request prefix.
-
-## Known Limitations and Deferred Work
-
-- **npm publishing would drop the rubric asset** — the workspace-constraints gate pins `files` to the uniform list without a `rubric/` entry; publishing this package would need that list widened (moot while the package stays workspace-internal).
-- **One target per invocation** — no saved rubric variants and no multi-target batch; the review is always the shipped versioned rubric.
-- **Windows shell quoting** — the report path in the summary is a plain relative path; consumers that shell out to open it must quote it themselves.
-
-<a id="dev-note"></a>
-### Dev Note
-
-<details>
-<summary>Working context for maintainers — click to expand</summary>
-
-The rubric extends TianGong's system review rubric to the application stage and is versioned in git — git history is the anti-drift anchor. The script runs through `ctx.workflowEngine`, which the patent bundle re-enables on the host plane (`workflow-ptc`), so the command works on the web composition where presets otherwise own the engine.
-
-</details>
+Each call accepts one target; saved rubric variants and multi-target batches are unsupported. Model and gateway failures can leave scores incomplete. Quote paths containing spaces when opening reports through a shell.
