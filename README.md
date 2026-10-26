@@ -40,8 +40,8 @@
 
 | 文档 | 用途 |
 |---|---|
-| [安装与环境指南](dist/README.md) | 自然语言初始化、手动配置参考、模型配置与故障排查 |
-| [英文安装指南](dist/INSTALL-NEW-PROFILE.md) | 对应英文说明、安装器参数与跨平台路径替换 |
+| [安装与环境指南](docs/install/README.md) | 自然语言初始化、手动配置参考、模型配置与故障排查 |
+| [英文安装指南](docs/install/INSTALL-NEW-PROFILE.md) | 对应英文说明、安装器参数与跨平台路径替换 |
 | [Bundle 说明](packages/bundle-patent/README.zh.md) | 技能、persona 与 MCP 服务的组成及开发细节 |
 
 npm 命令、Windows 安装器与离线安装仍可用，见安装与环境指南的方式 B–E。专用档案的 persona 补丁属于可选配置，见该指南的「装 persona」；通用档案可保留原 persona。附图渲染与仿真实验需要 Docker，检索需要能访问 Google Patents。
@@ -53,16 +53,24 @@ packages/bundle-patent/            # 能力 bundle：14 技能 + Web 卡片/面�
 packages/tool-patent/              # 就绪度打分、权利要求/正文检查、全流程推进工具（@mtl-academic/dsh-tool-patent）
 packages/command-patent-review/    # /patent-review 确定性审查命令 + patent_review 直通工具（七维 rubric）
 python/patent-services/            # Python MCP 服务：文档导入/导出/解析/渲染/检索/实验/查新（10 工具）
-dist/                              # 可直接安装的 npm tarball + Python wheel + 一键安装器 + persona 补丁 + 接收方指南
+docs/                              # 安装指南、开发与发布流程
+scripts/                           # 构建、验证、Windows 安装器与 persona 补丁
+dist/                              # 本地生成的发布产物（Git 忽略，下载见 Releases）
 ```
 
-技术标识：npm 包 `@mtl-academic/dsh-patent`（随两个 `@mtl-academic` 依赖包一同发布，发布后 `dsh plugin add @mtl-academic/dsh-patent` 直装；也可用 `dist/` 内 tarball 离线安装）；Docker 镜像 `q771103517/dsh-patent`（附图渲染）与 `q771103517/dsh-patent-experiment`（仿真实验），首次使用自动拉取。
+## 版本与下载
 
-## 开发
+当前源码版本：三个 npm 包均为 **0.1.6-alpha.7**，Python MCP 服务为 **0.1.2**。这是 alpha 预发布版本。
 
-当前源码修复了整项审查漏读章节与申请文件、报告总分格式解析、失败实验日志误判完成及依赖安装失败仍继续执行的问题。整项审查传项目根目录（当前目录为项目时用 `.`），包含 `brief.md`、`chapters/` 和 `application/` 的顶层 Markdown；实验阶段要求至少一个实验的最新运行记录退出码为 0，或有明确的无需实验声明。本地 `dist/` 已重建为全量并集构建 TS `0.1.6-alpha.7` 与 Python `0.1.2`（上述修复＋已有文档导入、导出标题归一化、名称章单行门三项特性），待发布 registry；注意版本分叉——npm 已发布的 `0.1.6-alpha.6`（latest）与 PyPI 已发布的 `0.1.1` 出自修复线构建，不含那三项特性。
+安装包从 [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases) 下载；源码仓库保留代码、模板、技能、文档和构建脚本，生成的 tarball、wheel、sdist 与校验文件不再提交。历史提交中的产物仍保留在 Git 历史里。
 
-技能/Python 服务可直接改源码（Python 服务经 `DSH_PATENT_SERVICES_DIR` 指源码运行，改动即生效）。TS 包的构建接线在 deepseek-harness monorepo 内（tsdown preset、workspace 依赖），完整 monorepo 历史与构建上下文见本仓库 Release 附带的 `dsh-patent-full.bundle`（`git clone` 即得源码仓，`pnpm install && pnpm run build`）。独立打包：`npm --prefix scripts install && npm --prefix scripts run build`；Python wheel/sdist：`python -m build --outdir dist python/patent-services`（需安装 build 与 hatchling）。产物验证：`python3 scripts/verify-dist.py`；重建后用 `--write-checksums` 更新校验文件。独立 TS 打包生成声明但不代替完整 monorepo 类型检查；运行时依赖保持外置，发布依赖范围沿用已有分发包元数据。Python 测试：`uv run --project python/patent-services --group test pytest python/patent-services/tests`。
+GitHub Release 与 npm/PyPI 发布独立；创建 Release 不会更新插件市场或 registry。市场/npm/PyPI 用户应核对实际安装版本，需要本版源码功能时使用对应 Release 或源码模式。
+
+## 开发与维护
+
+- [开发指南](docs/DEVELOPMENT.md)：目录职责、独立构建、Python 测试与类型检查边界。
+- [发布流程](docs/RELEASING.md)：版本、校验、tag、GitHub Release 与 registry 的区别。
+- [更新记录](CHANGELOG.md)：本版功能和修复。
 
 ## 已知边界
 

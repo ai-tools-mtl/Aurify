@@ -7,7 +7,7 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
-> Relative links in this document follow the deepseek-harness monorepo layout. This repository is the extracted distribution — the full monorepo ships as the release's `dsh-patent-full.bundle` — so links that leave this directory resolve in the monorepo, not here.
+> This repository contains the extracted Aurify sources. Full TypeScript type checks and host integration tests require a compatible deepseek-harness monorepo; see the [development guide](../../docs/DEVELOPMENT.md).
 
 ## Summary
 
@@ -49,7 +49,7 @@ Report placement anchors to the file-first project model: after the target resol
 
 ## Export shape
 
-A function plugin: it exports `name` / `inject` / `Config` / `apply` and NO default. A stray `export default` would collapse the module via the Loader's `unwrapExports` and drop `inject` (see [docs/postmortem/0001](../../../docs/postmortem/0001-acp-default-export-drops-inject.md)).
+A function plugin: it exports `name` / `inject` / `Config` / `apply` and NO default. A stray `export default` would collapse the module via the Loader's `unwrapExports` and drop `inject` (see docs/postmortem/0001 (upstream monorepo reference)).
 
 ## Model Experience
 

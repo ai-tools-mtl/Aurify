@@ -5,44 +5,39 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   python-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-        with:
-          version: latest
       - name: Run patent-services test suite
-        run: uv run --project python/patent-services --group test pytest python/patent-services/tests -q
+        run: uv run --locked --project python/patent-services --group test pytest python/patent-services/tests -q
 
-  # No TypeScript job on purpose: type-checking and vitest need the packages'
-  # devDependencies — roughly ninety @deepseek-ai/* workspace packages that
-  # exist only inside the deepseek-harness monorepo — so a standalone install
-  # cannot resolve them here. (The three published packages' runtime
-  # dependency surface is fully on npm; it is the test context that is not.)
-  # The TS suites run inside the monorepo; this repo's dsh-patent-full.bundle
-  # Release artifact carries that full build context.
-
-  dist-integrity:
+  # Full TS type checks and vitest require the compatible host monorepo.
+  build-integrity:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dist artifacts present and non-empty
-        run: |
-          set -e
-          for f in mtl-academic-dsh-patent-*.tgz mtl-academic-dsh-tool-patent-*.tgz \
-                   mtl-academic-dsh-command-patent-review-*.tgz \
-                   deepseek_harness_patent_services-*.whl; do
-            match=(dist/$f)
-            [ -e "${match[0]}" ] || { echo "missing dist artifact: $f"; exit 1; }
-            [ -s "${match[0]}" ] || { echo "empty dist artifact: $f"; exit 1; }
-          done
-      - name: Verify package versions, entrypoints, assets and checksums
-        run: python3 scripts/verify-dist.py
-      - name: Skill catalog intact (14 shipped skills)
-        run: |
-          count=$(ls -d packages/bundle-patent/skills/*/ | wc -l)
-          echo "skills: $count"
-          [ "$count" -eq 14 ] || { echo "expected 14 skills"; exit 1; }
-          grep -q "patent-loop" <(ls packages/bundle-patent/skills/) || { echo "patent-loop skill missing"; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - uses: astral-sh/setup-uv@v4
+      - run: npm --prefix scripts ci
+      - run: npm --prefix scripts run build
+      - run: uv build --out-dir dist python/patent-services
+      - run: python3 scripts/prepare-release.py
+      - run: python3 scripts/verify-dist.py --write-checksums
+      - run: python3 scripts/verify-dist.py
+      - name: Generated release files are not tracked
+        run: test -z "$(git ls-files dist)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurify-release
+          path: dist/
+          if-no-files-found: error

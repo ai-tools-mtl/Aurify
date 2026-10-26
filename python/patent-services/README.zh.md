@@ -2,9 +2,9 @@
 
 [English](README.md) | 中文
 
-> 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
+> 本仓库包含独立提取的 Aurify 源码。完整 TypeScript 类型检查与宿主集成测试需要兼容的 deepseek-harness monorepo，见[开发指南](../../docs/DEVELOPMENT.md)。
 
-把专利交底书领域服务经 MCP stdio 暴露给 dsh `patent` profile：已有文档导入、模板/参考文献解析、整项目导出、申请文件导出、drawio 附图渲染、归档检索、docker 仿真实验与中国专利发现。经 [`@deepseek-ai/dsh-mcp-client`](../../packages/mcp/mcp-client/README.zh.md) 挂载后，工具以 `mcp__patent__import_patent_document`、`mcp__patent__parse_disclosure_docx`、`mcp__patent__export_disclosure`、`mcp__patent__export_application_docs`、`mcp__patent__render_drawio_figure`、`mcp__patent__render_html_figure`、`mcp__patent__lint_drawio_figure`、`mcp__patent__search_patent_archive`、`mcp__patent__run_experiment` 与 `mcp__patent__search_cn_patents` 出现在模型工具表。
+把专利交底书领域服务经 MCP stdio 暴露给 dsh `patent` profile：已有文档导入、模板/参考文献解析、整项目导出、申请文件导出、drawio 附图渲染、归档检索、docker 仿真实验与中国专利发现。经 `@deepseek-ai/dsh-mcp-client`（上游 monorepo 文档） 挂载后，工具以 `mcp__patent__import_patent_document`、`mcp__patent__parse_disclosure_docx`、`mcp__patent__export_disclosure`、`mcp__patent__export_application_docs`、`mcp__patent__render_drawio_figure`、`mcp__patent__render_html_figure`、`mcp__patent__lint_drawio_figure`、`mcp__patent__search_patent_archive`、`mcp__patent__run_experiment` 与 `mcp__patent__search_cn_patents` 出现在模型工具表。
 
 ## 工具
 
@@ -35,7 +35,7 @@ uv build                                                            # wheel + sd
 
 wheel 是可安装形态：自带模板与 Dockerfile 资产和 `patent-services` console script。`patent` bundle 挂载的客户端行藏在若干 opt-in 门之后，默认全关（disabled——在 `dsh --profile patent --dump-config` 中可见，但不出现在工具表）：
 
-- **单文件方式（首选）**：`~/.dsh/patent-services.yaml` 写 `mcp_enabled: true`——**总开关，两种模式都必须写**——再加 `mcp_project_dir: <本检出的绝对路径>`（源码模式；相对路径、或缺 `pyproject.toml` 的目录会被拒绝并给出可读原因）或 `mcp_wheel: true`（wheel 模式）。本包已发布 PyPI（0.1.1），wheel 模式通过 `uvx --from deepseek-harness-patent-services patent-services` 自动获取，无需先装成 uv 工具。离线机器可用 `uv tool install <dist-dir>/deepseek_harness_patent_services-<version>-py3-none-any.whl` 安装本地 wheel。tool-patent 插件在加载时读该文件并自行装载客户端。
+- **单文件方式（首选）**：`~/.dsh/patent-services.yaml` 写 `mcp_enabled: true`——**总开关，两种模式都必须写**——再加 `mcp_project_dir: <本检出的绝对路径>`（源码模式；相对路径、或缺 `pyproject.toml` 的目录会被拒绝并给出可读原因）或 `mcp_wheel: true`（wheel 模式）。wheel 模式通过 `uvx --from deepseek-harness-patent-services patent-services` 自动获取，无需先装成 uv 工具。该命令不锁定本版或已安装的本地 wheel；精确使用本版或离线运行时应采用源码模式并提前缓存依赖。tool-patent 插件在加载时读该文件并自行装载客户端。
 - **环境变量方式（脚本化场景）**：设 `DSH_PATENT_SERVICES` 经 `uvx --from deepseek-harness-patent-services patent-services` 运行已安装的包；或设 `DSH_PATENT_SERVICES_DIR`（本检出的绝对路径）直接从源码运行模块。
 
 两种方式下该行都在**进程启动时**装载：新写的文件要到下一个 dsh 进程才生效，仅新开会话不够；`patent_setup_check` 区分「已装载/待重启」。

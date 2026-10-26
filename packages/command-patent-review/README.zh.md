@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-> 本文的相对链接按 deepseek-harness monorepo 布局书写；本仓库是提取态分发仓（完整 monorepo 见 Release 附带的 `dsh-patent-full.bundle`），所以指向本目录之外的链接要在 monorepo 中才可达。
+> 本仓库包含独立提取的 Aurify 源码。完整 TypeScript 类型检查与宿主集成测试需要兼容的 deepseek-harness monorepo，见[开发指南](../../docs/DEVELOPMENT.md)。
 
 ## 概述
 
@@ -53,7 +53,7 @@ kind: "package-reference"
 <a id="export-shape"></a>
 ## 导出形态
 
-函数插件：只导出 `name` / `inject` / `Config` / `apply`，禁止 default export。多余的 `export default` 会被 Loader 的 `unwrapExports` 折叠模块并丢掉 `inject`（见 [docs/postmortem/0001](../../../docs/postmortem/0001-acp-default-export-drops-inject.zh.md)）。
+函数插件：只导出 `name` / `inject` / `Config` / `apply`，禁止 default export。多余的 `export default` 会被 Loader 的 `unwrapExports` 折叠模块并丢掉 `inject`（见 docs/postmortem/0001（上游 monorepo 文档））。
 
 <a id="model-experience"></a>
 ## Model Experience

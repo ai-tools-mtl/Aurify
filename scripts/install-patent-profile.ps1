@@ -2,7 +2,7 @@
 #
 # Installs the Aurify patent-writing plugin into a fresh (or existing) dsh
 # profile on a Windows machine where Deepseek Harness Desktop is installed
-# (macOS/Linux: follow the manual steps in INSTALL-NEW-PROFILE.md instead).
+# (macOS/Linux: follow the manual steps in docs/install/INSTALL-NEW-PROFILE.md (or the release guide beside this script) instead).
 # Idempotent: safe to re-run.
 #
 # Usage (PowerShell):
@@ -149,7 +149,7 @@ function Remove-LegacyOverrides {
 # instead of a cryptic null-argument error. ($IsWindows is undefined on
 # Windows PowerShell 5.1, hence the version short-circuit.)
 if (($PSVersionTable.PSVersion.Major -ge 6) -and -not $IsWindows) {
-  Fail "this installer is Windows-only. On macOS/Linux follow the manual steps in INSTALL-NEW-PROFILE.md"
+  Fail "this installer is Windows-only. On macOS/Linux follow the manual steps in docs/install/INSTALL-NEW-PROFILE.md (or the release guide beside this script)"
 }
 
 # Locate the dsh CLI: the desktop shim knows the bundled core; fall back to PATH.

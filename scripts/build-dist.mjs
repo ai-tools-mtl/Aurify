@@ -1,6 +1,6 @@
 // Standalone distribution build. dsh runtime packages remain external.
 import { build } from 'esbuild';
-import { mkdtemp, mkdir, readFile, writeFile, cp, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, cp, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -9,6 +9,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
+const versions = JSON.parse(await readFile(join(root, 'scripts/workspace-versions.json'), 'utf8'));
+await mkdir(dist, { recursive: true });
 const work = await mkdtemp(join(tmpdir(), 'aurify-build-'));
 const packages = ['tool-patent', 'command-patent-review', 'bundle-patent'];
 try {
@@ -16,13 +18,10 @@ try {
     const src = join(root, 'packages', dir);
     const manifest = JSON.parse(await readFile(join(src, 'package.json'), 'utf8'));
     const stem = manifest.name.replace('@', '').replace('/', '-');
-    const seeds = (await readdir(dist)).filter(n => n.startsWith(stem + '-') && n.endsWith('.tgz')).sort();
-    if (!seeds.length) throw new Error(`Missing published dependency metadata for ${manifest.name}`);
-    const published = JSON.parse(execFileSync('tar', ['-xOf', join(dist, seeds.at(-1)), 'package/package.json'], { encoding: 'utf8' }));
     for (const group of ['dependencies', 'peerDependencies', 'devDependencies']) {
       for (const [name, spec] of Object.entries(manifest[group] ?? {})) {
         if (!spec.startsWith('workspace:')) continue;
-        const replacement = name.startsWith('@mtl-academic/') ? manifest.version : published[group]?.[name];
+        const replacement = name.startsWith('@mtl-academic/') ? `^${manifest.version}` : versions[group]?.[name];
         if (!replacement || replacement.startsWith('workspace:')) throw new Error(`Unresolved ${name}`);
         manifest[group][name] = replacement;
       }

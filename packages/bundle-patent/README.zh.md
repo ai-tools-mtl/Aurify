@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-叠加在 [`dsh-base`](../base/README.zh.md) 之上的个人发明交底书撰写层，与 web app 一起组成 `patent` profile 的第三层 bundle。[`cordis.patch.yml`](cordis.patch.yml) 插入本特性的各行：[`tool-patent`](../../patent/tool-patent/README.zh.md) 覆盖率打分器、本包的 `patent-assets` 插件（把随包分发的 `skills/` 资产注册为 runtime skill）、[`command-patent-review`](../../patent/command-patent-review/README.zh.md) 确定性审查命令，以及按环境变量门控的 [`patent-services`](../../../python/patent-services/README.zh.md) MCP 行。本 bundle 刻意不带 persona——助手 persona 属于 profile 层——因此任何 profile 都可以携带这套能力。撰写模型是文件优先：一个交底书项目就是一个 Markdown 文件目录，agent 经 base 的文件工具维护它们，用户直接编辑同一批文件。本 bundle 的产品名是「点金」：不是每块石头都值得点——先验金，再点金，动笔之前先判断点子值不值得写。
+叠加在 `dsh-base`（上游 monorepo 文档） 之上的个人发明交底书撰写层，与 web app 一起组成 `patent` profile 的第三层 bundle。[`cordis.patch.yml`](cordis.patch.yml) 插入本特性的各行：[`tool-patent`](../tool-patent/README.zh.md) 覆盖率打分器、本包的 `patent-assets` 插件（把随包分发的 `skills/` 资产注册为 runtime skill）、[`command-patent-review`](../command-patent-review/README.zh.md) 确定性审查命令，以及按环境变量门控的 [`patent-services`](../../python/patent-services/README.zh.md) MCP 行。本 bundle 刻意不带 persona——助手 persona 属于 profile 层——因此任何 profile 都可以携带这套能力。撰写模型是文件优先：一个交底书项目就是一个 Markdown 文件目录，agent 经 base 的文件工具维护它们，用户直接编辑同一批文件。本 bundle 的产品名是「点金」：不是每块石头都值得点——先验金，再点金，动笔之前先判断点子值不值得写。
 
 ## 目录
 
@@ -28,9 +28,9 @@ kind: "package-bundle"
 
 ### 安装进 profile
 
-推荐在桌面版 **设置 → 插件市场**搜索 **Aurify** 或 **点金**，安装到当前活动档案，然后在该档案会话中输入「**帮我初始化点金插件的运行环境，检查并配置所需依赖和服务**」。助手通过 `patent_setup_check` 自检并协助配置；MCP 配置变更后按提示完整重启桌面版，再要求复检确认服务已装载。无需先下载分发包或手动编辑配置。详见[安装与环境指南](../../dist/README.md)。专用 persona 是可选的档案配置，通用档案可保留原 persona（见 [persona 在 profile 层](#the-persona-lives-in-the-profile)）。以下命令是手动安装的替代路径。
+推荐在桌面版 **设置 → 插件市场**搜索 **Aurify** 或 **点金**，安装到当前活动档案，然后在该档案会话中输入「**帮我初始化点金插件的运行环境，检查并配置所需依赖和服务**」。助手通过 `patent_setup_check` 自检并协助配置；MCP 配置变更后按提示完整重启桌面版，再要求复检确认服务已装载。无需先下载分发包或手动编辑配置。详见[安装与环境指南](../../docs/install/README.md)。专用 persona 是可选的档案配置，通用档案可保留原 persona（见 [persona 在 profile 层](#the-persona-lives-in-the-profile)）。以下命令是手动安装的替代路径。
 
-已验证的安装路径——发布的 bundle 把 [`tool-patent`](../../patent/tool-patent/README.zh.md) 与 [`command-patent-review`](../../patent/command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性：
+已验证的安装路径——发布的 bundle 把 [`tool-patent`](../tool-patent/README.zh.md) 与 [`command-patent-review`](../command-patent-review/README.zh.md) 作为自身依赖携带，一条安装命令带来整个特性：
 
 ```text
 dsh --profile patent --from-default-profile web
@@ -82,7 +82,7 @@ dsh plugin --profile patent add @mtl-academic/dsh-patent
 
 ## MCP services 行
 
-patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 [`patent-services`](../../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`import_patent_document`、`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。单文件方式（首选）：在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（或 `mcp_wheel: true`）——tool-patent 插件加载时读这些键并自行装载 MCP 客户端，所有偏好收在这一个文件里，不必动 home 补丁。home 级 `~/.dsh/cordis.patch.yml` 的启用行仍是高级覆盖手段。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（发布的 wheel，或本地 `uv build` + `uv tool install` 的产物）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
+patch 插入 `dsh-mcp-client`（上游 monorepo 文档） 行，承载 [`patent-services`](../../python/patent-services/README.zh.md) stdio 服务（`serverName: patent`——`import_patent_document`、`parse_disclosure_docx`、`export_disclosure`、`export_application_docs`、`render_drawio_figure`、`render_html_figure`、`lint_drawio_figure`、`search_patent_archive`、`run_experiment` 与 `search_cn_patents`）。两种 opt-in 模式，默认都关闭，未设置时该行保持 disabled（在 `--dump-config` 中可见，不在工具表）。单文件方式（首选）：在 `~/.dsh/patent-services.yaml` 写 `mcp_enabled: true` 加 `mcp_project_dir: <patent-services 源码目录的绝对路径>`（或 `mcp_wheel: true`）——tool-patent 插件加载时读这些键并自行装载 MCP 客户端，所有偏好收在这一个文件里，不必动 home 补丁。home 级 `~/.dsh/cordis.patch.yml` 的启用行仍是高级覆盖手段。环境变量模式：设 `DSH_PATENT_SERVICES` 经 `uvx` 运行已安装的包（未锁定版本的 PyPI 包；精确运行本版请用源码模式）；或设 `DSH_PATENT_SERVICES_DIR` 指向源码检出，直接从该目录运行模块。任一方式下，模型在下一次启动时获得解析、导出、渲染、检索、实验与专利发现工具。
 
 <a id="skills-delivery"></a>
 ## Skills 分发
@@ -100,7 +100,7 @@ patch 插入 [`dsh-mcp-client`](../../mcp/mcp-client/README.zh.md) 行，承载 
 
 #### Token effect
 
-在 patent profile 中，persona 的固定文本是每个请求的开销；目录提醒随已注册 skill 数量增长（仅名称与截断描述）。仅装能力的 profile 只增加目录提醒与两个工具的 schema。覆盖率工具的 schema 开销在其[自己的 README](../../patent/tool-patent/README.zh.md) 中说明。
+在 patent profile 中，persona 的固定文本是每个请求的开销；目录提醒随已注册 skill 数量增长（仅名称与截断描述）。仅装能力的 profile 只增加目录提醒与已注册工具的 schema。覆盖率工具的 schema 开销在其[自己的 README](../tool-patent/README.zh.md) 中说明。
 
 #### KV Cache effect
 
