@@ -8,6 +8,8 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
+# uv build adds this local build-directory marker; it is not a release asset.
+(dist / '.gitignore').unlink(missing_ok=True)
 version = json.loads((root / 'packages/bundle-patent/package.json').read_text())['version']
 for name in ('install-patent-profile.ps1', 'persona.patch.yml'):
     shutil.copy2(root / 'scripts' / name, dist / name)
