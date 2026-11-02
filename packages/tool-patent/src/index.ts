@@ -280,10 +280,11 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.tools.register(defineTool({
     name: 'patent_prose_lint',
     description: 'Deterministic de-AI prose lint for disclosure chapter text, the machine half of the '
-      + 'patent-de-ai skill: filler and apologetic phrases (值得注意的是/换言之/综上所述/遗憾的是…), sentences over 150 '
-      + 'characters, triple parallelisms, paragraph-ending summary sentences, and textbook definitions. '
-      + 'Errors must be cleared before a chapter counts as drafted; warnings are drafting hints. '
-      + 'Run it on every drafted or revised chapter before presenting it.',
+      + 'patent-de-ai skill: filler, apologetic and colloquial-opener phrases (值得注意的是/换言之/综上所述/说白了/遗憾'
+      + '的是…), sentences over 150 characters, inversion rhetoric (不是A而是B), triple parallelisms, dense 顿号 '
+      + 'enumerations, paragraph-ending summary sentences, textbook definitions, and sentence-initial topic '
+      + 'shells (对于…来说). Errors must be cleared before a chapter counts as drafted; warnings are drafting '
+      + 'hints. Run it on every drafted or revised chapter before presenting it.',
     parameters: {
       text: {
         type: 'string',
@@ -303,9 +304,12 @@ export async function apply(ctx: Context): Promise<void> {
             properties: {
               cliches: { type: 'integer', required: true },
               longSentences: { type: 'integer', required: true },
+              inversions: { type: 'integer', required: true },
               parallelisms: { type: 'integer', required: true },
+              enumerations: { type: 'integer', required: true },
               paragraphSummaries: { type: 'integer', required: true },
               definitions: { type: 'integer', required: true },
+              topicShells: { type: 'integer', required: true },
               errors: { type: 'integer', required: true },
               warnings: { type: 'integer', required: true },
             },

@@ -51,6 +51,41 @@ describe('lintProse', () => {
     expect(result.summary.definitions).toBe(1)
   })
 
+  it('flags inversion rhetoric as a warning without errors', () => {
+    for (const [text, label] of [
+      ['本方案的核心不是提高单核频率，而是重构调度粒度。', '不是A而是B'],
+      ['与其说这是一次参数调整，不如说是一次架构重构。', '与其说A不如说B'],
+    ] as const) {
+      const result = lintProse(text)
+      expect(result.summary.inversions, label).toBe(1)
+      expect(result.summary.errors, label).toBe(0)
+      expect(result.violations[0]?.severity, label).toBe('warning')
+    }
+  })
+
+  it('flags dense 顿号 enumerations as warnings but spares three-item lists', () => {
+    const dense = lintProse('该平台覆盖采集、清洗、对账、归档、校验等环节。')
+    expect(dense.summary.enumerations).toBe(1)
+    const lean = lintProse('调度模块负责采集、清洗与对账三个环节。')
+    expect(lean.summary.enumerations).toBe(0)
+  })
+
+  it('flags sentence-initial topic shells', () => {
+    for (const text of ['对于早期团队来说，招人是最难的事。', '就延迟而言，队列排队才是大头。']) {
+      const result = lintProse(text)
+      expect(result.summary.topicShells, text).toBe(1)
+      expect(result.summary.errors, text).toBe(0)
+    }
+  })
+
+  it('flags the colloquial opener set (说白了/说穿了/先说结论)', () => {
+    for (const phrase of ['说白了', '说穿了', '先说结论']) {
+      const result = lintProse(`调度器按水位线分流。${phrase}，延迟来自队列排队而非计算。`)
+      expect(result.summary.cliches, phrase).toBe(1)
+      expect(result.summary.errors, phrase).toBe(1)
+    }
+  })
+
   it('passes clean technical prose with zero errors', () => {
     const result = lintProse('预检组件在写入生效前完成读写集交集判定，写集不相交的写入立即并行生效。判定结果与资源占用表一同落盘。')
     expect(result.summary.errors).toBe(0)

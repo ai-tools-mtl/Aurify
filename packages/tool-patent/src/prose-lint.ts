@@ -1,19 +1,20 @@
 /**
  * Deterministic de-AI prose lint for disclosure chapters: the machine half of
- * the patent-de-ai skill. The skill's seven features become five checkable
- * rules — filler and apologetic phrases, overlong sentences, triple
- * parallelisms, paragraph-ending summaries, and textbook definitions — each a
- * pure function
- * over the submitted text, so "read like a senior patent engineer" stops
- * being a hope and becomes a gate the model must clear. Rhythm (rule 5) is
- * the one feature left to the checklist: no honest regex exists for it.
+ * the patent-de-ai skill. The skill's features become eight checkable rules —
+ * filler, apologetic and colloquial-opener phrases, overlong sentences,
+ * inversion rhetoric, triple parallelisms, dense 顿号 enumerations,
+ * paragraph-ending summaries, textbook definitions, and sentence-initial
+ * topic shells — each a pure function over the submitted text, so "read like
+ * a senior patent engineer" stops being a hope and becomes a gate the model
+ * must clear. Rhythm and same-entity renaming (rules 5/9) are left to the
+ * checklist: no honest regex exists for them.
  * @module dsh-tool-patent/prose-lint
  */
 
 /** One lint finding: what rule tripped, how badly, and where roughly. */
 export interface ProseViolation {
   /** The rule key that tripped (stable identifier). */
-  rule: 'cliche' | 'long-sentence' | 'parallelism' | 'paragraph-summary' | 'definition'
+  rule: 'cliche' | 'long-sentence' | 'inversion' | 'parallelism' | 'enumeration' | 'paragraph-summary' | 'definition' | 'topic-shell'
   /** 'error' rules must be cleared; 'warning' rules are drafting hints. */
   severity: 'error' | 'warning'
   /** What to do about it, in the skill's own terms. */
@@ -27,9 +28,12 @@ export interface ProseLintResult {
   summary: {
     cliches: number
     longSentences: number
+    inversions: number
     parallelisms: number
+    enumerations: number
     paragraphSummaries: number
     definitions: number
+    topicShells: number
     errors: number
     warnings: number
   }
@@ -41,6 +45,7 @@ const CLICHES = [
   '更为关键的是', '需要指出的是', '需特别指出', '换言之', '换句话说',
   '值得注意的是', '值得一提的是', '需要注意的是', '这意味着', '这表明', '综上所述',
   '总而言之', '不难发现', '可以看出', '由此可知', '由此可见', '众所周知', '毋庸置疑', '不可否认',
+  '说白了', '说穿了', '先说结论',
 ]
 
 /** Apologetic self-weakening openers (rule 7): the apology goes, the fact stays. */
@@ -65,6 +70,20 @@ const SUMMARY_OPENERS = /^(这意味着|因此|所以|由此可知|由此可见)
 
 /** Textbook-style definition openers (rule 6). */
 const DEFINITION = /(是指[^。]{0,60}。|被定义为)/
+
+/** Inversion rhetoric (rule 8): set up a misunderstanding, then flip it. */
+const INVERSIONS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /不是[^。！？]{0,40}而是/g, label: '不是A而是B' },
+  { pattern: /并非[^。！？]{0,40}而是/g, label: '并非A而是B' },
+  { pattern: /与其说[^。！？]{0,40}不如说/g, label: '与其说A不如说B' },
+  { pattern: /看似[^。！？]{0,30}实则/g, label: '看似A实则B' },
+]
+
+/** 顿号 items per comma-bounded clause above this reads as dense enumeration (rule 3). */
+const MAX_DUNHAO_PER_CLAUSE = 2
+
+/** Sentence-initial topic shells (translationese, rule 2). */
+const TOPIC_SHELL = /^(对于[^，。！？]{0,24}来说|就[^，。！？]{0,24}而言)/
 
 /** Split text into sentences (。！？ terminators kept attached). */
 function sentencesOf(text: string): string[] {
@@ -99,6 +118,17 @@ export function lintProse(text: string): ProseLintResult {
       from = index + phrase.length
     }
   }
+  for (const { pattern, label } of INVERSIONS) {
+    pattern.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text)) !== null) {
+      violations.push({
+        rule: 'inversion', severity: 'warning',
+        message: `翻案腔「${label}」——先立误解再推翻；改为正面直接下判断，真实的技术对比改写后保留全部限定`,
+        excerpt: excerptOf(text, match.index, match[0].length),
+      })
+    }
+  }
   let cursor = 0
   for (const sentence of sentencesOf(text)) {
     const start = text.indexOf(sentence, cursor)
@@ -121,6 +151,25 @@ export function lintProse(text: string): ProseLintResult {
         violations.push({
           rule: 'parallelism', severity: 'warning',
           message: `三连排比：${count} 个分句都以「${prefix}」开头——改为直接陈述具体改进点，每个对应一个量化依据`,
+          excerpt: excerptOf(text, start, 24),
+        })
+        break
+      }
+    }
+    const shell = TOPIC_SHELL.exec(sentence)
+    if (shell !== null) {
+      violations.push({
+        rule: 'topic-shell', severity: 'warning',
+        message: '前置话题壳（对于…来说/就…而言）——删掉壳子，让主语直接开头',
+        excerpt: excerptOf(text, start, 24),
+      })
+    }
+    for (const clause of sentence.split(/[，；]/)) {
+      const dunhao = (clause.match(/、/g) ?? []).length
+      if (dunhao > MAX_DUNHAO_PER_CLAUSE) {
+        violations.push({
+          rule: 'enumeration', severity: 'warning',
+          message: `顿号罗列过密（${dunhao + 1} 项并列）——能概括就概括，或打散其中一项的句法；部件与配置类必须完整列出的清单可保留`,
           excerpt: excerptOf(text, start, 24),
         })
         break
@@ -150,9 +199,12 @@ export function lintProse(text: string): ProseLintResult {
   const summary = {
     cliches: count('cliche'),
     longSentences: count('long-sentence'),
+    inversions: count('inversion'),
     parallelisms: count('parallelism'),
+    enumerations: count('enumeration'),
     paragraphSummaries: count('paragraph-summary'),
     definitions: count('definition'),
+    topicShells: count('topic-shell'),
     errors: violations.filter(violation => violation.severity === 'error').length,
     warnings: violations.filter(violation => violation.severity === 'warning').length,
   }

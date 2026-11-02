@@ -15,7 +15,7 @@ kind: "package-reference"
 |---|---|
 | `patent_brief_coverage` | 接受五个核心维度和三个辅助维度的文本；返回缺失维度、条数对齐和 `ready` |
 | `patent_claims_lint` | 接受权利要求文本及可选摘要，返回权项结构和 C1–C6 / A1–A2 违规 |
-| `patent_prose_lint` | 接受正文，检查套话、长句、排比、总结和定义式表述 |
+| `patent_prose_lint` | 接受正文，检查套话（含起手腔）、长句、翻案腔、排比、顿号罗列、话题壳、总结和定义式表述 |
 | `patent_loop` | 读取项目目录，返回首个未完成阶段、全部缺口和执行指令 |
 | `patent_setup_check` | 检查 MCP 装载、uv/uvx、Docker/镜像、draw.io 和检索通道，逐项报告修法 |
 

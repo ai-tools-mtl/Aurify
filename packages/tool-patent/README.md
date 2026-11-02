@@ -15,7 +15,7 @@ Registers five native tools and `/patent-loop`. The separate `patent_review` too
 |---|---|
 | `patent_brief_coverage` | Five core and three auxiliary text dimensions; missing dimensions, alignment counts and `ready` |
 | `patent_claims_lint` | Claims and optional abstract text; claim structure and C1–C6 / A1–A2 findings |
-| `patent_prose_lint` | Prose text; filler, long sentences, parallelisms, summaries and definitions |
+| `patent_prose_lint` | Prose text; filler and opener phrases, long sentences, inversions, parallelisms, dense enumerations, topic shells, summaries and definitions |
 | `patent_loop` | Project directory; first incomplete stage, all gaps and a directive |
 | `patent_setup_check` | Host-side checks of MCP loading, uv/uvx, Docker/images, draw.io and search connectivity, with remedies |
 
