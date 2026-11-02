@@ -41,17 +41,20 @@ try {
       await writeFile(join(stage, 'lib/client.js'), `window.__ModuleLoader__.load({id:${JSON.stringify(manifest.name)},factory:(require)=>{\nvar module={exports:{}};var exports=module.exports;\nif(typeof document!=='undefined'&&!document.querySelector('style[data-plugin-css=\"@mtl-academic/dsh-patent/client\"]')){const style=document.createElement('style');style.dataset.plugin='@mtl-academic/dsh-patent';style.dataset.pluginCss='@mtl-academic/dsh-patent/client';style.textContent=${JSON.stringify(css)};document.head.appendChild(style);}\n${js}\nreturn module.exports;\n}});\n`);
     }
     // Emit declarations without resolving the absent monorepo. This is not a type check.
+    // Include patterns must use forward slashes: TypeScript eats backslashes as escapes.
     const config = join(work, `${dir}.tsconfig.json`);
     await writeFile(config, JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler',
       declaration: true, emitDeclarationOnly: true, noCheck: true, allowImportingTsExtensions: true, jsx: 'react-jsx',
-      rootDir: join(src, 'src'), outDir: join(stage, 'lib/types') }, include: [join(src, 'src/**/*')] }));
+      rootDir: join(src, 'src'), outDir: join(stage, 'lib/types') }, include: [join(src, 'src/**/*').replaceAll('\\', '/')] }));
     execFileSync(process.execPath, [require.resolve('typescript/bin/tsc'), '-p', config], { stdio: 'inherit' });
     for (const asset of ['README.md', 'README.zh.md', ...(dir === 'bundle-patent' ? ['skills', 'cordis.patch.yml'] : []), ...(dir === 'command-patent-review' ? ['rubric'] : [])]) {
       await cp(join(src, asset), join(stage, asset), { recursive: true });
     }
     await writeFile(join(stage, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
     const filename = `${stem}-${manifest.version}.tgz`;
-    execFileSync('tar', ['-czf', join(dist, filename), '-C', dirname(stage), 'package'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
+    // Relative -f name with cwd=dist: GNU tar reads a colon in an absolute
+    // Windows path as a remote host ("Cannot connect to G:").
+    execFileSync('tar', ['-czf', filename, '-C', dirname(stage), 'package'], { cwd: dist, env: { ...process.env, COPYFILE_DISABLE: '1' } });
     console.log(filename);
   }
 } finally { await rm(work, { recursive: true, force: true }); }

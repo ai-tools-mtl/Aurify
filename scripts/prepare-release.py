@@ -25,7 +25,8 @@ for name in ('README.md', 'INSTALL-NEW-PROFILE.md'):
     guide = guide.replace('-File scripts/install-patent-profile.ps1', '-File install-patent-profile.ps1')
     (dist / name).write_text(guide)
 for spec in ('@deepseek-ai/schemastery@3.18.2', '@deepseek-ai/cosmokit@1.8.3'):
-    subprocess.run(['npm', 'pack', spec, '--registry=https://registry.npmjs.org',
+    # shutil.which resolves npm.cmd on Windows; CreateProcess does not apply PATHEXT.
+    subprocess.run([shutil.which('npm'), 'pack', spec, '--registry=https://registry.npmjs.org',
                     '--pack-destination', str(dist), '--ignore-scripts', '--quiet'], check=True)
 # Only current source versions belong in the release. Verification rejects stale archives.
 archive = dist / f'aurify-{version}.zip'
