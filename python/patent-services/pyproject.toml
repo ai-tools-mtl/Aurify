@@ -1,6 +1,6 @@
 [project]
 name = "deepseek-harness-patent-services"
-version = "0.1.2"
+version = "0.2.0"
 description = "MCP stdio server exposing patent disclosure parsing and export to the dsh patent profile"
 requires-python = ">=3.10"
 dependencies = [

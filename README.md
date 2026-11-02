@@ -45,7 +45,7 @@ DeepSeek Harness（dsh）的第三方专利撰写插件。先检索中国专利�
 
 ## 版本与分发
 
-当前源码：npm 三包 **0.1.6-alpha.7**，Python 服务 **0.1.2**，处于 alpha 阶段。安装包入口为 [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases)；`dist/` 是本地生成目录，不受 Git 追踪。
+当前源码：npm 三包 **0.2.0**，Python 服务 **0.2.0**。安装包入口为 [GitHub Releases](https://github.com/ai-tools-mtl/Aurify/releases)；`dist/` 是本地生成目录，不受 Git 追踪。
 
 GitHub Release、npm/PyPI 和插件市场各自发布，版本不一定同步。`mcp_wheel: true` 使用未锁定版本的 PyPI 包；精确运行本版 Python 服务请使用源码模式。开发、构建与验证范围见[开发指南](docs/DEVELOPMENT.md)，变更见[更新记录](CHANGELOG.md)。
 
