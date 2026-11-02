@@ -242,7 +242,7 @@ def test_render_html_figure_screenshots_beside_source(tmp_path, monkeypatch):
 
     def fake_run(cmd, **kwargs):
         commands.append(list(cmd))
-        out = Path(cmd[3].split("=", 1)[1])
+        out = Path(cmd[4].split("=", 1)[1])
         out.write_bytes(b"fake-png")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
@@ -252,9 +252,11 @@ def test_render_html_figure_screenshots_beside_source(tmp_path, monkeypatch):
     argv = commands[0]
     assert argv[0] == str(browser)
     assert argv[1] == "--headless"
-    assert argv[3].startswith("--screenshot=")
-    assert argv[5] == "--hide-scrollbars"
-    assert argv[6] == source.resolve().as_uri()
+    assert argv[2] == "--disable-gpu"
+    assert argv[3] == "--disable-lcd-text"
+    assert argv[4].startswith("--screenshot=")
+    assert argv[6] == "--hide-scrollbars"
+    assert argv[7] == source.resolve().as_uri()
 
 
 def test_render_html_figure_rejects_unknown_source_and_format(tmp_path, monkeypatch):

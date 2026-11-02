@@ -158,6 +158,9 @@ def render_html_figure(source: str, fmt: str = "png", browser: str | None = None
             executable,
             "--headless",
             "--disable-gpu",
+            # 文字用灰阶抗锯齿：LCD 子像素渲染会在字形边缘留下彩色边纹，
+            # 违反专利附图的黑白要求。
+            "--disable-lcd-text",
             f"--screenshot={output}",
             f"--window-size={HTML_VIEWPORT[0]},{HTML_VIEWPORT[1]}",
             "--hide-scrollbars",
