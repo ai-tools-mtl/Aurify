@@ -16,7 +16,7 @@ Aurify 的 Python MCP stdio 服务。Bundle 启用后，十个工具以 `mcp__pa
 | `export_application_docs(project_dir, fmt?)` | 将 `application/{claims,description,abstract}.md` 导出为单文件多分节；有附图时加入摘要附图和说明书附图 |
 | `render_drawio_figure(source, fmt?)` | drawio → png/pdf/svg/jpg；几何 error 阻止渲染，warning 随结果返回 |
 | `lint_drawio_figure(source)` | 检查缺锚点、拐点入框、共用拐点及平行线共走廊 |
-| `render_html_figure(source, fmt?)` | 经 Edge/Chrome 无头截图生成 png/jpg |
+| `render_html_figure(source, fmt?)` | 经 Edge/Chrome 无头截图生成 png/jpg；文字强制灰阶抗锯齿（`--disable-lcd-text`），输出纯黑白 |
 | `search_patent_archive(query, archive_dir, limit?)` | jieba + SQLite FTS5 BM25 检索本地 Markdown，跳过导出及工具目录，返回出处与摘要 |
 | `search_cn_patents(query, limit?, since_year?, project_dir?)` | Google Patents CN 检索；传入项目目录时将成功结果追加到 `reference/search-history.md` |
 | `run_experiment(project_dir, experiment, command?, timeout_seconds?)` | Docker 中运行实验，追加 `results/run-log.md`，返回输出尾部和日志路径 |

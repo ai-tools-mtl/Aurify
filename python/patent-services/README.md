@@ -16,7 +16,7 @@ Aurify's Python MCP stdio server. When enabled through the Bundle, ten tools app
 | `export_application_docs(project_dir, fmt?)` | Export `application/{claims,description,abstract}.md` into one file with sections; add abstract and description figures when available |
 | `render_drawio_figure(source, fmt?)` | drawio → png/pdf/svg/jpg; geometry errors block rendering and warnings accompany results |
 | `lint_drawio_figure(source)` | Check missing anchors, waypoints inside boxes, shared bends and parallel corridors |
-| `render_html_figure(source, fmt?)` | Edge/Chrome headless screenshots to png/jpg |
+| `render_html_figure(source, fmt?)` | Edge/Chrome headless screenshots to png/jpg; text uses grayscale antialiasing (`--disable-lcd-text`) for pure black-and-white output |
 | `search_patent_archive(query, archive_dir, limit?)` | jieba + SQLite FTS5 BM25 over local Markdown, excluding export/tool directories; return sources and snippets |
 | `search_cn_patents(query, limit?, since_year?, project_dir?)` | Google Patents CN search; append successful results to `reference/search-history.md` when a project directory is supplied |
 | `run_experiment(project_dir, experiment, command?, timeout_seconds?)` | Run in Docker, append `results/run-log.md`, return output tail and log path |
