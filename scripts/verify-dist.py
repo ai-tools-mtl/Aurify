@@ -26,7 +26,7 @@ for directory in ('bundle-patent', 'tool-patent', 'command-patent-review'):
             for target in (value.values() if isinstance(value, dict) else [value]):
                 assert 'package/' + target.removeprefix('./') in names, target
         if directory == 'bundle-patent':
-            assert sum(n.endswith('/SKILL.md') for n in names) == 14
+            assert sum(n.endswith('/SKILL.md') for n in names) == 15
             client = tar.extractfile('package/lib/client.js').read().decode()
             # The monorepo tsdown build keeps spaces ("textContent = css"); the
             # standalone scripts/build-dist.mjs minifies them away — accept both.

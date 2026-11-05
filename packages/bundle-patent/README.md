@@ -25,6 +25,7 @@ The bundle is persona-free and can join a general-purpose profile. The single ma
 
 | Task | Skills |
 |---|---|
+| Repository mining | [patent-mining](skills/patent-mining/SKILL.md): connect GitHub/GitLab/Gitee/local clones, map the token's real permissions to admin/participant/observer roles, produce candidates with reconcilable evidence chains |
 | Evaluation, interview and progression | [patent-init](skills/patent-init/SKILL.md), [patent-loop](skills/patent-loop/SKILL.md) |
 | Research and experiments | [patent-research](skills/patent-research/SKILL.md), [patent-experiment](skills/patent-experiment/SKILL.md) |
 | Chapters and writing quality | [patent-chapters](skills/patent-chapters/SKILL.md), [patent-writing-quality](skills/patent-writing-quality/SKILL.md), [patent-de-ai](skills/patent-de-ai/SKILL.md), [patent-effect-contrast](skills/patent-effect-contrast/SKILL.md) |

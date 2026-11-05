@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Aurify's Python MCP stdio server. When enabled through the Bundle, ten tools appear with the `mcp__patent__` prefix. See the [installation guide](../../docs/install/INSTALL-NEW-PROFILE.md#services-and-runtime-dependencies) for setup.
+Aurify's Python MCP stdio server. When enabled through the Bundle, fifteen tools appear with the `mcp__patent__` prefix. See the [installation guide](../../docs/install/INSTALL-NEW-PROFILE.md#services-and-runtime-dependencies) for setup.
 
 ## Tool interfaces
 
@@ -20,6 +20,17 @@ Aurify's Python MCP stdio server. When enabled through the Bundle, ten tools app
 | `search_patent_archive(query, archive_dir, limit?)` | jieba + SQLite FTS5 BM25 over local Markdown, excluding export/tool directories; return sources and snippets |
 | `search_cn_patents(query, limit?, since_year?, project_dir?)` | Google Patents CN search; append successful results to `reference/search-history.md` when a project directory is supplied |
 | `run_experiment(project_dir, experiment, command?, timeout_seconds?)` | Run in Docker, append `results/run-log.md`, return output tail and log path |
+| `repo_check_access(provider?, repo?)` | Probe the platform connection: identity, masked token and accessible repositories; with `repo`, return that repository's role and attribution discipline |
+| `repo_scan(repo, mining_dir, provider?, max_commits?)` | Collect role-gated mining facts (module clusters, hotspot files, release spans, contributors), appending `<mining_dir>/repo-mining/<owner>__<repo>/ledger.md` |
+| `repo_read_object(repo, kind, ref?, path?, provider?)` | Deep-read one object: commit (with patch excerpts) / pull / release / file (capped with an explicit note) |
+| `repo_verify_evidence(candidate_path, provider?)` | Re-fetch each commit a candidate cites, reconciling sha/author/touched paths and inventor proposals into a pass or mismatch list |
+| `repo_forget(provider)` | Remove the provider's token line from the config, clear cached responses and name the platform-side revocation step |
+
+## Repository mining contracts
+
+- Connection settings live in `$DSH_HOME/repo-mining.yaml` (structured YAML, separate from patent-services.yaml): a `providers` list (`platform: github|gitlab|gitee|local`, `base_url` — required for self-hosted hosts; for `local` it is the clone directory — plus `token`), `default_provider` and `limits.max_commits_per_scan`. The `DSH_PATENT_REPO_TOKEN_<NAME>` environment variable overrides the file value; tool output always masks tokens.
+- Roles map from the token's real permissions: GitHub `permissions.admin/maintain/push`, GitLab `access_level` (≥40/≥30/≥10), Gitee `permissions` — admin / participant / observer. For `local`, the role is the declared `declared_role`; the adapter only verifies the directory reads as a git repository. The role bounds the scan budget (commit and deep-read caps intersect with the config limit) and the attribution discipline (admins mine everything, participants center on their own commits, observers stop at leads).
+- Scanning, deep reads and evidence reconciliation are read-only; repository content is treated as untrusted data and no code from it is executed. Inventor proposals may only come from evidence authors; a candidate failing `repo_verify_evidence` must not proceed to prior-art search.
 
 ## File and execution contracts
 

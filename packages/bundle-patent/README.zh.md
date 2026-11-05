@@ -25,6 +25,7 @@ Bundle 不携带 persona，可以装入通用档案。专用 persona 的唯一�
 
 | 任务 | 技能 |
 |---|---|
+| 仓库挖掘 | [patent-mining](skills/patent-mining/SKILL.md)：接入 GitHub/GitLab/Gitee/本地 clone，按 token 权限映射管理员/参与者/观察者角色，产出带证据链的候选文件 |
 | 评估、访谈与循环推进 | [patent-init](skills/patent-init/SKILL.md)、[patent-loop](skills/patent-loop/SKILL.md) |
 | 查新与实验 | [patent-research](skills/patent-research/SKILL.md)、[patent-experiment](skills/patent-experiment/SKILL.md) |
 | 章节与写作质量 | [patent-chapters](skills/patent-chapters/SKILL.md)、[patent-writing-quality](skills/patent-writing-quality/SKILL.md)、[patent-de-ai](skills/patent-de-ai/SKILL.md)、[patent-effect-contrast](skills/patent-effect-contrast/SKILL.md) |

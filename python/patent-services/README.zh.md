@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-Aurify 的 Python MCP stdio 服务。Bundle 启用后，十个工具以 `mcp__patent__` 前缀出现在模型工具表中。安装与启用统一见[安装指南](../../docs/install/README.md#服务与运行依赖)。
+Aurify 的 Python MCP stdio 服务。Bundle 启用后，十五个工具以 `mcp__patent__` 前缀出现在模型工具表中。安装与启用统一见[安装指南](../../docs/install/README.md#服务与运行依赖)。
 
 ## 工具接口
 
@@ -20,6 +20,17 @@ Aurify 的 Python MCP stdio 服务。Bundle 启用后，十个工具以 `mcp__pa
 | `search_patent_archive(query, archive_dir, limit?)` | jieba + SQLite FTS5 BM25 检索本地 Markdown，跳过导出及工具目录，返回出处与摘要 |
 | `search_cn_patents(query, limit?, since_year?, project_dir?)` | Google Patents CN 检索；传入项目目录时将成功结果追加到 `reference/search-history.md` |
 | `run_experiment(project_dir, experiment, command?, timeout_seconds?)` | Docker 中运行实验，追加 `results/run-log.md`，返回输出尾部和日志路径 |
+| `repo_check_access(provider?, repo?)` | 校验平台接入：身份、掩码 token 与可访问仓库列表；带 repo 时返回该仓库的角色与产出纪律 |
+| `repo_scan(repo, mining_dir, provider?, max_commits?)` | 按角色收集挖掘事实（模块聚类、热点文件、release 对比、贡献者），追加 `<mining_dir>/repo-mining/<owner>__<repo>/ledger.md` |
+| `repo_read_object(repo, kind, ref?, path?, provider?)` | 深读单个对象：commit（含 patch 摘录）/ PR / release / 文件（限量截断） |
+| `repo_verify_evidence(candidate_path, provider?)` | 重取候选文件引用的 commit，逐条对账 sha/作者/改动路径与发明人候选，给出通过与失配清单 |
+| `repo_forget(provider)` | 移除配置文件中该 provider 的 token 行并清空缓存，提示平台侧撤销步骤 |
+
+## 仓库挖掘约定
+
+- 接入配置在 `$DSH_HOME/repo-mining.yaml`（独立于 patent-services.yaml 的结构化 YAML）：`providers` 列表（`platform: github|gitlab|gitee|local`、`base_url`（私网自建必填，local 填本地 clone 目录）、`token`）加 `default_provider` 与 `limits.max_commits_per_scan`。token 可用 `DSH_PATENT_REPO_TOKEN_<NAME>` 环境变量覆盖，优先于文件值；工具输出永远只显示掩码。
+- 角色由 token 实际权限映射：GitHub `permissions.admin/maintain/push`、GitLab `access_level`（≥40/≥30/≥10）、Gitee `permissions`，分别对应管理员/参与者/观察者；local 平台角色由 `declared_role` 声明，工具只校验仓库可读。角色决定扫描上限（提交数与深读数取矩阵与配置上限的较小者）与产出纪律（管理员全库、参与者本人语料优先、观察者仅线索级）。
+- 扫描、深读与候选对账全部只读；仓库内容按不可信数据处理，不执行任何来自仓库的代码。发明人候选只能来自证据 commit 作者；`repo_verify_evidence` 失配的候选不得进入检索评估。
 
 ## 文件与执行约定
 

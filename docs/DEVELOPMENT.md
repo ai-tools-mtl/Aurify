@@ -6,10 +6,10 @@ Aurify 是从 DeepSeek Harness monorepo 提取的插件源码仓。三个 TypeSc
 
 | 路径 | 内容 |
 |---|---|
-| `packages/bundle-patent` | 14 个技能、Web 卡片、项目面板与组合 patch |
+| `packages/bundle-patent` | 15 个技能、Web 卡片、项目面板与组合 patch |
 | `packages/tool-patent` | 五个原生工具、`/patent-loop` 与环境检查 |
 | `packages/command-patent-review` | 审查命令/工具、固定 workflow 与七维 rubric |
-| `python/patent-services` | 十个 MCP 工具、Word 模板、Dockerfile 与 Python 测试 |
+| `python/patent-services` | 十五个 MCP 工具、Word 模板、Dockerfile 与 Python 测试（`repo_*` 五件为仓库挖掘：接入 GitHub/GitLab/Gitee/本地 clone，配置在 `~/.dsh/repo-mining.yaml`） |
 | `docs/install` | 双语安装指南，同时作为 Release 附件源 |
 | `scripts` | 独立构建、校验、Windows 安装器、persona 正本及宿主版本映射 |
 | `dist` | Git 忽略的本地生成目录 |
