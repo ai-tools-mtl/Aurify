@@ -350,7 +350,7 @@ export async function apply(ctx: Context): Promise<void> {
 
   ctx.tools.register(defineTool({
     name: 'patent_loop',
-    description: 'Assess a patent project from any stage and name the one next pipeline stage '
+    description: 'Assess the pipeline stage of a patent project and name the one next stage '
       + '(init → align → chapters → experiments → figures → review → export) with its directive. '
       + 'Every verdict is read from disk facts — manifest, brief, chapters (a project carrying '
       + 'experiments or quantified effects also needs the verification chapter 09-verification.md), '
@@ -493,7 +493,7 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.effect(function* () {
     yield ctx.commands.register({
       name: 'patent-loop',
-      description: '从任何阶段把专利项目推进到成稿交底书（评估当前阶段→注入推进指令→循环直到 complete）',
+      description: '从任何阶段把专利项目推进到成稿交底书（判定当前阶段→注入推进指令→循环直到 complete）',
       handler,
     })
   }, 'tool-patent loop command')
