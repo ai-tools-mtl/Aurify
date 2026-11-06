@@ -104,10 +104,10 @@ function loopPrompt(state: LoopState): string {
   const gapLines = state.gaps.map(gap => `- [${gap.stage}] ${gap.detail}`).join('\n')
   return `【patent-loop 全流程推进】项目：${state.projectName}（${state.projectRoot}）\n`
     + `当前阶段：${state.stage}${state.mayNeedUser ? '（本阶段需要用户输入）' : ''}\n`
-    + `待办清单：\n${gapLines.length > 0 ? gapLines : '- 无——项目已成稿'}\n\n`
+    + `待办清单：\n${gapLines.length > 0 ? gapLines : '- 交底材料已成稿，评估状态仍须按指令核对'}\n\n`
     + `本阶段指令：${state.directive}\n\n`
     + '循环契约（必须遵守）：\n'
-    + `1. 先加载本阶段指定的技能（${state.skills.length > 0 ? state.skills.join('、') : '无需技能'}）再动手，严格按技能的目录与纪律执行：附图渲染后必须派 subagent 验收合格才保留；正式实验数据必须出自 run_experiment 工具；导出一律走 patent-services 的 MCP 工具，禁止手拼 docx。\n`
+    + `1. 先加载 patent-loop 技能核对并按需恢复评估，再加载本阶段指定的技能（${state.skills.length > 0 ? state.skills.join('、') : '无额外材料阶段技能'}）；恢复不受 init/align 限制，若源文件更新须重调 patent_loop，不执行旧阶段。严格按技能的目录与纪律执行：附图渲染后必须派 subagent 验收合格才保留；正式实验数据必须出自 run_experiment 工具；导出一律走 patent-services 的 MCP 工具，禁止手拼 docx。\n`
     + '2. 每完成一个阶段就再次调用 patent_loop 工具核验；只有它返回 complete=true 才算完成，禁止凭感觉宣布成稿。\n'
     + '3. 需要用户输入时（方向拍板、访谈问答、复述确认），把问题抛给用户并结束本轮；用户回答后继续推进，用户也可随时再发 /patent-loop 恢复。\n'
     + '4. 工具或网络不可用时如实说明并给启用方法，不静默降级、不编造。'
@@ -125,7 +125,7 @@ function renderLoop(value: { complete: boolean; projectName: string; stage: stri
     ? `LOOP COMPLETE: ${value.projectName} 已成稿（导出物、附图、审查报告全部就位）。`
     : `LOOP STAGE [${value.stage}]: ${value.gaps[0] ?? ''}`
   const tail = value.complete
-    ? '交付导出物路径与要点摘要即可，不要再循环。'
+    ? '先按指令核对评估记录；源文件未变时随交付说明评估状态与未清事项，结束循环；源文件有变时重新调用 patent_loop。'
     : '按指令完成后再次调用 patent_loop 核验，直到返回 LOOP COMPLETE。'
   return [{ type: 'text', text: `${head}\n${value.directive}\n${tail}` }]
 }
@@ -361,7 +361,9 @@ export async function apply(ctx: Context): Promise<void> {
       + 'the sources, and the exported disclosure docx — never from the conversation, so this is the '
       + 'only authority on whether the project is 成稿. '
       + 'Use it to start or resume a full-pipeline push ("loop", "继续推进", "帮我完成"), and call it '
-      + 'again after finishing each stage; only its complete=true verdict ends the loop.',
+      + 'again after finishing each stage. Follow the patent-loop skill to check and resume evaluation '
+      + 'records at every stage, including done; complete=true only confirms disclosure artifacts, '
+      + 'not patentability. If recovery changes source files, call this tool again before delivery.',
     parameters: {
       project_dir: {
         type: 'string',
@@ -478,14 +480,14 @@ export async function apply(ctx: Context): Promise<void> {
     const raw = invocation.rawInput.trim()
     const root = resolve(cwd, raw.length > 0 ? raw : '.')
     const state = await assessLoopState(root)
-    if (!state.complete) {
-      invocation.agent.followup(createUserMessage({
-        content: [{ type: 'text', text: loopPrompt(state) }],
-        source: { kind: 'user' },
-      }))
-    }
+    // A completed disclosure can still have a deferred or stale evaluation.
+    // Always inject the recovery/delivery contract, including at `done`.
+    invocation.agent.followup(createUserMessage({
+      content: [{ type: 'text', text: loopPrompt(state) }],
+      source: { kind: 'user' },
+    }))
     const head = state.complete
-      ? `项目已成稿（${state.projectName}）：交底书导出物、附图、审查报告全部就位，无需循环。`
+      ? `交底材料已成稿（${state.projectName}）：已注入评估记录核对与交付指令；成稿不等于可专利性评估通过。`
       : `patent-loop 已启动：${state.projectName} — 当前阶段 ${state.stage}（${state.gaps[0]?.detail ?? ''}）；推进指令已注入会话，模型完成后会自动核验下一阶段。`
     const roadmap = state.gaps.map(gap => `[${gap.stage}] ${gap.detail}`).join('；')
     return { kind: 'success', text: roadmap.length > 0 ? `${head}\n待办：${roadmap}` : head }

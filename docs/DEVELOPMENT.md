@@ -43,6 +43,14 @@ uv run --locked --project python/patent-services --group test pytest python/pate
 
 独立 TS 构建生成 JS、Web 客户端和 `.d.ts`。**声明生成使用 `noCheck`，构建通过不代表完整类型检查通过。** TS 的 vitest、完整类型检查和宿主 UI 集成需兼容的 DeepSeek Harness monorepo，本仓库不附带该 monorepo。
 
+已安装 `scripts` 构建依赖时，可独立验证评估恢复的工具／命令入口：
+
+```sh
+node --test packages/tool-patent/tests/loop-recovery.standalone.test.mjs
+```
+
+该测试使用真实的注册代码、命令、阶段判定器、源指纹和临时文件，仅替代宿主的工具注册及消息包装，不启动 MCP 或访问网络。覆盖成稿项目仍注入评估核对、证据同步到 brief 后旧产物失效及 review 阶段仍有恢复指令、环境门与用户选择要求保留。它不运行模型，不能证明技能已实际完成语义重评、法律判断或提案全部行为场景；完整宿主和模型验收需另行执行。
+
 CI 执行 Python 测试、独立构建及产物完整性校验，不执行宿主 UI、Windows 安装器或 Docker 全链路。记录验证结果时写清执行范围，兼容代码分支不作为实测结论。
 
 开发时可在 `~/.dsh/patent-services.yaml` 合并以下配置，替换实际绝对路径：

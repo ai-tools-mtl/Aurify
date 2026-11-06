@@ -489,7 +489,7 @@ describe('patent_loop tool and patent-loop command registration', () => {
     expect(followups).toHaveLength(1)
   })
 
-  it('skips the followup entirely when the project is already complete', async () => {
+  it('injects evaluation recovery and delivery instructions even when disclosure artifacts are complete', async () => {
     const dir = await fullProject('done-project')
     await writeFile(join(dir, 'chapters', '08-drawings.md'), `# 附图说明\n\n图1 为流程总览图。\n${BODY}`, 'utf8')
     await mkdir(join(dir, 'figures'), { recursive: true })
@@ -505,7 +505,14 @@ describe('patent_loop tool and patent-loop command registration', () => {
     }
     const result = await handler({ rawInput: 'done-project', agent })
     expect(result.text).toContain('已成稿')
-    expect(followups).toHaveLength(0)
+    expect(result.text).toContain('评估记录核对')
+    expect(followups).toHaveLength(1)
+    const prompt = JSON.stringify(followups[0])
+    expect(prompt).toContain('patent-loop')
+    expect(prompt).toContain('brief.md')
+    expect(prompt).toContain('reference/')
+    expect(prompt).toContain('评估状态')
+    expect(prompt).toContain('先重新调用 patent_loop')
   })
 })
 

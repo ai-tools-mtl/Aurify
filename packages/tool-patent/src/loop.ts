@@ -607,6 +607,9 @@ const STAGE_DIRECTIVES: Readonly<Record<Exclude<LoopStage, 'done'>, { directive:
 /** The completed-stage directive: deliver, and stop looping. */
 const DONE_DIRECTIVE = '项目已成稿：交底书导出物存在且不落后于源文件、附图齐全、审查报告在 review/。complete=true 只表示交底材料阶段齐备，不等于可专利性评估通过或授权结论——向用户交付导出物路径与要点摘要时，随附 brief.md 评估节当前记载的评估状态、适用版本与未清事项；用户明确要求推进申请文件时才走 patent-claims 与 patent-application。结束循环。'
 
+/** Evaluation recovery is a skill action at every stage, not an assessor gate. */
+const EVALUATION_RESUME_DIRECTIVE = '先加载 patent-loop 技能核对评估记录，遵守既有环境自检门；已有项目读取 brief.md 与 reference/ 账本，核对方案、证据版本及未清事项，缺历史记录记为未评估。补证已到或有实质变化时，无论当前材料阶段（包括 done），按 patent-init/patent-research 恢复受影响的评估；不能只改状态或沿用失效建议。若更新了 brief.md、正文或附图等参与既有源指纹的文件，先重新调用 patent_loop 获取当前材料阶段，再执行阶段指令，不沿用本次旧阶段。仍有决定性缺口时保存恢复条件；仅在用户已授权带缺口继续材料工作的范围内推进，否则说明待补项并等待。评估状态由技能维护，不改写工具的 stage、gaps 或 complete。'
+
 /**
  * Run one assessment pass over a project directory and produce the loop
  * state: the first incomplete stage, the full pending roadmap, and the
@@ -682,7 +685,8 @@ export async function assessLoopState(projectDir: string): Promise<LoopState> {
   // The relaxed-threshold debt follows the project through every stage —
   // including done, where a delivered disclosure would otherwise present
   // itself as fully clean while the prior-art search never actually ran.
-  const directive = degraded ? `${current.directive}\n${PRIOR_ART_DEBT_NOTE}` : current.directive
+  const stageDirective = `${EVALUATION_RESUME_DIRECTIVE}\n${current.directive}`
+  const directive = degraded ? `${stageDirective}\n${PRIOR_ART_DEBT_NOTE}` : stageDirective
   return {
     projectRoot: root,
     projectName,
