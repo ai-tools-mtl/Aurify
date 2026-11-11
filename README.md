@@ -5,6 +5,8 @@ DeepSeek Harness（dsh）的第三方专利撰写插件。先检索中国专利�
 ## 安装与开始使用
 
 1. 在 DeepSeek Harness 桌面版 **设置 → 插件市场**中搜索 **Aurify** 或 **点金**，安装到当前活动档案。
+
+   也可走社区市场：本插件已被社区插件市场 [DSH Market](https://dsh.market/)（[源码](https://github.com/2BingLing/dsh-market)）收录。推荐桌面端 [DeepSeek Harness Desktop](https://github.com/dsh-tauri/deepseek-harness-desktop) 可在启动引导中按需安装「DSH Market」预设插件，之后在其侧边栏「插件市场」中文搜索 **Aurify** 一键安装；不装插件时也可直接在 Web 版搜索并复制安装命令。
 2. 在该档案中发送：
 
    > 帮我初始化点金插件的运行环境，检查并配置所需依赖和服务。
@@ -50,3 +52,8 @@ DeepSeek Harness（dsh）的第三方专利撰写插件。先检索中国专利�
 GitHub Release、npm/PyPI 和插件市场各自发布，版本不一定同步。`mcp_wheel: true` 使用未锁定版本的 PyPI 包；精确运行本版 Python 服务请使用源码模式。开发、构建与验证范围见[开发指南](docs/DEVELOPMENT.md)，变更见[更新记录](CHANGELOG.md)。
 
 Aurify 与 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 无隶属关系。
+
+## 友链
+
+- [DeepSeek Harness Desktop](https://github.com/dsh-tauri/deepseek-harness-desktop)：推荐使用的 dsh 桌面端，启动引导中可安装 DSH Market 社区插件市场。
+- [DSH Market](https://dsh.market/)：社区插件市场（[2BingLing/dsh-market](https://github.com/2BingLing/dsh-market)），已收录本插件。

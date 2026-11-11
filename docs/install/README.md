@@ -9,6 +9,8 @@
 ## 插件市场与自然语言初始化（推荐）
 
 1. 桌面版 **设置 → 插件市场**搜索 **Aurify** 或 **点金**，安装到当前活动档案。
+
+   也可走社区市场：本插件已被社区插件市场 [DSH Market](https://dsh.market/)（[源码](https://github.com/2BingLing/dsh-market)）收录。推荐桌面端 [DeepSeek Harness Desktop](https://github.com/dsh-tauri/deepseek-harness-desktop) 可在启动引导中按需安装「DSH Market」预设插件，之后在其侧边栏「插件市场」中文搜索 **Aurify** 一键安装；不装插件时也可直接在 Web 版搜索并复制安装命令。
 2. 在该档案会话中输入：
 
    > 帮我初始化点金插件的运行环境，检查并配置所需依赖和服务。
