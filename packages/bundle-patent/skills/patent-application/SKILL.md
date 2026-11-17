@@ -1,6 +1,6 @@
 ---
 name: patent-application
-description: 中国专利申请说明书的五段式撰写程序与申请书导出验收。当要把交底书推进为申请文件、起草或修订 application/description.md 与 application/abstract.md、或把申请文件导出为代理机构正式模板格式的申请书 docx 时启用——说明书按法定五段结构组织，摘要不超过300字，附图说明与 chapters/08-drawings.md 对齐，导出后必须派 subagent 视觉验收。
+description: 中国专利申请说明书的五段式撰写程序与申请书导出验收。适用于：用户明确点名推进申请文件——要把交底书推进为申请文件、起草或修订 application/description.md 与 application/abstract.md、或导出代理机构正式模板格式的申请书 docx（触发词：申请文件、申请书、说明书、权利要求书、提交）。负向路由："完成/写完/交付"这类未点名指令默认指向交底书，先走 patent-services，不加载本技能。说明书按法定五段结构组织，摘要不超过300字，导出后必须派 subagent 视觉验收。
 ---
 
 # 说明书撰写（五段式）与申请书导出
@@ -37,7 +37,7 @@ description: 中国专利申请说明书的五段式撰写程序与申请书导�
 
 - ≤300 字（非空白字符），写发明名称、技术领域、核心手段、主要效果各一句；
 - 不得出现"附图说明"性内容和商业宣传语；
-- 定稿前把摘要传入 `patent_claims_lint`（连同 claims）核对 A1。
+- 定稿前把摘要传入 `patent_claims_lint`（连同 claims）核对 A1（工具与传法见 patent-claims「撰写程序」第 5 步）。
 
 ## 撰写程序
 
@@ -60,7 +60,8 @@ description: 中国专利申请说明书的五段式撰写程序与申请书导�
 
 ## 导出与验收门（subagent 强制）
 
-1. 调 `export_application_docs(project_dir, fmt="docx")` 导出（有 figures/ 成品时自动带摘要附图与说明书附图节）；
+0. 🔴 **导出门**：先跑 `patent_claims_lint`（claims 全文连同摘要）确认零 error，再向用户确认"即将导出正式申请书"且此后源文件未再改动——确认后被改动的源要重新确认。两条都满足才进第 1 步。
+1. 调 `export_application_docs(project_dir, fmt="docx")` 导出（有 figures/ 成品时自动带摘要附图与说明书附图节）；工具不可用或报错时如实说明并停止，不手拼 docx 代替；
 2. 核对返回信息：warnings 逐条处理（多余一级标题→修源文件；名称超字→找用户）；"内嵌附图 N 张"与 chapters/08 声明条数一致，零附图或缺图先修命名与渲染再重导；
 3. 转 PDF 渲染成 PNG（LibreOffice `soffice --convert-to pdf` 或 Word COM），**派 subagent 逐页视觉验收**，派单附上 claims/description 源要点供核对。自查不算验收——撰写者对自己漏抄的段落是盲区。检查单：
    - 五节页眉正确（说明书摘要/摘要附图/权利要求书/说明书/说明书附图），页码每节重排；
@@ -73,11 +74,7 @@ description: 中国专利申请说明书的五段式撰写程序与申请书导�
 
 ## 完成判定
 
-- 五段齐全且顺序正确；每条权项在"发明内容"或"具体实施方式"有可指认的支持表述；
-- 摘要 ≤300 字且四要素齐备；
-- 附图说明条数与 chapters/08 及 figures/ 一致；
-- `patent_claims_lint` 无 error；
-- subagent 视觉验收全页通过。
+逐项对照文末「检查清单」，全部通过即视为完成——判定条目与清单一一对应，不在此重复罗列；清单之外唯一补充：每条权项在"发明内容"或"具体实施方式"有**可指认**的支持表述（不是语义近似，是能指出在第几段）。
 
 ## 修订纪律
 
