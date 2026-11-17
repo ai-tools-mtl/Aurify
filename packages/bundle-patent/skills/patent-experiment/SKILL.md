@@ -23,8 +23,21 @@ experiments/
 
 - 实验脚本只写进 `experiments/<slug>/`，**不得**散落在项目根、chapters/ 或 figures/ 下。
 - `requirements.txt` 只列镜像预装栈之外的依赖；预装栈见 `run_experiment` 工具说明（numpy/scipy/pandas/matplotlib/openpyxl）。
-- `command` 参数只接受带普通参数的单个 `python`/`python3` 调用（如 `python run.py`、`python -m pytest -q`），不得携带 shell 运算符（`;` `&` `|` `` ` `` `$` `(` `)` `<` `>`）——它在整个项目的读写挂载上执行，白名单是硬约束（`python -c` 内联代码同样被拒——正式出数的代码必须落在实验目录里，运行记录的代码指纹才有可锚定的版本）；确需非 Python 命令（Node、C++ 等）时，请用户设置 `DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1` 后再用，并在实验 README 里写明理由。
-- `requirements.txt` 默认只装轮子（`--only-binary`）：源码发行包会在安装时执行其 setup.py，是任意代码面。极少数只有源码包的依赖，请用户在 `~/.dsh/patent-services.yaml` 设 `experiment_pip_allow_source: true` 后重跑，并在实验 README 里写明是哪个包、为什么必须用它。
+- `command` 参数只接受带普通参数的单个 `python`/`python3` 调用（如 `python run.py`、`python -m pytest -q`），不得携带 shell 运算符（`;` `&` `|` `` ` `` `$` `(` `)` `<` `>`）——白名单是硬约束，命令在整个项目的读写挂载上执行。
+- `python -c` 内联代码同样被拒：正式出数的代码必须落在实验目录里，运行记录的代码指纹才有可锚定的版本。
+- 确需非 Python 命令（Node、C++ 等）时：请用户设置 `DSH_EXPERIMENT_ALLOW_ANY_COMMAND=1` 后再用，并在实验 README 里写明理由。
+- `requirements.txt` 默认只装轮子（`--only-binary`）：源码发行包会在安装时执行其 setup.py，是任意代码面。
+- 极少数只有源码包的依赖：请用户在 `~/.dsh/patent-services.yaml` 设 `experiment_pip_allow_source: true` 后重跑，并在实验 README 里写明是哪个包、为什么必须用它。
+
+## 主线流程（一个实验从建到进正文）
+
+| # | 环节 | 输入 → 动作 → 输出 |
+|---|------|--------------------|
+| 1 | 建实验目录 | 实验目的 → 按上方目录约定建 `experiments/<slug>/` → 实验骨架（run.py、requirements.txt、README.md、data/、results/） |
+| 2 | 定数据源 | 技术方案 → 按「数据来源」顺序取用并留档 → `data/` 文件或标定依据清单 |
+| 3 | 正式出数 | 实验脚本 → 沙箱调试草稿、`run_experiment` 工具转正 → run-log.md 最新记录退出码 0 |
+| 4 | 出结果图并验收 | 正式数据 → matplotlib 按「实验图规范」出图 → 经 subagent 视觉验收的 results/ 图 |
+| 5 | 溯源回填 | 正式记录 + 图 → 按「数据进正文」确认后引用、回填 09 章、图复制进 figures/ → 正文数字 + 附图 + 实验验证章 |
 
 ## 执行通道
 
@@ -57,9 +70,10 @@ experiments/
 
 ## 数据进正文
 
+- 🔴 **数字回填与图定稿前先确认**：向用户复述「引用数字 → run-log 出处」清单，确认无误再写章、复制图进 figures/。
 - 交底书效果章（07-effect）或申请文件引用的**每个关键数字**，必须能溯源到 experiments/ 下的一次运行记录。写进正文时在会话里说明出处；正文本身保持散文体，不放运行日志。
 - **禁止编造**：没有对应运行记录的数字不进正文。用户口头给的参考数据标注来源后再引用。
-- **凡正式出数的实验必须配结果图**——数字进了正文（效果章、有益效果、具体实施方式）而没有任何实验结果图进附图，视同未完成：把结果图画进 `results/`（matplotlib 脚本入实验目录，读 results/ 的输出数据出图），定稿复制为 `figures/图N.png`（编号顺延既有示意图），08 章补"图N 为…"条目，随导出进交付文档。算法/性能类优化点的说服力在对比曲线与柱状图上，不画出来，审查人和代理人就只看到一表格裸数。
+- **凡正式出数的实验必须配结果图**——数字进了正文（效果章、有益效果、具体实施方式）而没有任何实验结果图进附图，视同未完成。算法/性能类优化点的说服力在对比曲线与柱状图上，不画出来，审查人和代理人就只看到一表格裸数。出图程序：结果图画进 `results/`（matplotlib 脚本入实验目录，读 results/ 的输出数据出图）→ 定稿复制为 `figures/图N.png`（编号顺延既有示意图）→ 08 章补"图N 为…"条目 → 随导出进交付文档。
 - 结果图同样走 patent-figure-design 的 subagent 视觉验收门：渲染不出的字体（豆腐块）、图例压线、黑白不可辨，验收不过不许进 figures/ 根。
 - **出数后回填实验验证章**：把结果与关键数字写进 chapters/09-verification.md（五要素结构见 patent-chapters：针对什么事情、普遍的解决方式、遇到的问题、本专利如何解决、解决效果）——章里引用的每个数字都要能溯源到一条运行记录，无记录的数字不进章。
 
