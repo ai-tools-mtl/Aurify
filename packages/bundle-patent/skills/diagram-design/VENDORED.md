@@ -14,6 +14,23 @@ patent assistant can draw figure types the three drawio-native shapes do not cov
   - Documentation links: correct the quadrant scenario-matrix anchor in
     `SKILL.md` to GitHub's heading slug and add explicit `url`, `skill`, and
     `folder` anchors to `references/onboarding.md` for its existing navigation links.
+  - SKILL.md description rewritten to state trigger scenarios ("Use when the user
+    asks to create/draw/redraw a diagram…") and to put the output form within the
+    first 250 characters — upstream ships a bare capability list with no routing
+    cues, so the router cannot tell when to load the skill.
+  - SKILL.md body kept under the 500-line budget by sinking verbatim content:
+    §7 per-type complexity budget → `references/complexity-budget.md` (new file),
+    §8 summary-card pattern and the dotted-paper variant → `references/output-spec.md`
+    §§ 7–8, and the Google Fonts `<link>` snippet → pointer to
+    `references/style-guide.md` § Font stack (which already ships the snippet).
+  - SKILL.md failure-mode fallbacks added: unparsable `.diagram-design` marker →
+    fall through to the markerless gate path; `self_check.py` failure → fix the
+    reported items and rerun; import sources that fail to extract (encrypted,
+    corrupted, oversized) → report and ask for a re-export, never guess; unreachable
+    Google Fonts → keep the family stack and let the browser fall back; §9 six
+    connector-rule checklist lines compressed to one §6 pointer carrying the
+    verify-geometry (repo checkout) / visual-check (installed skill) split;
+    `references/doctor.md` linked from §0.
 - Keep patent-specific edits out of SKILL.md and `references/`; patent-specific rules live in the
   [patent-figure-design](../patent-figure-design/SKILL.md) skill, which routes to this one
   and ships the CNIPA monochrome profile (`patent-figure-design/assets/cnipa-monochrome.md`)
