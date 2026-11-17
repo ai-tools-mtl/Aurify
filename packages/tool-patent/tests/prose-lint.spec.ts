@@ -86,6 +86,52 @@ describe('lintProse', () => {
     }
   })
 
+  it('flags a recurring coined term whose first occurrence lacks an explanation', () => {
+    const result = lintProse('通过仲裁评分筛选冲突证据，并把仲裁评分写入审计日志；仲裁评分低于阈值时触发复核。')
+    expect(result.summary.undefinedTerms).toBe(1)
+    expect(result.summary.errors).toBe(0)
+    const violation = result.violations.find(candidate => candidate.rule === 'undefined-term')
+    expect(violation?.message).toContain('仲裁评分')
+    expect(violation?.message).toContain('首现')
+    expect(violation?.excerpt).toContain('仲裁评分')
+  })
+
+  it('accepts a first occurrence followed by a parenthetical gloss', () => {
+    const result = lintProse('本方案引入仲裁评分（对冲突证据量化裁决的单一分值）筛选冲突证据；仲裁评分写入审计日志，仲裁评分低于阈值时触发复核。')
+    expect(result.summary.undefinedTerms).toBe(0)
+  })
+
+  it('accepts a term defined by a definition verb in the first-occurrence sentence', () => {
+    const result = lintProse('本方案引入仲裁评分，即对冲突证据量化裁决得到的单一分值；仲裁评分写入审计日志，仲裁评分低于阈值时触发复核。')
+    expect(result.summary.undefinedTerms).toBe(0)
+  })
+
+  it('accepts a component term introduced by the 用于 duty pattern', () => {
+    const result = lintProse('校验模块用于对写入数据做核验；校验模块在提交前运行；校验模块失败时拒绝写入。')
+    expect(result.summary.undefinedTerms).toBe(0)
+  })
+
+  it('accepts a term whose explanation starts the next sentence', () => {
+    const result = lintProse('本方案引入两类机制：仲裁评分与凭证影子。仲裁评分负责裁决冲突证据的可信度。仲裁评分低于阈值时告警。')
+    expect(result.summary.undefinedTerms).toBe(0)
+  })
+
+  it('suppresses fragments fully contained in a larger recurring phrase', () => {
+    const result = lintProse('凭证影子机制在签发时创建备份；凭证影子机制离线保存备份；凭证影子机制恢复丢失的凭证。')
+    expect(result.summary.undefinedTerms).toBe(1)
+    const violation = result.violations.find(candidate => candidate.rule === 'undefined-term')
+    expect(violation?.message).toContain('凭证影子机制')
+    expect(violation?.message).not.toContain('「影子机制」')
+    expect(violation?.message).not.toContain('「凭证影子」')
+  })
+
+  it('does not flag patent-meta phrases or low-frequency nouns', () => {
+    const meta = lintProse('现有技术在动态场景下命中率骤降；现有技术难以感知负载变化；现有技术缺乏在线调整手段。')
+    expect(meta.summary.undefinedTerms).toBe(0)
+    const rare = lintProse('状态指纹用于校验提交内容；状态指纹轻量。')
+    expect(rare.summary.undefinedTerms).toBe(0)
+  })
+
   it('passes clean technical prose with zero errors', () => {
     const result = lintProse('预检组件在写入生效前完成读写集交集判定，写集不相交的写入立即并行生效。判定结果与资源占用表一同落盘。')
     expect(result.summary.errors).toBe(0)

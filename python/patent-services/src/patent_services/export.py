@@ -9,14 +9,14 @@ export); the chapters fill the template's eight sections in its typography
 is the same eight sections in summary form, and the template has no slot
 for it.
 
-The application exporter emits the CNIPA document set in the submitted
-package's shape: one Word section per document — 说明书摘要, 权利要求书,
-说明书 — each carrying its document-type label in a centered bottom-bordered
-header (the body has no title paragraphs; 说明书 opens with the centered
-invention name and bold section headings). Body text is 宋体 四号, 1.5 line
-spacing, first-line two-character indent, no page numbers. Claims fold back
-into one paragraph per numbered claim — the Markdown source's continuation
-lines are readability line breaks, not paragraphs.
+The application exporter emits the submitted package on the agency's own
+application template (``assets/application-template.docx``, see
+``application_docx.py``): five Word sections — 说明书摘要, 摘要附图,
+权利要求书, 说明书, 说明书附图 — each keeping the template's centered page
+header, 楷体 typography, list-numbered claims and per-section page
+numbering; no typography is rebuilt in code. Claims fold back into one
+paragraph per numbered claim — the Markdown source's continuation lines
+are readability line breaks, not paragraphs.
 
 Markdown folding is shared and normalizing: the first ``#`` line is the
 chapter title the export supplies itself; any later ``#`` line folds into a
@@ -41,12 +41,11 @@ from pathlib import Path
 
 import yaml
 from docx import Document
-from docx.enum.section import WD_SECTION_START
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
-from docx.oxml.parser import OxmlElement
 from docx.shared import Cm, Pt
 
+from .application_docx import build_application_document
 from .fingerprint import source_fingerprint
 
 #: A Markdown chapter file's level-1 heading, or None when the file opens
@@ -669,95 +668,33 @@ def _collect_application(root: Path) -> list[tuple[str, str]]:
 
 
 #: The Chinese document-set heading each application file exports under.
+#: The application template's header parts carry the same labels verbatim —
+#: this map only drives the weasyprint PDF fallback, which re-renders from
+#: scratch and never sees the template.
 APPLICATION_TITLES = {
     "claims.md": "权利要求书", "description.md": "说明书", "abstract.md": "说明书摘要",
     "abstract-figures": "摘要附图", "figures": "说明书附图",
 }
 
-#: The document-type label each application section carries in its centered,
-#: bottom-bordered header, copied verbatim (spacing included) from the
-#: submitted package; the body carries no title paragraphs.
-APPLICATION_HEADERS = {
-    "abstract.md": "说  明  书  摘  要",
-    "claims.md": "权   利   要   求   书",
-    "description.md": "说    明    书",
-    "abstract-figures": "摘  要  附  图",
-    "figures": "说  明  书  附  图",
-}
-
-#: The sections that restart page numbering in the submitted package.
-_APPLICATION_RESTARTS_PAGES = {"claims.md", "description.md"}
-
-#: The application set's typography: 黑体 四号 section labels in the header,
-#: 宋体 四号 body (Latin in Times New Roman).
-APPLICATION_FONT = "宋体"
-APPLICATION_HEADER_FONT = "黑体"
-APPLICATION_SIZE = Pt(14)
-
-
-def _application_document() -> Document:
-    """A blank document in the submitted package's shape: A4 with 2.5/1.5/
-    2.5/1.5 margins, a 312 line grid, Times New Roman + 宋体 defaults, and
-    no footer (the package shows no page numbers)."""
-    document = Document()
-    style = document.styles["Normal"]
-    style.font.name = LATIN_FONT
-    style.element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), APPLICATION_FONT)
-    section = document.sections[0]
-    section.page_width, section.page_height = Cm(21.0), Cm(29.7)
-    section.top_margin, section.bottom_margin = Cm(2.5), Cm(1.5)
-    section.left_margin, section.right_margin = Cm(2.5), Cm(1.5)
-    section.header_distance, section.footer_distance = Cm(1.5), Cm(1.75)
-    doc_grid = section._sectPr.find(qn("w:docGrid"))
-    if doc_grid is None:
-        doc_grid = OxmlElement("w:docGrid")
-        section._sectPr.append(doc_grid)
-    doc_grid.set(qn("w:linePitch"), "312")
-    return document
-
-
-def _label_header(section, label: str) -> None:
-    """Give one section the centered, bottom-bordered document-type label."""
-    header = section.header
-    header.is_linked_to_previous = False
-    paragraph = header.paragraphs[0]
-    paragraph.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    ppr = paragraph._p.get_or_add_pPr()
-    p_border = OxmlElement("w:pBdr")
-    bottom = OxmlElement("w:bottom")
-    for key, value in (("w:val", "single"), ("w:sz", "6"), ("w:space", "1"), ("w:color", "auto")):
-        bottom.set(qn(key), value)
-    p_border.append(bottom)
-    jc = ppr.find(qn("w:jc"))
-    if jc is not None:
-        jc.addprevious(p_border)
-    else:
-        ppr.append(p_border)
-    run = paragraph.add_run(label)
-    rfonts = run._element.get_or_add_rPr().get_or_add_rFonts()
-    for key in ("w:ascii", "w:hAnsi", "w:eastAsia"):
-        rfonts.set(qn(key), APPLICATION_HEADER_FONT)
-    rfonts.set(qn("w:hint"), "eastAsia")
-    run.font.size = APPLICATION_SIZE
-
 
 def export_application(project_dir: str, fmt: str = "docx") -> tuple[str, list[str]]:
     """Export the application document set to ``exports/<name>-申请文件.<fmt>``.
 
-    The application files export in the submitted package's shape: one Word
-    section per document — 说明书摘要, 权利要求书 (one paragraph per numbered
-    claim, continuation lines folded in), 说明书 (opening with the centered
-    invention name, bold unindented section headings) — each carrying its
-    document-type label in a centered header, in 宋体 四号 with a two-character
-    first-line indent; 权利要求书 and 说明书 restart page numbering, and no
-    page numbers are shown. When the project has final figure images, the
-    submitted package's two figure documents join the set: 摘要附图 (图1)
-    after the abstract and 说明书附图 (all figures, 图N labeled below each
-    image) after the description. Returns ``(path, warnings)`` — the written
-    file's path plus the heading-normalization warnings. Raises ``ValueError``
-    for an unknown format, a directory without ``patent.yml``, or a project
-    without any application file; PDF converts through hidden-window Word COM
-    (falling back to weasyprint) exactly like :func:`export_project`.
+    The application files export on the agency's application template: one
+    Word section per document — 说明书摘要, 摘要附图, 权利要求书 (one
+    paragraph per claim, numbered by the template's list numbering with the
+    source's ``N. `` prefixes stripped, continuation lines folded in),
+    说明书 (opening with the centered invention name, bold section headings),
+    说明书附图 (one figure per page, 图N labeled below) — each keeping the
+    template's centered page header and per-section page numbering. When the
+    project has final figure images, 摘要附图 (图1) joins after the abstract.
+    A name longer than the 25-character guideline travels back as a warning
+    for the inventor to settle with the agency before filing. Returns
+    ``(path, warnings)`` — the written file's path plus the
+    heading-normalization warnings. Raises ``ValueError`` for an unknown
+    format, a directory without ``patent.yml``, or a project without any
+    application file; PDF converts through hidden-window Word COM (falling
+    back to weasyprint) exactly like :func:`export_project`.
     """
     if fmt not in ("docx", "pdf"):
         raise ValueError(f"unknown export format: {fmt}")
@@ -767,6 +704,9 @@ def export_application(project_dir: str, fmt: str = "docx") -> tuple[str, list[s
         raise ValueError(f"not a patent project (missing patent.yml): {root}")
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
     name = str(manifest.get("name") or root.name)
+    name_warnings: list[str] = []
+    if len(name) > 25:
+        name_warnings.append(f"发明名称{name}共{len(name)}字，超出25字指引——提交前与代理机构确认名称口径")
 
     sources: list[tuple[str, str | None]] = _collect_application(root)
     if not sources:
@@ -783,6 +723,7 @@ def export_application(project_dir: str, fmt: str = "docx") -> tuple[str, list[s
     exports_dir = root / "exports"
     exports_dir.mkdir(parents=True, exist_ok=True)
     docx_path, warnings = _build_application_docx(root, exports_dir, name, sources, figures)
+    warnings = name_warnings + warnings
 
     if fmt == "docx":
         return str(docx_path), warnings
@@ -819,48 +760,8 @@ def export_application(project_dir: str, fmt: str = "docx") -> tuple[str, list[s
 def _build_application_docx(root: Path, exports_dir: Path, name: str,
                             sources: list[tuple[str, str | None]],
                             figures: list[tuple[int, Path, str | None]]) -> tuple[Path, list[str]]:
-    """Build the application docx in the submitted package's shape."""
-    document = _application_document()
-    warnings: list[str] = []
-    for index, (key, body) in enumerate(sources):
-        if index:
-            # Clones the previous section's geometry; headers are labeled
-            # after the sections exist so the clones never share a part.
-            document.add_section(WD_SECTION_START.NEW_PAGE)
-        if key in _APPLICATION_RESTARTS_PAGES:
-            sect_pr = document.sections[-1]._sectPr
-            if sect_pr.find(qn("w:pgNumType")) is None:
-                pg_num_type = OxmlElement("w:pgNumType")
-                pg_num_type.set(qn("w:start"), "1")
-                doc_grid = sect_pr.find(qn("w:docGrid"))
-                if doc_grid is not None:
-                    doc_grid.addprevious(pg_num_type)
-                else:
-                    sect_pr.append(pg_num_type)
-        if key == "claims.md":
-            for claim in _claim_paragraphs(body or ""):
-                _add_paragraph(document, claim, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE, indent="first")
-        elif key in ("abstract-figures", "figures"):
-            shown = figures[:1] if key == "abstract-figures" else figures
-            for number, path, caption in shown:
-                _add_figure(document, path, number, caption, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE)
-        else:
-            if key == "description.md":
-                _add_paragraph(document, name, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE, indent=None,
-                               centered=True)
-            paragraphs, folded = _markdown_paragraphs(body or "", keep_subheadings=True)
-            warnings.extend(f"说明书：多余一级标题「{text}」已按小节折叠——源文件请改用「## 」" for text in folded)
-            for text, kind in paragraphs:
-                if kind == "subheading":
-                    _add_paragraph(document, text, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE,
-                                   indent=None, bold=True)
-                elif kind == "bullet":
-                    _add_paragraph(document, f"{BULLET_MARK} {text}", east_asia=APPLICATION_FONT,
-                                   size=APPLICATION_SIZE, indent="bullet")
-                else:
-                    _add_paragraph(document, text, east_asia=APPLICATION_FONT, size=APPLICATION_SIZE, indent="first")
-    for section, (key, _) in zip(document.sections, sources):
-        _label_header(section, APPLICATION_HEADERS[key])
+    """Build the application docx on the agency's application template."""
+    document, warnings = build_application_document(name, sources, figures)
     output = exports_dir / f"{name}-申请文件.docx"
     document.save(output)
     (exports_dir / f"{name}-申请文件.fingerprint").write_bytes(source_fingerprint(root).encode("ascii"))

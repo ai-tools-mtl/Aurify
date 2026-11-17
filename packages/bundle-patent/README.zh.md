@@ -30,7 +30,7 @@ Bundle 不携带 persona，可以装入通用档案。专用 persona 的唯一�
 | 查新与实验 | [patent-research](skills/patent-research/SKILL.md)、[patent-experiment](skills/patent-experiment/SKILL.md) |
 | 章节与写作质量 | [patent-chapters](skills/patent-chapters/SKILL.md)、[patent-writing-quality](skills/patent-writing-quality/SKILL.md)、[patent-de-ai](skills/patent-de-ai/SKILL.md)、[patent-effect-contrast](skills/patent-effect-contrast/SKILL.md) |
 | 附图 | [patent-figure-design](skills/patent-figure-design/SKILL.md)、[diagram-design](skills/diagram-design/SKILL.md) |
-| 申请文件 | [patent-claims](skills/patent-claims/SKILL.md)、[patent-application](skills/patent-application/SKILL.md) |
+| 申请文件 | [patent-claims](skills/patent-claims/SKILL.md)、[patent-application](skills/patent-application/SKILL.md)：五段式说明书与摘要撰写，经 `export_application_docs` 按代理机构正式申请书模板（五节页眉、楷体、权利要求自动编号）导出并派 subagent 视觉验收 |
 | 审查与交付 | [patent-review](skills/patent-review/SKILL.md)、[patent-services](skills/patent-services/SKILL.md) |
 
 Web 客户端将就绪度、权利要求检查和审查结果渲染为卡片；右侧项目面板展示章节、报告和附图对照。卡片读取持久化的 presentation meta，旧日志缺数据时回退到文本；界面不向模型历史增加内容。

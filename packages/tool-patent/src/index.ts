@@ -282,9 +282,11 @@ export async function apply(ctx: Context): Promise<void> {
     description: 'Deterministic de-AI prose lint for disclosure chapter text, the machine half of the '
       + 'patent-de-ai skill: filler, apologetic and colloquial-opener phrases (值得注意的是/换言之/综上所述/说白了/遗憾'
       + '的是…), sentences over 150 characters, inversion rhetoric (不是A而是B), triple parallelisms, dense 顿号 '
-      + 'enumerations, paragraph-ending summary sentences, textbook definitions, and sentence-initial topic '
-      + 'shells (对于…来说). Errors must be cleared before a chapter counts as drafted; warnings are drafting '
-      + 'hints. Run it on every drafted or revised chapter before presenting it.',
+      + 'enumerations, paragraph-ending summary sentences, textbook definitions, sentence-initial topic '
+      + 'shells (对于…来说), and recurring terms (seen 3+ times) whose first occurrence carries no explanation '
+      + '(undefined-term, per the patent-writing-quality 首现即释 discipline). Errors must be cleared before a '
+      + 'chapter counts as drafted; warnings are drafting hints. Run it on every drafted or revised chapter '
+      + 'before presenting it.',
     parameters: {
       text: {
         type: 'string',
@@ -310,6 +312,7 @@ export async function apply(ctx: Context): Promise<void> {
               paragraphSummaries: { type: 'integer', required: true },
               definitions: { type: 'integer', required: true },
               topicShells: { type: 'integer', required: true },
+              undefinedTerms: { type: 'integer', required: true },
               errors: { type: 'integer', required: true },
               warnings: { type: 'integer', required: true },
             },
