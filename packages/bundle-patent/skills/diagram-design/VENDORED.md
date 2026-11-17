@@ -23,6 +23,12 @@ patent assistant can draw figure types the three drawio-native shapes do not cov
     §8 summary-card pattern and the dotted-paper variant → `references/output-spec.md`
     §§ 7–8, and the Google Fonts `<link>` snippet → pointer to
     `references/style-guide.md` § Font stack (which already ships the snippet).
+  - Vendored-path convergence: upstream's `<repo-root>/scripts/verify-geometry.py`
+    and `verify-motion.py` references (§6 rule 6, §9 checklist) don't exist in this
+    copy — rewritten to the bundled `scripts/self_check.py` plus visual checks.
+    `references/export-registry.md` (`--registry` block-registry exports) linked
+    from §12 Exporting so the entry point is reachable. A 🔴 marker added to the
+    "Confirm before drawing" heading.
   - SKILL.md failure-mode fallbacks added: unparsable `.diagram-design` marker →
     fall through to the markerless gate path; `self_check.py` failure → fix the
     reported items and rerun; import sources that fail to extract (encrypted,

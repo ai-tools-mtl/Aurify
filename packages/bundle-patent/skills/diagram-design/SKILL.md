@@ -129,7 +129,7 @@ Rules of thumb:
 
 **Always load the chosen type reference linked in the guide before drawing.** When routed above, also load `semantic-patterns.md`; when animation is chosen, load `animation.md`.
 
-### Confirm before drawing
+### 🔴 Confirm before drawing
 
 Before rendering, state the plan in one short message: the chosen visual type (and semantic pattern, if routed), the size preset, and anything the complexity budget (§7) will force out. If the user is reachable, let them redirect before you draw; if not, proceed and note the assumptions beside the deliverable. Skip the pause only when the request already pins type, size, and content exactly.
 
@@ -271,7 +271,7 @@ These six rules are **non-negotiable**. Run the pre-output checklist (§9) to ve
 
    When in doubt, reroute. The exception exists for the narrow case where rerouting is geometrically impossible, not as a shortcut to avoid layout work.
 
-6. **A label mask must not overlap a node drawn after it.** Rule 2 keeps the label off its own connector; this one keeps it off the boxes. Because nodes are painted after labels, a mask that lands partly inside a node is covered by the node fill and the text renders as a fragment sitting on the node border. Place the label on a segment of the connector that runs through open canvas — for a connector leaving a node's right edge, that means clearing the node's `x + width` before the mask starts. A mask fully *inside* a node is a badge chip and is fine; a mask overlapping a zone container is fine too, since zones are painted first. From a repository checkout, verify with `python3 <repo-root>/scripts/verify-geometry.py <file>`.
+6. **A label mask must not overlap a node drawn after it.** Rule 2 keeps the label off its own connector; this one keeps it off the boxes. Because nodes are painted after labels, a mask that lands partly inside a node is covered by the node fill and the text renders as a fragment sitting on the node border. Place the label on a segment of the connector that runs through open canvas — for a connector leaving a node's right edge, that means clearing the node's `x + width` before the mask starts. A mask fully *inside* a node is a badge chip and is fine; a mask overlapping a zone container is fine too, since zones are painted first. Verify with the bundled `python3 scripts/self_check.py <file>`, and check mask/node overlaps visually against this rule (this vendored copy ships no `verify-geometry.py`).
 
 ### Node box — full pattern
 
@@ -386,14 +386,14 @@ Run before producing any diagram.
 - [ ] `<title>` is the first child of `<svg>` (before `<defs>`) and both `<title>` and `<desc>` are filled in?
 - [ ] `<title>` / `<desc>` IDs are prefixed for this diagram and variant — never bare `title` / `desc`?
 - [ ] Arrows drawn before boxes?
-- [ ] **All six §6 connector rules verified one by one:** rounded right-angle elbows only (no diagonal slants); 6–10px label-mask gap; no overlapping connectors (crossings use the bridge/hop); ≥12px fanned attach points on shared edges; no transit behind non-endpoint boxes (else dashed + label at the visible end); no label mask over a later-drawn node. From a repository checkout, run `python3 <repo-root>/scripts/verify-geometry.py <file>`; from an installed skill, check mask/node overlaps visually.
+- [ ] **All six §6 connector rules verified one by one:** rounded right-angle elbows only (no diagonal slants); 6–10px label-mask gap; no overlapping connectors (crossings use the bridge/hop); ≥12px fanned attach points on shared edges; no transit behind non-endpoint boxes (else dashed + label at the visible end); no label mask over a later-drawn node. Run the bundled `python3 scripts/self_check.py <file>` and check mask/node overlaps visually (this vendored copy ships no `verify-geometry.py`).
 - [ ] Every arrow label has an opaque `fill="#f5f5f5"` rect behind it?
 - [ ] Legend is a horizontal bottom strip, not floating?
 - [ ] No vertical `writing-mode` text?
 - [ ] `viewBox` expanded for the legend strip (~60px)?
 - [ ] Node origins, dimensions, gaps, padding on the 4px grid; type sizes on the role ramp?
 - [ ] From the installed skill directory, did `python3 scripts/self_check.py <file>` pass? (Accessible-SVG contract, single-file safety, motion basics.) If it fails, fix the reported items and rerun until it passes — don't ship with failures.
-- [ ] If animated, does the complete static/no-JS frame work, does reduced motion hide/disable playback, and is the controller copied verbatim from `assets/template-motion.html`? From a repository checkout, also run `python3 <repo-root>/scripts/verify-motion.py path/to/generated.html` plus the skin linter; from an installed skill, manually check print and static-query states on top of the self-check.
+- [ ] If animated, does the complete static/no-JS frame work, does reduced motion hide/disable playback, and is the controller copied verbatim from `assets/template-motion.html`? Manually check print and static-query states on top of `python3 scripts/self_check.py <file>` (this vendored copy ships no `verify-motion.py`).
 
 **Typography:**
 
@@ -484,6 +484,6 @@ Every diagram is an accessible figure by default:
 
 ### Exporting to PNG / SVG
 
-When the user asks to export, save, rasterize, or convert a generated diagram to `.png` or `.svg`, load [`references/export.md`](references/export.md) and follow the procedure there. Both formats deliver the diagram only (the `<svg>` node) — editorial wrappers like cards and headers are dropped by design. Export is **manual** — never produce export files unprompted.
+When the user asks to export, save, rasterize, or convert a generated diagram to `.png` or `.svg`, load [`references/export.md`](references/export.md) and follow the procedure there. Both formats deliver the diagram only (the `<svg>` node) — editorial wrappers like cards and headers are dropped by design. Export is **manual** — never produce export files unprompted. When the user asks for the block metadata / ID list / registry / traceability data behind a Traceable block decomposition diagram as structured data (`--registry`), load [`references/export-registry.md`](references/export-registry.md).
 
 For an imported diagram, pixel dimensions come from the `viewBox` × scale factor, so its size decision belongs to §11, not to export. For any diagram that needs an exact frame (an OG card or a slide image), see [`export.md` § Sizing the export](references/export.md).
