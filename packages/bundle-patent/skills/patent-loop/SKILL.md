@@ -11,12 +11,12 @@ description: 专利全流程循环推进的契约。当用户要求"loop""继续
 
 | 阶段 | 判定依据（磁盘事实） | 执行时加载的技能 |
 |------|----------------------|------------------|
-| init | 无 patent.yml | patent-init、patent-research（评估来源见 mining 移交记录，即 patent-mining） |
+| init | 无 patent.yml | patent-init、patent-research（评估来源见 patent-mining 移交记录） |
 | align | brief.md 缺失或核心维度章节缺失 | patent-init、patent-research |
 | chapters | 八章任一缺失或占位空白；涉及实验/量化效果的项目还缺 chapters/09-verification.md；或正文/简报引用的公开号未登记入项目查新账本reference/prior-art.md（运行时由 patent-research 登记） | patent-chapters、patent-de-ai、patent-writing-quality、patent-effect-contrast（公开号缺口按 patent-research 补账） |
 | experiments | 效果章含量化数据，但没有任何实验的最新运行记录退出码为 0、也无"无需实验"或"不适用"声明；空日志、最新运行失败或超时不通过（转正后数字回填 09 章实验验证） | patent-experiment |
 | figures | 08 章声明与 figures/ 根成品对不上（缺失/多余/未规划），或正文引用了未声明的图号 | patent-figure-design |
-| review | 最新审查报告缺失、总分低于达标线（默认 80，patent.yml `reviewThreshold` 可调；查新不可用期间放宽 10 分），或仅为局部审查、源指纹与当前源不符（旧报告无指纹时比较修改时间） | patent-review（工具） |
+| review | 最新审查报告缺失、总分低于达标线（阈值与放宽规则以「审查分数门」一节为唯一口径），或仅为局部审查、源指纹与当前源不符（旧报告无指纹时比较修改时间） | patent-review（工具） |
 | export | 无交底书导出物，或导出物源指纹与当前源不符（旧导出无指纹时比较修改时间） | patent-services（工具） |
 
 工具返回的 gaps 是材料阶段的待办路线图，directive 是当前阶段的执行指令。返回形如：
@@ -29,7 +29,7 @@ description: 专利全流程循环推进的契约。当用户要求"loop""继续
 
 ## 评估核对与恢复（所有材料阶段适用）
 
-1. 遵守既有环境自检门。已有项目先读取 brief.md 评估节及 reference/ 账本，核对方案版本、申请类型、证据记录版本、当前状态、历史建议适用性和待补项；旧项目缺记录按「未评估」处理，不把缺记录解释为已评估通过。未建档的候选先按 mining 的移交记录定位当前评估来源。
+1. 遵守既有环境自检门。已有项目先读取 brief.md 评估节及 reference/ 账本，核对方案版本、申请类型、证据记录版本、当前状态、历史建议适用性和待补项；旧项目缺记录按「未评估」处理，不把缺记录解释为已评估通过。未建档的候选先按 patent-mining 的移交记录定位当前评估来源。
 2. 补证已到、用户要求恢复评估或发现未同步的实质变化时，在当前阶段加载 patent-init/patent-research 组织受影响环节的复核；权项阶段同时按 patent-claims 处理范围变化。恢复不受 init/align 限制，review/export/done 同样适用。旧建议先标待重评，完成核查后才形成新建议；仍缺决定性材料则保留暂缓、具体影响和恢复条件，不能只清待办或改状态。
 3. 评估或证据更新须同步 brief.md，保留历史和替代关系。若 brief.md、正文或附图变化，先重新调用 patent_loop，按新的材料阶段重审或重导出，不能执行旧的 done 交付指令。reference/ 不在既有源指纹范围内，不能假称工具会自动发现其变更。
 4. 暂缓／待重评不自动阻断材料工具，也不自动授权继续起草、审查和导出。既有用户授权已涵盖带缺口继续材料工作时沿用，记录范围并继续；否则保存缺口与恢复条件，说明可继续的澄清、访谈、资料整理范围，等待用户选择。无论是否继续，均不为受影响对象给正面建议。

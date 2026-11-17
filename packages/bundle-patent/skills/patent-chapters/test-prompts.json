@@ -1,0 +1,18 @@
+[
+ {"id":"dev-1","split":"dev","source":"user",
+  "prompt":"根据 input/技术材料.md 为专利交底书起草背景技术章节，写到 chapters/03-background.md",
+  "files":["技术材料.md"],
+  "checks":["输出文件存在且只有一个一级标题、小节标题不带编号前缀","遵循「使用场景→现有技术→缺点」结构且缺点有独立小节","正文无候选清单、无过程注释、无占位符","提到的现有方案与缺点都能在输入材料中找到出处，无虚构部件"]},
+ {"id":"dev-2","split":"dev","source":"user",
+  "prompt":"input/06-effect-draft.md 是有益效果章草稿，按章节完成判定修订它，结果写 chapters/06-effect.md",
+  "files":["06-effect-draft.md"],
+  "checks":["每个有益效果都对应到技术方案的具体组件","至少一条效果有量化数字或明确对比基线，无法量化的写明原因","无「大幅/显著/极大」类夸大词","没有引入草稿与材料之外的新组件"]},
+ {"id":"holdout-1","split":"holdout","source":"doc",
+  "prompt":"根据 input/技术材料.md 起草技术问题章节，写到 chapters/04-problem.md",
+  "files":["技术材料.md"],
+  "checks":["陈述的是技术问题而非商业问题","每个技术问题逐条对准背景缺点的某一条","输出文件格式合规（单一一级标题、无编号小节）"]},
+ {"id":"holdout-2","split":"holdout","source":"doc",
+  "prompt":"input/05-solution-draft.md 是发明内容章草稿，修订后写 chapters/05-solution.md",
+  "files":["05-solution-draft.md"],
+  "checks":["草稿中的占位符已全部替换为真实内容","自造术语首现处有括注或定义句","开头显式呼应技术问题章节"]}
+]
