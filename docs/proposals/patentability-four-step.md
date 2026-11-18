@@ -303,3 +303,17 @@ A/B 不计划修改 Python、工具接口、技能数量、评分阈值、阶段
 验收边界：本轮为技能文本增量，不触发 E2 测试集回归（E2 覆盖 chapters/writing-quality/diagram-design，本轮未涉及）；行为验收沿用 5.3 场景表的相关行（同问题性能改进场景、共有特征效果场景按本轮语义复核）。发版前需重新构建 dist 并跑 `scripts/verify-dist.py`。
 
 **方案 C 素材备案**：文章双问框架适合作为审查维度素材——「背景技术是否定位了已有方案真正没解决的问题」「效果是否锚定区别特征」。待 C 按既定条件单独决定时一并评估，本轮不动 rubric。
+
+## 9. 全库一致性收口（已实施，2026-11-18）
+
+> **来源**：对写作链技能（chapters/claims/experiment/de-ai/writing-quality/application/loop/review/services）的全库只读扫描；与 §8 同日实施，同为第 5.1 节「新增修改须明确列入清单」的登记项。
+> **范围**：六个技能文本与根 README，不改工具代码、接口、评分与阶段判定。
+
+1. **patent-experiment**：修正效果章引用章号实错（07-effect→06-effect，chapters 的实际章名为 06-effect.md）；新增「区别特征隔离（消融设计）」专节——优先三线消融对比（完整方案/去区别特征退化版/基线，各线走 `run_experiment` 正式出数）、不可消融时在实验 README 标注归属性质并按 effect-contrast 口径标「区别归属待检索确认」、主证据指标对准区别特征作用点；检查清单加项。此为 §8 区别归属核查（效果章写作侧）在实验执行侧的对应物。
+2. **patent-chapters**：03 背景章完成判定补「已解决什么/哪些不足未解决」定位写法、公开号引用与查新账本一致（未检索阶段的泛称不受限）；04 问题章完成判定补「逐条对准背景章未解决的不足」、双问校准筛出的「同问题性能改进」表述并入效果预期不单列技术问题。
+3. **patent-application**：五段映射给 09-verification.md 落点（具体实施方式并入实验叙事，数字溯源 experiments/，与 06 章口径一致）；撰写程序第 4 步量化口径扩为 06/09 章，并声明 de-ai/writing-quality 适用于说明书散文正文；导出门第 0 步前置四角核对（按 patent-chapters「评估路径」重跑后再 lint 再确认）。
+4. **patent-claims**：修订纪律明确缩圈预案随重评一并重排（按新建议的区别特征与效果结论重排退守顺序、标注依据的评估版本），旧预案保留历史不再作为退守依据。
+5. **patent-de-ai / patent-writing-quality**：作用域认领——de-ai 边界（frontmatter 与正文同口径）改为「交底书全部章节与申请说明书五段的散文正文，权利要求书除外」；writing-quality 水位表补说明书五段映射（技术领域/背景＝专业平实，发明内容/具体实施＝精准严谨，摘要＝精准严谨一段成文，「生动直白」层不适用）。
+6. **根 README**：能力与边界声明交付终点为申请文件，审查意见答复（OA）、驳回复审、分案等申请后程序不在套件范围（claims 缩圈预案仅为撰写期退守准备）。此前 15 个技能触发词对申请后阶段零承接，此为声明性收口而非新能力。
+
+**挂账**：①E2 测试集扩展到 init/mining/research/effect-contrast（格式为各技能目录 `test-prompts.json`，现有覆盖仅 chapters/writing-quality/diagram-design；fixture 设计成本高且应编码 §8/§9 新行为、需达尔文环境试跑校准，另开专项轮，建议排在下次达尔文轮之前）；②审查阈值常量双份镜像属代码 tech debt——正本 `packages/tool-patent/src/loop.ts:41`（`DEFAULT_REVIEW_THRESHOLD=80`）与 `:44`（`DEGRADED_REVIEW_DELTA=10`），镜像 `packages/bundle-patent/src/client/project-model.ts:142,147`（注释自认 mirror）；收敛需改 TypeScript，按 §5.1 纪律须先扩提案范围，本轮不动。
