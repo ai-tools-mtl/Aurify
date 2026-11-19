@@ -240,6 +240,7 @@ A/B 不计划修改 Python、工具接口、技能数量、评分阈值、阶段
 | 无实验但有清楚实现路径；或仿真成功但关键实现缺失 | 分开判断实用性、充分公开和效果证据，不以实验有无代替法律条件 |
 | 贡献特征被删除、移入从权或改写 | 对受影响独权重新评估，不能沿用旧方案结论；保留支持位置及变更原因 |
 | 检索不可达、零命中或只做了 CN 检索 | 分别记录失败、零命中和覆盖限制；不编造文献，不给超出证据范围的三性结论 |
+| 检索不可达，仅通用网页线索级命中 | 线索不构成已核实否定依据；不给实质三档方向，标暂缓并附标明为预判的风险预判与收窄待评估方向；线索入账本隔离标注 |
 | 直接点子／已有文档导入／旧候选继续推进 | 同样补齐披露和评估记录；未执行环节有原因，不能因非 mining 入口或旧建议而跳过 |
 | 材料充分，有可追溯的创造性论证空间，仅存在一般索引遗漏风险 | 完成 B2.1 后给有限度「建议写」，说明收口理由和剩余不确定性，不无限暂缓，也不宣称授权条件成立 |
 | 原方案有公开风险，收窄方案具备来源、效果及完整核查 | 分别保留原方案建议与新版本依据，对收窄方案达到同等证据要求后形成「收窄后写」；尚未核查时不能提前给正面建议 |
@@ -316,4 +317,14 @@ A/B 不计划修改 Python、工具接口、技能数量、评分阈值、阶段
 5. **patent-de-ai / patent-writing-quality**：作用域认领——de-ai 边界（frontmatter 与正文同口径）改为「交底书全部章节与申请说明书五段的散文正文，权利要求书除外」；writing-quality 水位表补说明书五段映射（技术领域/背景＝专业平实，发明内容/具体实施＝精准严谨，摘要＝精准严谨一段成文，「生动直白」层不适用）。
 6. **根 README**：能力与边界声明交付终点为申请文件，审查意见答复（OA）、驳回复审、分案等申请后程序不在套件范围（claims 缩圈预案仅为撰写期退守准备）。此前 15 个技能触发词对申请后阶段零承接，此为声明性收口而非新能力。
 
-**挂账**：①E2 测试集扩展到 init/mining/research/effect-contrast（格式为各技能目录 `test-prompts.json`，现有覆盖仅 chapters/writing-quality/diagram-design；fixture 设计成本高且应编码 §8/§9 新行为、需达尔文环境试跑校准，另开专项轮，建议排在下次达尔文轮之前）；②审查阈值常量双份镜像属代码 tech debt——正本 `packages/tool-patent/src/loop.ts:41`（`DEFAULT_REVIEW_THRESHOLD=80`）与 `:44`（`DEGRADED_REVIEW_DELTA=10`），镜像 `packages/bundle-patent/src/client/project-model.ts:142,147`（注释自认 mirror）；收敛需改 TypeScript，按 §5.1 纪律须先扩提案范围，本轮不动。
+**挂账**：①E2 测试集扩展到 init/mining/research/effect-contrast（格式为各技能目录 `test-prompts.json`，现有覆盖仅 chapters/writing-quality/diagram-design；fixture 设计成本高且应编码 §8/§9 新行为、需达尔文环境试跑校准，另开专项轮，建议排在下次达尔文轮之前）；②审查阈值常量双份镜像属代码 tech debt——正本 `packages/tool-patent/src/loop.ts:41`（`DEFAULT_REVIEW_THRESHOLD=80`）与 `:44`（`DEGRADED_REVIEW_DELTA=10`），镜像 `packages/bundle-patent/src/client/project-model.ts:142,147`（注释自认 mirror）；收敛需改 TypeScript，按 §5.1 纪律须先扩提案范围，本轮不动。（①②已于 §10 处置）
+
+## 10. 边界收紧、阈值守卫与 E2 扩展（已实施，2026-11-19）
+
+> **来源**：§8/§9 产物装入本地 dsh 宿主后的 headless 真实模型冒烟。实测暴露一个边界情形：检索跳过时，模型曾以通用网页的未核实线索（4 个未读明细页的公开号）支撑「不建议写」方向——与 B3「已核实独立否定依据」的措辞存在解释空间。同轮处置 §9 挂账①②。
+
+1. **线索级否定收紧**：`patent-init` 判定顺序补「已核实」定义（以 patent-research 位置核查为准），明文规定只有线索级命中、未读明细页核实的文献不构成「已核实的独立否定依据」，不得据此给「不建议写/建议写」实质方向，只支撑暂缓＋标明为预判的风险预判与收窄待评估方向；`patent-research` 证据要求同口径，线索入账本标「待核实线索」、不写入交底书正文。§5.3 场景表新增对应行（上表末行）。
+2. **阈值镜像守卫**：新增 `packages/tool-patent/tests/threshold-sync.standalone.test.mjs`（node --test 独立运行，断言 loop.ts 正本与 project-model.ts 镜像两组常量相等），镜像注释挂守卫说明；DEVELOPMENT.md 补运行入口。跨包导入的接口级收敛暂不做——镜像在客户端代码里，导入 tool-patent 会把服务端宿主包拉进客户端打包，风险大于收益；静默漂移已转为可捕获失败。§9 挂账②就此关闭，接口级收敛留待发版窗口另行提案。
+3. **E2 扩展落地**（§9 挂账①关闭）：patent-init/patent-mining/patent-research/patent-effect-contrast 各新增 `test-prompts.json`（2 dev + 2 holdout，init dev-1 为冒烟真实案例 source:real）与 `test-fixtures/` 随库夹具——顺带修复既有三章集 fixture 内容不随库、darwin 运行时需临时编写的问题。checks 全部环境无关（无检索工具场景下测诚实边界：不编造公开号、检索未执行如实声明、缺口摘要输出等），裸模型可跑；darwin 实跑校准仍待下次达尔文轮。
+
+**本轮验证**：E2 四集 JSON 结构校验（4 条、dev/holdout 各 2）；守卫测试 2/2 与既有 loop-recovery 回归通过；重建 dist + verify-dist 双跑通过；mtl 与 patent-dev-headless 两 profile 重装；边界冒烟复跑——同一点子下模型不再引用未核实公开号，否定改立公知常识分析＋效果归因拆解，收窄方向标注「只是方向，尚未形成建议」。GUI 用途的 mtl 需完整重启桌面壳后生效。
