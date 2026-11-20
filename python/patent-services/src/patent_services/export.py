@@ -287,15 +287,21 @@ def _add_figure(document, path: Path, number: int, caption: str | None, *, east_
     below the image, centered — never inside the image, never above it. The
     image and label paragraphs carry keep-with-next so a page break can never
     separate a figure body from its 图N label and caption.
+
+    The figure block stays typographically plain: image, 图N label and caption
+    carry centering (plus the protective keep-with-next) and nothing else —
+    no body line spacing, no indents, no spacing before/after. The template's
+    1.5-line body spacing belongs to prose paragraphs, not to the figures
+    section.
     """
     document.add_picture(str(path), width=FIGURE_WIDTH)
     picture_paragraph = document.paragraphs[-1]
     picture_paragraph.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     picture_paragraph.paragraph_format.keep_with_next = True
-    _add_paragraph(document, f"图{number}", east_asia=east_asia, size=size, indent=None, centered=True)
+    _add_paragraph(document, f"图{number}", east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
     document.paragraphs[-1].paragraph_format.keep_with_next = True
     if caption:
-        _add_paragraph(document, caption, east_asia=east_asia, size=size, indent=None, centered=True)
+        _add_paragraph(document, caption, east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
 
 
 def _plain(markdown_text: str) -> str:
@@ -347,20 +353,24 @@ def _chapter_title(path: Path, body: str) -> str:
 
 def _add_paragraph(document, text: str, *, east_asia: str, size: Pt, indent: str | None = "first",
                    centered: bool = False, page_break_before: bool = False, bold: bool = False,
-                   space_before: Pt | None = None):
+                   space_before: Pt | None = None, plain: bool = False):
     """Append one paragraph in the target typography and return it.
 
     ``indent``: ``"first"`` sets the two-character first-line indent,
     ``"bullet"`` a one-character hanging indent under a three-character left
     edge (for the ``●`` marker), ``None`` no indent. Spacing is 1.5 lines
     with no before/after unless ``space_before``; ``bold`` and any
-    ``**bold**`` spans in ``text`` become bold runs.
+    ``**bold**`` spans in ``text`` become bold runs. ``plain`` skips the
+    typography entirely — no line spacing, no before/after — leaving only
+    the requested alignment; the figure block uses it to keep 图N labels and
+    captions plain centered paragraphs.
     """
     paragraph = document.add_paragraph()
     format_ = paragraph.paragraph_format
-    format_.line_spacing = 1.5
-    format_.space_before = space_before or Pt(0)
-    format_.space_after = Pt(0)
+    if not plain:
+        format_.line_spacing = 1.5
+        format_.space_before = space_before or Pt(0)
+        format_.space_after = Pt(0)
     if page_break_before:
         format_.page_break_before = True
     if centered:
