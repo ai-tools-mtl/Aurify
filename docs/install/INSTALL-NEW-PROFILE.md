@@ -111,8 +111,30 @@ Scripted setups may use `DSH_PATENT_SERVICES=1` or `DSH_PATENT_SERVICES_DIR`. Fu
 | HTML rendering | Edge/Chrome; tall canvases may exceed the fixed viewport |
 | Simulation | Running Docker; default image `q771103517/dsh-patent-experiment:latest` |
 | CN patent search | Access to `patents.google.com` |
+| Repository mining (patent-mining) | Reachable GitHub/GitLab/Gitee or a local clone; setup below |
 
 Images may need downloading on first use. Setup reports each channel; project initialization follows the skills' requirements for fixing unavailable channels. Skipping search requires an explicit user choice and a research-debt marker. See the [Python service reference](../../python/patent-services/README.md) for interfaces and preferences.
+
+### Repository mining setup (optional)
+
+The patent-mining skill mines patentable points from git repositories. Configure `$DSH_HOME/repo-mining.yaml` (defaults to `~/.dsh/repo-mining.yaml`, separate from patent-services.yaml) on demand:
+
+```yaml
+providers:
+  - name: company-gitlab        # your label; token env var becomes DSH_PATENT_REPO_TOKEN_COMPANY_GITLAB
+    platform: gitlab            # github | gitlab | gitee | local
+    base_url: https://gitlab.internal.example.com   # self-hosted: root address (no /api); local: the clone directory
+    token: ...                  # read-only access is enough; prefer leaving empty and using the env var so no token lands on disk
+  - name: my-github
+    platform: github            # github.com omits base_url; GHES takes a root address
+default_provider: company-gitlab
+limits:
+  max_commits_per_scan: 300    # global cap, intersected with the role cap
+```
+
+- Tokens need **read-only** repository access (GitHub PAT with repo read / GitLab read_api+read_user / Gitee read-only scope). Scanning, deep reads and evidence reconciliation are read-only; repository content is treated as untrusted data and no code from it is executed.
+- Roles map from the token's real permissions (admin / participant / observer), bounding the scan budget and the attribution discipline; on `local` platforms there is no API — the role is the configured `declared_role`, and declaring it honestly is the user's responsibility.
+- A `DSH_PATENT_REPO_TOKEN_<NAME>` environment variable overrides the file value; tool output always masks tokens. Tool interfaces, role contracts and safety discipline: the [Python service reference](../../python/patent-services/README.md).
 
 ## Verification, recovery and troubleshooting
 

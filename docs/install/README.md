@@ -111,8 +111,30 @@ mcp_project_dir: /absolute/path/to/Aurify/python/patent-services
 | HTML 渲染 | Edge/Chrome；固定视口可能裁切过高画布 |
 | 仿真实验 | 运行中的 Docker；默认镜像 `q771103517/dsh-patent-experiment:latest` |
 | 中国专利检索 | 可访问 `patents.google.com` 的网络 |
+| 仓库挖掘（patent-mining） | 可访问 GitHub/GitLab/Gitee 或本地 clone；配置见下节 |
 
 镜像首次使用可能需要拉取。自检会报告各通道状态，项目起步按技能要求处理受限项；检索通道跳过须由用户明确选择并保留待补查标记。服务接口和设置项见 [Python 服务说明](../../python/patent-services/README.zh.md)。
+
+### 仓库挖掘配置（可选）
+
+patent-mining 技能从 git 仓库挖掘可专利技术点，按需配置 `$DSH_HOME/repo-mining.yaml`（默认 `~/.dsh/repo-mining.yaml`，独立于 patent-services.yaml）：
+
+```yaml
+providers:
+  - name: company-gitlab        # 名字自取；token 环境变量为 DSH_PATENT_REPO_TOKEN_COMPANY_GITLAB
+    platform: gitlab            # github | gitlab | gitee | local
+    base_url: https://gitlab.internal.example.com   # 私网自建填根地址（不带 /api）；local 填本地 clone 目录
+    token: ...                  # 只读权限即可；建议留空改用环境变量，避免 token 落盘
+  - name: my-github
+    platform: github            # github.com 留省略 base_url；GHES 填根地址
+default_provider: company-gitlab
+limits:
+  max_commits_per_scan: 300    # 全局上限，与角色上限取小
+```
+
+- token 只需仓库**只读权限**（GitHub PAT 勾 repo 读 / GitLab read_api+read_user / Gitee 只读 scope）。扫描、深读与对账全程只读；仓库内容按不可信数据处理，不执行其中任何代码。
+- 角色由 token 的实际权限映射（管理员/参与者/观察者），决定扫描上限与产出纪律；`local` 平台无 API，角色由配置里 `declared_role` 声明，如实声明是用户的责任。
+- token 可用 `DSH_PATENT_REPO_TOKEN_<NAME>` 环境变量覆盖文件值，工具输出永远只显示掩码。工具接口、角色契约与安全纪律详见 [Python 服务说明](../../python/patent-services/README.zh.md)。
 
 ## 验收、恢复与排障
 
