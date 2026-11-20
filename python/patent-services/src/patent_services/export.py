@@ -42,6 +42,7 @@ from pathlib import Path
 import yaml
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
@@ -280,25 +281,52 @@ def disclosure_absent_warning(root: Path) -> str:
     return "提醒：exports/ 下还没有交底书导出物（默认交付物）——确认跳过交底书直接导申请文件是有意推进。"
 
 
+def _plain_figure_table(table) -> None:
+    """Center the figure wrapper table and zero its cell margins.
+
+    The template's default table style (Normal Table) is already borderless;
+    centering plus zero margins keep the wrapper visually invisible so the
+    block reads as bare centered paragraphs. Child elements are inserted at
+    their CT_TblPr schema positions rather than appended blind.
+    """
+    tbl_pr = table._tbl.tblPr
+    alignment = OxmlElement('w:jc')
+    alignment.set(qn('w:val'), 'center')
+    tbl_pr.insert_element_before(
+        alignment, 'w:tblCellSpacing', 'w:tblInd', 'w:tblBorders', 'w:shd', 'w:tblLayout', 'w:tblCellMar', 'w:tblLook')
+    margins = OxmlElement('w:tblCellMar')
+    for edge in ('top', 'left', 'bottom', 'right'):
+        element = OxmlElement(f'w:{edge}')
+        element.set(qn('w:w'), '0')
+        element.set(qn('w:type'), 'dxa')
+        margins.append(element)
+    tbl_pr.insert_element_before(margins, 'w:tblLook')
+
+
 def _add_figure(document, path: Path, number: int, caption: str | None, *, east_asia: str, size: Pt) -> None:
     """Append one centered figure with its 图N label (and caption) below.
 
     The insertion discipline from the figure-design skill: the 图N label sits
     below the image, centered — never inside the image, never above it.
 
-    The figure block stays typographically plain: image, 图N label and caption
-    carry centering and nothing else — no body line spacing, no indents, no
-    spacing before/after, no keep-with-next (its margin marks read as stray
-    formatting in the deliverable; an extreme page break may set a label on
-    the next page, which agencies re-typeset anyway). The template's 1.5-line
-    body spacing belongs to prose paragraphs, not to the figures section.
+    The block rides in a borderless single-cell table whose row is marked
+    ``cantSplit``: a page break can never set the 图N label on a page other
+    than its image, yet — unlike keep-with-next — the table-row property
+    paints no paragraph marks in the margin, so the deliverable stays bare
+    centered paragraphs. An empty paragraph follows each wrapper because
+    Word merges adjacent tables into one.
     """
-    document.add_picture(str(path), width=FIGURE_WIDTH)
-    picture_paragraph = document.paragraphs[-1]
-    picture_paragraph.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _add_paragraph(document, f"图{number}", east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
+    table = document.add_table(rows=1, cols=1)
+    _plain_figure_table(table)
+    table.rows[0]._tr.get_or_add_trPr().append(OxmlElement('w:cantSplit'))
+    cell = table.cell(0, 0)
+    picture_paragraph = cell.paragraphs[0]
+    picture_paragraph.add_run().add_picture(str(path), width=FIGURE_WIDTH)
+    picture_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _add_paragraph(cell, f"图{number}", east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
     if caption:
-        _add_paragraph(document, caption, east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
+        _add_paragraph(cell, caption, east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
+    _add_paragraph(document, "", east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
 
 
 def _plain(markdown_text: str) -> str:
@@ -348,21 +376,22 @@ def _chapter_title(path: Path, body: str) -> str:
     return path.stem
 
 
-def _add_paragraph(document, text: str, *, east_asia: str, size: Pt, indent: str | None = "first",
+def _add_paragraph(container, text: str, *, east_asia: str, size: Pt, indent: str | None = "first",
                    centered: bool = False, page_break_before: bool = False, bold: bool = False,
                    space_before: Pt | None = None, plain: bool = False):
     """Append one paragraph in the target typography and return it.
 
-    ``indent``: ``"first"`` sets the two-character first-line indent,
-    ``"bullet"`` a one-character hanging indent under a three-character left
-    edge (for the ``●`` marker), ``None`` no indent. Spacing is 1.5 lines
-    with no before/after unless ``space_before``; ``bold`` and any
-    ``**bold**`` spans in ``text`` become bold runs. ``plain`` skips the
-    typography entirely — no line spacing, no before/after — leaving only
-    the requested alignment; the figure block uses it to keep 图N labels and
-    captions plain centered paragraphs.
+    ``container`` is a document or a table cell — anything with
+    ``add_paragraph``. ``indent``: ``"first"`` sets the two-character
+    first-line indent, ``"bullet"`` a one-character hanging indent under a
+    three-character left edge (for the ``●`` marker), ``None`` no indent.
+    Spacing is 1.5 lines with no before/after unless ``space_before``;
+    ``bold`` and any ``**bold**`` spans in ``text`` become bold runs.
+    ``plain`` skips the typography entirely — no line spacing, no
+    before/after — leaving only the requested alignment; the figure block
+    uses it to keep 图N labels and captions plain centered paragraphs.
     """
-    paragraph = document.add_paragraph()
+    paragraph = container.add_paragraph()
     format_ = paragraph.paragraph_format
     if not plain:
         format_.line_spacing = 1.5

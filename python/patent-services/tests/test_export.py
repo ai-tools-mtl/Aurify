@@ -23,6 +23,24 @@ def east_asia(run) -> str | None:
     return None if rfonts is None else rfonts.get(qn("w:eastAsia"))
 
 
+def body_paragraphs(document) -> list:
+    """Paragraphs in document order, including paragraphs inside tables —
+    figure blocks ride in borderless wrapper tables, so top-level
+    ``document.paragraphs`` no longer sees their 图N labels and captions."""
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    paragraphs = []
+    for child in document.element.body.iterchildren():
+        if child.tag == qn("w:p"):
+            paragraphs.append(Paragraph(child, document))
+        elif child.tag == qn("w:tbl"):
+            for row in Table(child, document).rows:
+                for cell in row.cells:
+                    paragraphs.extend(cell.paragraphs)
+    return paragraphs
+
+
 def first_line_chars(paragraph) -> str | None:
     ind = paragraph._p.pPr.find(qn("w:ind"))
     return None if ind is None else ind.get(qn("w:firstLineChars"))
@@ -199,13 +217,22 @@ def test_export_docx_embeds_figures_with_labels_below(tmp_path):
     output, _warnings = export_project(str(project))
     document = Document(output)
     assert len(document.inline_shapes) == 2
-    texts = [p.text for p in document.paragraphs]
+    texts = [p.text for p in body_paragraphs(document)]
     assert "图1" in texts and "图2" in texts
     # The 图N label and caption sit below each image, centered.
     label_index = texts.index("图1")
-    label_paragraph = document.paragraphs[label_index]
+    label_paragraph = body_paragraphs(document)[label_index]
     assert label_paragraph.paragraph_format.alignment == WD_ALIGN_PARAGRAPH.CENTER
     assert "流程总览图" in texts[label_index + 1]
+    # Each figure block rides in a borderless wrapper table whose row cannot
+    # split across pages — the anti-orphan guarantee without keep-with-next.
+    # (The template itself may carry other tables, so target by content.)
+    figure_tables = [t for t in document.tables
+                     if any(p.text in ("图1", "图2") for p in t.cell(0, 0).paragraphs)]
+    assert len(figure_tables) == 2
+    for table in figure_tables:
+        tr_pr = table.rows[0]._tr.trPr
+        assert tr_pr is not None and tr_pr.find(qn("w:cantSplit")) is not None
 
 
 def test_export_docx_without_drawings_chapter_appends_figure_section(tmp_path):
@@ -235,7 +262,7 @@ def test_export_collects_suffixed_figure_names(tmp_path):
     output, _warnings = export_project(str(project))
     document = Document(output)
     assert len(document.inline_shapes) == 2
-    texts = [p.text for p in document.paragraphs]
+    texts = [p.text for p in body_paragraphs(document)]
     assert "图1" in texts and "图2" in texts
 
 
