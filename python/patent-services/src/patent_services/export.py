@@ -284,22 +284,19 @@ def _add_figure(document, path: Path, number: int, caption: str | None, *, east_
     """Append one centered figure with its 图N label (and caption) below.
 
     The insertion discipline from the figure-design skill: the 图N label sits
-    below the image, centered — never inside the image, never above it. The
-    image and label paragraphs carry keep-with-next so a page break can never
-    separate a figure body from its 图N label and caption.
+    below the image, centered — never inside the image, never above it.
 
     The figure block stays typographically plain: image, 图N label and caption
-    carry centering (plus the protective keep-with-next) and nothing else —
-    no body line spacing, no indents, no spacing before/after. The template's
-    1.5-line body spacing belongs to prose paragraphs, not to the figures
-    section.
+    carry centering and nothing else — no body line spacing, no indents, no
+    spacing before/after, no keep-with-next (its margin marks read as stray
+    formatting in the deliverable; an extreme page break may set a label on
+    the next page, which agencies re-typeset anyway). The template's 1.5-line
+    body spacing belongs to prose paragraphs, not to the figures section.
     """
     document.add_picture(str(path), width=FIGURE_WIDTH)
     picture_paragraph = document.paragraphs[-1]
     picture_paragraph.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    picture_paragraph.paragraph_format.keep_with_next = True
     _add_paragraph(document, f"图{number}", east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
-    document.paragraphs[-1].paragraph_format.keep_with_next = True
     if caption:
         _add_paragraph(document, caption, east_asia=east_asia, size=size, indent=None, centered=True, plain=True)
 
