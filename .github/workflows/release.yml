@@ -1,0 +1,201 @@
+name: release
+
+# 版本号驱动的自动发版：合并进 main 的提交若把 packages/bundle-patent/package.json
+# 的版本号推进到一个尚无 v* 标签的版本，即自动走完整发布链——npm 三个包、PyPI、
+# GitHub Release（dist 全量附件）、双 Docker 镜像。纯文档/无版本变更的合并不发布。
+# 手动补发或强制重跑用 workflow_dispatch（tag 已存在时仍只做幂等跳过，不会覆盖）。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '忽略跳过条件强制走发布（tag 已存在时各渠道仍幂等跳过）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.decide.outputs.version }}
+      release: ${{ steps.decide.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - uses: astral-sh/setup-uv@v4
+      - name: Python test suite
+        run: uv run --locked --project python/patent-services --group test pytest python/patent-services/tests -q
+      - name: Build release artifacts
+        run: |
+          npm --prefix scripts ci
+          npm --prefix scripts run build
+          uv build --out-dir dist python/patent-services
+          python3 scripts/prepare-release.py
+          python3 scripts/verify-dist.py --write-checksums
+          python3 scripts/verify-dist.py
+      - name: Decide release
+        id: decide
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('packages/bundle-patent/package.json', 'utf8')).version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q "refs/tags/v$VERSION"; then
+            if [ "$FORCE" != "true" ]; then
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              echo "v$VERSION 已有标签——无版本推进，跳过发布"
+              exit 0
+            fi
+            echo "::warning::v$VERSION 标签已存在，FORCE 强制重跑（各渠道幂等跳过已发布物）"
+          fi
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "将发布 v$VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurify-release
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build-and-test
+    if: needs.build-and-test.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.build-and-test.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: aurify-release
+          path: dist/
+      - name: Resolve tag
+        id: tag
+        run: |
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          # semver 预发布（含连字符）走 GitHub prerelease 与 npm 对应 dist-tag
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=${VERSION#*-}" | cut -d. -f1 >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Push release tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Aurify $TAG"
+          git push origin "$TAG"
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+
+      # ---- npm（三个包；缺 NPM_TOKEN 时跳过并在总结中登记）----
+      - name: Publish npm packages
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::warning::未配置 NPM_TOKEN——跳过 npm 发布" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
+          for pkg in mtl-academic-dsh-patent mtl-academic-dsh-tool-patent mtl-academic-dsh-command-patent-review; do
+            if npm view "$pkg@$VERSION" version --registry https://registry.npmjs.org >/dev/null 2>&1; then
+              echo "$pkg@$VERSION 已在 npm，跳过" | tee -a "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            npm publish "dist/$pkg-$VERSION.tgz" --access public --tag "${{ steps.tag.outputs.npm_tag }}"
+            echo "npm 已发布 $pkg@$VERSION (tag: ${{ steps.tag.outputs.npm_tag }})" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+      # ---- PyPI（wheel + sdist；缺 PYPI_API_TOKEN 时跳过）----
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [ -z "$UV_PUBLISH_TOKEN" ]; then
+            echo "::warning::未配置 PYPI_API_TOKEN——跳过 PyPI 发布" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if curl -fsSL "https://pypi.org/pypi/deepseek-harness-patent-services/$VERSION/json" >/dev/null 2>&1; then
+            echo "deepseek-harness-patent-services@$VERSION 已在 PyPI，跳过" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          uv publish "dist/deepseek_harness_patent_services-$VERSION-py3-none-any.whl" "dist/deepseek_harness_patent_services-$VERSION.tar.gz"
+          echo "PyPI 已发布 $VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ---- GitHub Release（dist 全量附件，与手动流程一致）----
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.tag.outputs.prerelease }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，跳过" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "Aurify $TAG" \
+            --generate-notes $PRERELEASE
+          echo "GitHub Release $TAG 已创建（dist 全量附件）" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ---- Docker 双镜像（缺 DOCKERHUB 凭据时整段跳过）----
+      - uses: docker/setup-buildx-action@v3
+        if: secrets.DOCKERHUB_TOKEN != ''
+      - name: Docker login
+        if: secrets.DOCKERHUB_TOKEN != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push render image (dsh-patent)
+        if: secrets.DOCKERHUB_TOKEN != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: python/patent-services/src/patent_services/assets
+          file: python/patent-services/src/patent_services/assets/Dockerfile.drawio
+          push: true
+          tags: |
+            q771103517/dsh-patent:v${{ env.VERSION }}
+            q771103517/dsh-patent:latest
+      - name: Build and push experiment image (dsh-patent-experiment)
+        if: secrets.DOCKERHUB_TOKEN != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: python/patent-services/src/patent_services/assets
+          file: python/patent-services/src/patent_services/assets/Dockerfile.experiment
+          push: true
+          tags: |
+            q771103517/dsh-patent-experiment:v${{ env.VERSION }}
+            q771103517/dsh-patent-experiment:latest
+      - name: Docker channel note
+        if: secrets.DOCKERHUB_TOKEN == ''
+        run: echo "::warning::未配置 DOCKERHUB_USERNAME/DOCKERHUB_TOKEN——跳过 Docker 镜像发布" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Release summary
+        run: |
+          {
+            echo "## Aurify v$VERSION 发布"
+            echo ''
+            echo '- 插件市场同步仍为手动步骤（不计入本工作流）'
+            echo '- 各渠道「已在 / 已跳过」明细见上方步骤输出'
+          } >> "$GITHUB_STEP_SUMMARY"
