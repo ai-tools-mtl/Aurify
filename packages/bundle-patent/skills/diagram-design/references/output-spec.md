@@ -222,3 +222,46 @@ Run alongside the SKILL.md §9 taste gate.
 - [ ] Fidelity ledger reported for anything cut?
 - [ ] Diagram `<svg>` has `role="img"`, resolving `aria-labelledby`, a non-empty first-child `<title>`, a non-empty `<desc>`, and per-diagram/variant prefixed IDs?
 - [ ] Requested non-HTML formats produced via [`export.md`](export.md), not hand-authored?
+
+---
+
+## 7. Summary card pattern
+
+Don't use 3 identical generic cards. Vary the treatment:
+
+```html
+<div class="card">
+  <p class="eyebrow">SECTION LABEL</p>
+  <div class="card-header">
+    <span class="card-dot coral"></span>
+    <h3>Card Title</h3>
+  </div>
+  <ul><li>Item</li></ul>
+</div>
+```
+
+Rules:
+
+- `background: #ffffff` (not paper — slight lift without shadow)
+- `border: 1px solid rgba(45,49,66,0.12)`
+- `border-radius: 6px`, `padding: 1.25rem`
+- **No `box-shadow`**
+- Card dots: 7px, `border-radius: 50%` — ink / muted / coral / link / soft variants
+
+---
+
+## 8. Dotted paper (opt-in)
+
+When a long-form editorial diagram benefits from textured ground (essays, hero diagrams on a dedicated page), opt in by adding the `dots` pattern and a second rect:
+
+```svg
+<defs>
+  <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+    <circle cx="1" cy="1" r="0.9" fill="rgba(45,49,66,0.10)"/>
+  </pattern>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<rect width="100%" height="100%" fill="url(#dots)" opacity="0.6"/>
+```
+
+Don't use the dot pattern when the diagram sits inside a product page, slide, or card — the texture compounds with surrounding chrome and reads as noise.

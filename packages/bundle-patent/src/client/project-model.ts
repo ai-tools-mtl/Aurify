@@ -138,10 +138,10 @@ const FIGURE_FILE = /^图(\d+)(?:-.+)?\.png$/i
 /** The degradation marker in reference/prior-art.md (mirror of loop.ts). */
 const PRIOR_ART_UNAVAILABLE = /查新不可用/
 
-/** The default review score bar (mirror of loop.ts; patent.yml reviewThreshold overrides). */
+/** The default review score bar (mirror of loop.ts; patent.yml reviewThreshold overrides). Kept in sync by tool-patent/tests/threshold-sync.standalone.test.mjs — a cross-package import would pull server-side host packages into the client bundle. */
 const DEFAULT_THRESHOLD = 80
 
-/** How far the bar drops while the prior-art search is marked unreachable (mirror of loop.ts). */
+/** How far the bar drops while the prior-art search is marked unreachable (mirror of loop.ts; guarded by the same sync test). */
 const DEGRADED_DELTA = 10
 
 /**

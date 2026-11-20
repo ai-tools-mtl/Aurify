@@ -12,16 +12,16 @@ description: 交底书与申请文件的导出、交付物更新、已有文档�
 1. **导出主次：交底书是默认交付物**。用户要求"完成/写完/交付"或未点名要哪种文档时，一律指交底书：调 `export_disclosure(project_dir, fmt)`（docx 默认；PDF 优先 Windows Word COM，否则回退另行配置的 weasyprint 及系统库，缺失时明确报错）。`export_application_docs(project_dir, fmt)`（申请文件三件套）只在用户明确要求推进申请文件/准备提交时调用——"完成交底书"不等于"交申请文件"，不要替用户把流程推进到 application。
 2. **导出后核对附图数**：导出工具返回"内嵌附图 N 张"——N 必须等于 chapters/08-drawings.md 声明的"图N 为…"条数；返回带警告或 N 为 0 而章节声明了附图时，是命名不合规（成品须 `图N.png` 或 `图N-名称.png`）或渲染缺图，修正后重导。**不许把零附图或缺图的导出物当"完成"交付**。
 3. **更新已交付内容**（章节修订、附图变更、错字修正）：一律改源（chapters/、figures/、application/）后重新导出覆盖——不要在旧 docx 上打补丁。
-4. **就地向已交付 docx 插图或补内容**（用户明确要求且不接受重新导出时）：先说明将修改用户文件并自动留 `.bak`，插图遵守 patent-figure-design 的插图纪律（图N 在图下方居中、编号对应 08 章附图说明、图注轻改写）。
+4. 🔴 **就地向已交付 docx 插图或补内容**（用户明确要求且不接受重新导出时）：先向用户确认后就地修改——说明将修改用户文件并自动留 `.bak`，等用户点头再动笔。插图遵守 patent-figure-design 的插图纪律（图N 在图下方居中、编号对应 08 章附图说明、图注轻改写）。
 5. **解析 Word 材料**：代理机构模板、已授权交底书、参考文献用 `parse_disclosure_docx(path, output_path?)` 转三层编号 Markdown，存项目 `reference/` 后再引用。
-6. **导入已有文档**（用户带来现成的交底书/说明书 docx 要继续完善，或用户指定从既有文档起步建档）：用 `import_patent_document(project_dir, document_path, name?, overwrite?)` 把文档装进项目——章节按标题映射、brief 骨架与 patent.yml 自动生成，绝不用临时脚本手工拆 docx 搬内容。原文档不是交付物；导入报告要向用户复述（未导入节、空占位章），后续流程门会点名缺口。
-7. **写背景技术找先例**：用 `search_patent_archive(query, archive_dir)` 检索历史项目工作区或 `reference/`（中文分词 + BM25），命中结果给出处再融入正文。
+6. **导入已有文档**（用户带来现成的交底书/说明书 docx 要继续完善，或用户指定从既有文档起步建档）：用 `import_patent_document(project_dir, document_path, name?, overwrite?)` 把文档装进项目——章节按标题映射、brief 骨架与 patent.yml 自动生成，绝不用临时脚本手工拆 docx 搬内容。overwrite=true 且项目已有同名章节时，先向用户确认覆盖范围再调用。原文档不是交付物；导入报告要向用户复述（未导入节、空占位章），后续流程门会点名缺口。
+7. **写背景技术找先例**：用 `search_patent_archive(query, archive_dir)` 检索历史项目工作区或 `reference/`（中文分词 + BM25），命中结果给出处再融入正文；无命中时明说未找到先例、转为通用写法，不虚构出处；archive_dir 不存在或命中过多时，收窄查询词重检或向用户说明检索范围。
 8. **工具不可用时**：说明当前会话未启用专利服务，先读取并合并 `$DSH_HOME/patent-services.yaml`（默认 `~/.dsh/patent-services.yaml`），保留已有偏好。使用 `mcp_enabled: true` 加 `mcp_wheel: true`，或加 `mcp_project_dir: <含 pyproject.toml 的源码目录绝对路径>`。路径经文件工具原样写入，避免 shell 转义损坏。wheel 模式通过 `uvx --from deepseek-harness-patent-services patent-services` 解析 PyPI 包，无需预先 `uv tool install`，也不锁定本地 wheel；精确版本或离线使用应选源码模式并提前缓存依赖。配置变更后请用户完整重启桌面版，再调 `patent_setup_check` 复检；「待重启」不等于工具已可用。不要静默改用临时脚本拼改文档。
 
 ## 工具清单（MCP 前缀 mcp__patent__）
 
-- `import_patent_document(project_dir, document_path, name?, overwrite?)` — 已有 Word 文档导入为项目章节（建档起点）。
-- `export_disclosure(project_dir, fmt)` — 模板驱动交底书导出（标题层级自动归一化，警告随返回值带出）。
+- `import_patent_document(project_dir, document_path, name?, overwrite?)` — 已有 Word 文档导入为项目章节（行为与确认门见程序第 6 步）。
+- `export_disclosure(project_dir, fmt)` — 模板驱动交底书导出（附图核对与回退见程序第 1-2 步）。
 - `export_application_docs(project_dir, fmt)` — 申请文件三件套单 docx 多分节。
 - `parse_disclosure_docx(path, output_path?)` — Word → 三层编号 Markdown（参考材料用）。
 - `search_patent_archive(query, archive_dir, limit?)` — 中文全文检索（jieba + BM25）。

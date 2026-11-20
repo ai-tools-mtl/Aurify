@@ -7,9 +7,14 @@ import asyncio
 from patent_services.server import mcp
 
 
-def test_server_registers_the_ten_domain_tools():
+def test_server_registers_the_fifteen_domain_tools():
     tools = {tool.name for tool in asyncio.run(mcp.list_tools())}
-    assert tools == {"import_patent_document", "parse_disclosure_docx", "export_disclosure", "export_application_docs", "render_drawio_figure", "render_html_figure", "lint_drawio_figure", "search_patent_archive", "run_experiment", "search_cn_patents"}
+    assert tools == {
+        "import_patent_document", "parse_disclosure_docx", "export_disclosure", "export_application_docs",
+        "render_drawio_figure", "render_html_figure", "lint_drawio_figure", "search_patent_archive",
+        "run_experiment", "search_cn_patents",
+        "repo_check_access", "repo_scan", "repo_read_object", "repo_verify_evidence", "repo_forget",
+    }
 
 
 def test_import_patent_document_through_the_mcp_call_path(tmp_path, monkeypatch):

@@ -8,11 +8,9 @@ import pytest
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
+from docx.shared import Pt
 
 from patent_services.export import (
-    APPLICATION_FONT,
-    APPLICATION_HEADER_FONT,
-    APPLICATION_SIZE,
     DISCLOSURE_FONT,
     DISCLOSURE_SIZE,
     export_application,
@@ -23,6 +21,24 @@ from patent_services.export import (
 def east_asia(run) -> str | None:
     rfonts = run._element.rPr.rFonts
     return None if rfonts is None else rfonts.get(qn("w:eastAsia"))
+
+
+def body_paragraphs(document) -> list:
+    """Paragraphs in document order, including paragraphs inside tables —
+    figure blocks ride in borderless wrapper tables, so top-level
+    ``document.paragraphs`` no longer sees their 图N labels and captions."""
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    paragraphs = []
+    for child in document.element.body.iterchildren():
+        if child.tag == qn("w:p"):
+            paragraphs.append(Paragraph(child, document))
+        elif child.tag == qn("w:tbl"):
+            for row in Table(child, document).rows:
+                for cell in row.cells:
+                    paragraphs.extend(cell.paragraphs)
+    return paragraphs
 
 
 def first_line_chars(paragraph) -> str | None:
@@ -170,6 +186,22 @@ TINY_PNG = bytes.fromhex(
 )
 
 
+def portrait_png(width: int = 2, height: int = 3) -> bytes:
+    """A minimal valid RGB PNG taller than wide, for the height-cap test."""
+    import struct
+    import zlib
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF))
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    row = b"\x00" + b"\xff\x00\x00" * width  # filter-none + one red row
+    idat = zlib.compress(row * height)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", idat) + chunk(b"IEND", b""))
+
+
 def add_figures(root, captions="# 附图说明\n\n图1 为本发明所述方法的流程总览图；\n图2 为本发明系统的架构框图。\n"):
     figures = root / "figures"
     figures.mkdir(exist_ok=True)
@@ -185,13 +217,22 @@ def test_export_docx_embeds_figures_with_labels_below(tmp_path):
     output, _warnings = export_project(str(project))
     document = Document(output)
     assert len(document.inline_shapes) == 2
-    texts = [p.text for p in document.paragraphs]
+    texts = [p.text for p in body_paragraphs(document)]
     assert "图1" in texts and "图2" in texts
     # The 图N label and caption sit below each image, centered.
     label_index = texts.index("图1")
-    label_paragraph = document.paragraphs[label_index]
+    label_paragraph = body_paragraphs(document)[label_index]
     assert label_paragraph.paragraph_format.alignment == WD_ALIGN_PARAGRAPH.CENTER
     assert "流程总览图" in texts[label_index + 1]
+    # Each figure block rides in a borderless wrapper table whose row cannot
+    # split across pages — the anti-orphan guarantee without keep-with-next.
+    # (The template itself may carry other tables, so target by content.)
+    figure_tables = [t for t in document.tables
+                     if any(p.text in ("图1", "图2") for p in t.cell(0, 0).paragraphs)]
+    assert len(figure_tables) == 2
+    for table in figure_tables:
+        tr_pr = table.rows[0]._tr.trPr
+        assert tr_pr is not None and tr_pr.find(qn("w:cantSplit")) is not None
 
 
 def test_export_docx_without_drawings_chapter_appends_figure_section(tmp_path):
@@ -221,7 +262,7 @@ def test_export_collects_suffixed_figure_names(tmp_path):
     output, _warnings = export_project(str(project))
     document = Document(output)
     assert len(document.inline_shapes) == 2
-    texts = [p.text for p in document.paragraphs]
+    texts = [p.text for p in body_paragraphs(document)]
     assert "图1" in texts and "图2" in texts
 
 
@@ -342,49 +383,92 @@ def test_export_application_docx_round_trip(tmp_path):
     assert output.endswith("一种测试存储装置-申请文件.docx")
     document = Document(output)
 
-    # Submitted-package page geometry: one section per document, 2.5 cm
-    # top/left margins, no page numbers anywhere.
+    # The agency template's own five-section shape: one section per document,
+    # each carrying the template's centered header and per-section page
+    # numbering (pgNumType restarts at 1 everywhere).
     assert len(document.sections) == 3
+    headers = [section.header.paragraphs[0].text for section in document.sections]
+    assert headers == ["说明书摘要", "权利要求书", "说明书"]
     for section in document.sections:
-        assert round(section.top_margin.cm, 2) == 2.5
-        assert round(section.left_margin.cm, 2) == 2.5
-        assert section.footer.is_linked_to_previous is True
-    assert document.sections[0]._sectPr.find(qn("w:pgNumType")) is None
-    for section in document.sections[1:]:
         pg_num_type = section._sectPr.find(qn("w:pgNumType"))
         assert pg_num_type is not None and pg_num_type.get(qn("w:start")) == "1"
 
-    # The document-type labels live in centered, bottom-bordered headers.
-    for section, label in zip(document.sections, ("说  明  书  摘  要", "权   利   要   求   书", "说    明    书")):
-        header_paragraph = section.header.paragraphs[0]
-        assert header_paragraph.text == label
-        assert header_paragraph.alignment == WD_ALIGN_PARAGRAPH.CENTER
-        assert header_paragraph._p.pPr.find(qn("w:pBdr")) is not None
-        assert east_asia(header_paragraph.runs[0]) == APPLICATION_HEADER_FONT
-        assert header_paragraph.runs[0].font.size == APPLICATION_SIZE
-
-    # No body titles: the abstract text opens the document, and the
-    # description section opens with the centered invention name.
+    # The abstract opens the document; the description section opens with the
+    # centered invention name.
     paragraphs = document.paragraphs
     texts = [paragraph.text for paragraph in paragraphs]
     assert texts[0] == "一种测试存储装置，属于存储领域，通过动态评估提升命中率。"
     name = next(paragraph for paragraph in paragraphs if paragraph.text == "一种测试存储装置")
     assert name.alignment == WD_ALIGN_PARAGRAPH.CENTER
 
-    # Description subheadings (## 技术领域) render bold and unindented;
-    # body runs are 宋体 四号 with a two-character first-line indent.
+    # Claims lose their literal "N. " prefixes — the template's list
+    # numbering renumbers them — and carry the template's 楷体 四号 body
+    # style; the template indents claims by an absolute first-line (567
+    # twips ≈ two characters), not a character-count rule.
+    claim_1 = next(paragraph for paragraph in paragraphs
+                   if paragraph.text.startswith("一种测试存储装置，其特征在于"))
+    assert claim_1._p.pPr.find(qn("w:numPr")) is not None
+    assert east_asia(claim_1.runs[0]) == "楷体"
+    assert claim_1.runs[0].font.size == Pt(14)
+    assert claim_1._p.pPr.find(qn("w:ind")).get(qn("w:firstLine")) == "567"
+    claim_2 = next(paragraph for paragraph in paragraphs if paragraph.text.startswith("根据权利要求1"))
+    assert claim_2._p.pPr.find(qn("w:numPr")) is not None
+
+    # The continuation line folds into claim 1 — one paragraph per claim.
+    assert "一种测试存储装置，其特征在于，包括动态评估模块。所述动态评估模块按周期计算。" in texts
+
+    # Description sections (## 技术领域) render bold and unindented in the
+    # template's heading style; body paragraphs keep the first-line indent.
     field = next(paragraph for paragraph in paragraphs if paragraph.text == "技术领域")
     assert field.runs[0].font.bold is True and first_line_chars(field) is None
-    claim_2 = next(paragraph for paragraph in paragraphs if paragraph.text.startswith("2."))
-    assert claim_2.runs[0].font.size == APPLICATION_SIZE
-    assert east_asia(claim_2.runs[0]) == APPLICATION_FONT
-    assert first_line_chars(claim_2) == "200"
-
-    # One paragraph per numbered claim — the continuation line folds in.
-    assert "1. 一种测试存储装置，其特征在于，包括动态评估模块。所述动态评估模块按周期计算。" in texts
-    assert "2. 根据权利要求1所述的装置，其特征在于，所述模块按周期更新。" in texts
     assert "实施例一。" in texts
-    assert "一种测试存储装置，属于存储领域，通过动态评估提升命中率。" in texts
+
+
+def test_export_application_renders_subscripts_formulas_and_bold(tmp_path):
+    project = build_application_project(tmp_path / "project")
+    (project / "application" / "description.md").write_text(
+        "# 说明书\n\n## 具体实施方式\n\n"
+        "实施例一：份额拆分如下。\n\n"
+        "$$K = H_{0}(K_{1} ‖ K_{2})　　(2)$$\n\n"
+        "其中衰减因子f取2^{-Δt_{i}/τ_{0}}，**加密侧**随机生成份额。\n",
+        encoding="utf-8",
+    )
+    output, _warnings = export_application(str(project))
+    document = Document(output)
+    paragraphs = document.paragraphs
+
+    formula = next(paragraph for paragraph in paragraphs if paragraph.text.endswith("(2)"))
+    assert formula.text == "K = H0(K1 ‖ K2)　　(2)"
+    assert formula.alignment == WD_ALIGN_PARAGRAPH.CENTER
+    assert first_line_chars(formula) is None
+
+    decay = next(paragraph for paragraph in paragraphs if paragraph.text.startswith("其中衰减因子"))
+    subscript_runs = [run for run in decay.runs if run.font.subscript]
+    assert [run.text for run in subscript_runs] == ["i", "0"]
+    bold = [run.text for run in decay.runs if run.font.bold]
+    assert bold == ["加密侧"]
+
+
+def test_export_application_warns_on_overlong_name(tmp_path):
+    project = tmp_path / "project"
+    (project / "application").mkdir(parents=True)
+    (project / "patent.yml").write_text("name: 一种很长的测试装置名称一共需要超过二十五个字的长度限制才行呢\n", encoding="utf-8")
+    (project / "application" / "abstract.md").write_text("摘要。\n", encoding="utf-8")
+    _output, warnings = export_application(str(project))
+    assert any("25字" in warning for warning in warnings)
+
+
+def test_export_application_portrait_figure_height_capped(tmp_path):
+    project = add_figures(build_application_project(tmp_path / "project"))
+    (project / "figures" / "图2.png").write_bytes(portrait_png())
+    output, _warnings = export_application(str(project))
+    document = Document(output)
+    shapes = document.inline_shapes
+    assert len(shapes) == 3
+    # 图2 is portrait (2×3): capped on height, width follows the aspect.
+    portrait = shapes[-1]
+    assert portrait.height.cm <= 22.6
+    assert round(portrait.width.cm / portrait.height.cm, 2) == round(2 / 3, 2)
 
 
 def test_export_application_skips_missing_files_in_order(tmp_path):
@@ -397,7 +481,7 @@ def test_export_application_skips_missing_files_in_order(tmp_path):
     assert output.endswith("partial-申请文件.docx")
     document = Document(output)
     assert len(document.sections) == 1
-    assert document.sections[0].header.paragraphs[0].text == "说  明  书  摘  要"
+    assert document.sections[0].header.paragraphs[0].text == "说明书摘要"
     texts = [paragraph.text for paragraph in document.paragraphs]
     assert texts[0] == "部分摘要。"
     assert "权利要求书" not in texts
@@ -428,7 +512,7 @@ def test_export_application_appends_figure_sections(tmp_path):
     output, _warnings = export_application(str(project))
     document = Document(output)
     headers = [section.header.paragraphs[0].text for section in document.sections]
-    assert headers == ["说  明  书  摘  要", "摘  要  附  图", "权   利   要   求   书", "说    明    书", "说  明  书  附  图"]
+    assert headers == ["说明书摘要", "摘要附图", "权利要求书", "说明书", "说明书附图"]
     # 摘要附图 shows only 图1; 说明书附图 shows the full set.
     assert len(document.inline_shapes) == 3
 

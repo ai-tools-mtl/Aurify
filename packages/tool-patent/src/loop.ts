@@ -562,8 +562,8 @@ async function exportGap(root: string): Promise<string | undefined> {
 /** Per-stage directive: what to do, which skills, and the hard disciplines. */
 const STAGE_DIRECTIVES: Readonly<Record<Exclude<LoopStage, 'done'>, { directive: string; skills: string[]; mayNeedUser: boolean }>> = {
   init: {
-    directive: '这是一个新项目起点。加载 patent-init 技能：先过其环境自检门（patent_setup_check——报告呈现后停在等待点：除检索通道外必须修复复检、不给跳过；仅检索通道可问用户「是否跳过查新、先继续写作」；全部就绪或用户明确跳过检索后才进入评估），再按其点子评估程序拆 2~3 个核心技术特征，用 search_cn_patents 检索现有专利并用 web_fetch 读最接近几篇的明细，形成三档结论（建议写/收窄后写/不建议写，附公开号证据）与用户对话定方向；用户确认后按建档约定建立 patent.yml + brief.md（开头是评估节）。'
-      + '评估结论需要用户拍板——把判断和证据摆到桌面并直接提问，不要替用户决定。',
+    directive: '这是一个新项目起点。加载 patent-init 技能：先过其环境自检门（patent_setup_check——报告呈现后停在等待点：除检索通道外必须修复复检、不给跳过；仅检索通道可问用户「是否跳过查新、先继续写作」；全部就绪或用户明确跳过检索后才进入评估），再按其可专利性初步评估程序推进（澄清披露时间线与客体疑点→拆特征明确评估对象→按 patent-research 检索并收口→逐项单独对比→三步法创造性论证→实用性与充分公开核查→形成建议），产出三档建议（建议写/收窄后写/不建议写）或暂缓评估；证据按实际来源呈现——专利文献附公开号，论文、代码、产品文档等非专利披露附可追溯标识，不强求公开号；有已核实的独立否定理由可提前结束评估，未执行环节如实注明。'
+      + '评估结论需要用户拍板——把判断和证据摆到桌面并直接提问，不要替用户决定；用户确认后按建档约定建立 patent.yml + brief.md（开头是评估节）。',
     skills: ['patent-init', 'patent-research'],
     mayNeedUser: true,
   },
@@ -605,7 +605,10 @@ const STAGE_DIRECTIVES: Readonly<Record<Exclude<LoopStage, 'done'>, { directive:
 }
 
 /** The completed-stage directive: deliver, and stop looping. */
-const DONE_DIRECTIVE = '项目已成稿：交底书导出物存在且不落后于源文件、附图齐全、审查报告在 review/。向用户交付导出物路径与要点摘要，结束循环；用户明确要求推进申请文件时才走 patent-claims 与 patent-application。'
+const DONE_DIRECTIVE = '项目已成稿：交底书导出物存在且不落后于源文件、附图齐全、审查报告在 review/。complete=true 只表示交底材料阶段齐备，不等于可专利性评估通过或授权结论——向用户交付导出物路径与要点摘要时，随附 brief.md 评估节当前记载的评估状态、适用版本与未清事项；用户明确要求推进申请文件时才走 patent-claims 与 patent-application。结束循环。'
+
+/** Evaluation recovery is a skill action at every stage, not an assessor gate. */
+const EVALUATION_RESUME_DIRECTIVE = '先加载 patent-loop 技能核对评估记录，遵守既有环境自检门；已有项目读取 brief.md 与 reference/ 账本，核对方案、证据版本及未清事项，缺历史记录记为未评估。补证已到或有实质变化时，无论当前材料阶段（包括 done），按 patent-init/patent-research 恢复受影响的评估；不能只改状态或沿用失效建议。若更新了 brief.md、正文或附图等参与既有源指纹的文件，先重新调用 patent_loop 获取当前材料阶段，再执行阶段指令，不沿用本次旧阶段。仍有决定性缺口时保存恢复条件；仅在用户已授权带缺口继续材料工作的范围内推进，否则说明待补项并等待。评估状态由技能维护，不改写工具的 stage、gaps 或 complete。'
 
 /**
  * Run one assessment pass over a project directory and produce the loop
@@ -682,7 +685,8 @@ export async function assessLoopState(projectDir: string): Promise<LoopState> {
   // The relaxed-threshold debt follows the project through every stage —
   // including done, where a delivered disclosure would otherwise present
   // itself as fully clean while the prior-art search never actually ran.
-  const directive = degraded ? `${current.directive}\n${PRIOR_ART_DEBT_NOTE}` : current.directive
+  const stageDirective = `${EVALUATION_RESUME_DIRECTIVE}\n${current.directive}`
+  const directive = degraded ? `${stageDirective}\n${PRIOR_ART_DEBT_NOTE}` : stageDirective
   return {
     projectRoot: root,
     projectName,

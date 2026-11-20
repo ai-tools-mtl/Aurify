@@ -1,0 +1,18 @@
+[
+ {"id":"dev-1","split":"dev","source":"user",
+  "prompt":"按 input/架构描述.md 画一张系统架构图，产出自包含 HTML 存为 output/architecture.html",
+  "files":["架构描述.md"],
+  "checks":["产出单个自包含 .html（内联 CSS/SVG，无本地外部引用）","svg 带 role=img 与非空且带前缀的 title/desc ID","所有连接线为正交直角路径，无对角 line","节点数不超过 9、箭头相关元素绘制在节点之前","无 JetBrains Mono 等被禁字体"]},
+ {"id":"dev-2","split":"dev","source":"user",
+  "prompt":"导入 input/source.drawio 重绘为编辑风格架构图（balanced 细节级），存 output/redrawn.html，并报告保真清单",
+  "files":["source.drawio"],
+  "checks":["回答中有 fidelity ledger（合并/折叠/丢弃了什么）","产出自包含 html 且节点数符合 balanced 档上限","源文件的颜色样式未残留到产出","连接线正交、无重叠"]},
+ {"id":"holdout-1","split":"holdout","source":"doc",
+  "prompt":"按 input/排期描述.md 画一张甘特图，存 output/gantt.html",
+  "files":["排期描述.md"],
+  "checks":["产出单个自包含 .html","svg 有可访问 title/desc","任务数不超过 12 且阶段划分与输入一致","图例为底部横条（如有）"]},
+ {"id":"holdout-2","split":"holdout","source":"doc",
+  "prompt":"input/flow.mmd 是 mermaid 流程图源码，重绘为编辑风格流程图存 output/flow.html，报告保真清单",
+  "files":["flow.mmd"],
+  "checks":["回答中有 fidelity ledger","产出未复刻 mermaid 默认渲染样式","连接线正交","产出自包含 html 且 svg 可访问"]}
+]

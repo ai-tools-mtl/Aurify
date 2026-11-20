@@ -6,10 +6,10 @@ Aurify 是从 DeepSeek Harness monorepo 提取的插件源码仓。三个 TypeSc
 
 | 路径 | 内容 |
 |---|---|
-| `packages/bundle-patent` | 14 个技能、Web 卡片、项目面板与组合 patch |
+| `packages/bundle-patent` | 15 个技能、Web 卡片、项目面板与组合 patch |
 | `packages/tool-patent` | 五个原生工具、`/patent-loop` 与环境检查 |
 | `packages/command-patent-review` | 审查命令/工具、固定 workflow 与七维 rubric |
-| `python/patent-services` | 十个 MCP 工具、Word 模板、Dockerfile 与 Python 测试 |
+| `python/patent-services` | 十五个 MCP 工具、Word 模板、Dockerfile 与 Python 测试（`repo_*` 五件为仓库挖掘：接入 GitHub/GitLab/Gitee/本地 clone，配置在 `~/.dsh/repo-mining.yaml`） |
 | `docs/install` | 双语安装指南，同时作为 Release 附件源 |
 | `scripts` | 独立构建、校验、Windows 安装器、persona 正本及宿主版本映射 |
 | `dist` | Git 忽略的本地生成目录 |
@@ -43,7 +43,21 @@ uv run --locked --project python/patent-services --group test pytest python/pate
 
 独立 TS 构建生成 JS、Web 客户端和 `.d.ts`。**声明生成使用 `noCheck`，构建通过不代表完整类型检查通过。** TS 的 vitest、完整类型检查和宿主 UI 集成需兼容的 DeepSeek Harness monorepo，本仓库不附带该 monorepo。
 
-CI 执行 Python 测试、独立构建及产物完整性校验，不执行宿主 UI、Windows 安装器或 Docker 全链路。记录验证结果时写清执行范围，兼容代码分支不作为实测结论。
+已安装 `scripts` 构建依赖时，可独立验证评估恢复的工具／命令入口：
+
+```sh
+node --test packages/tool-patent/tests/loop-recovery.standalone.test.mjs
+```
+
+审查阈值常量在 `tool-patent/src/loop.ts`（正本）与 `bundle-patent/src/client/project-model.ts`（客户端镜像）各存一份，镜像由同步守卫测试看护，可独立运行：
+
+```sh
+node --test packages/tool-patent/tests/threshold-sync.standalone.test.mjs
+```
+
+该测试使用真实的注册代码、命令、阶段判定器、源指纹和临时文件，仅替代宿主的工具注册及消息包装，不启动 MCP 或访问网络。覆盖成稿项目仍注入评估核对、证据同步到 brief 后旧产物失效及 review 阶段仍有恢复指令、环境门与用户选择要求保留。它不运行模型，不能证明技能已实际完成语义重评、法律判断或提案全部行为场景；完整宿主和模型验收需另行执行。
+
+CI 执行 Python 测试、独立构建及产物完整性校验，不执行宿主 UI、Windows 安装器或 Docker 全链路。`release` 工作流在 main 上版本号推进时自动发布 npm/PyPI/Release/Docker（触发条件与密钥见[发布流程](RELEASING.md)「自动化发布」节）。记录验证结果时写清执行范围，兼容代码分支不作为实测结论。
 
 开发时可在 `~/.dsh/patent-services.yaml` 合并以下配置，替换实际绝对路径：
 
