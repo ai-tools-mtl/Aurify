@@ -122,9 +122,12 @@ jobs:
       - name: Publish npm packages
         id: npm
         continue-on-error: true
+        outputs:
+          failed: ${{ steps.npm.outputs.failed }}
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          echo "failed=false" >> "$GITHUB_OUTPUT"
           if [ -z "$NPM_TOKEN" ]; then
             echo "::warning::未配置 NPM_TOKEN——跳过 npm 发布" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -141,6 +144,7 @@ jobs:
                 continue
               fi
               echo "::error::npm publish 失败且版本未在注册表：$pkg@$VERSION"
+              echo "failed=true" >> "$GITHUB_OUTPUT"
               exit 1
             fi
             echo "npm 已发布 $pkg@$VERSION (tag: ${{ steps.tag.outputs.npm_tag }})" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -150,9 +154,12 @@ jobs:
       - name: Publish to PyPI
         id: pypi
         continue-on-error: true
+        outputs:
+          failed: ${{ steps.pypi.outputs.failed }}
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: |
+          echo "failed=false" >> "$GITHUB_OUTPUT"
           if [ -z "$UV_PUBLISH_TOKEN" ]; then
             echo "::warning::未配置 PYPI_API_TOKEN——跳过 PyPI 发布" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -167,6 +174,7 @@ jobs:
               exit 0
             fi
             echo "::error::PyPI publish 失败且版本未在注册表"
+            echo "failed=true" >> "$GITHUB_OUTPUT"
             exit 1
           fi
           echo "PyPI 已发布 $VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -222,24 +230,25 @@ jobs:
         if: env.DOCKERHUB_TOKEN == ''
         run: echo "::warning::未配置 DOCKERHUB_USERNAME/DOCKERHUB_TOKEN——跳过 Docker 镜像发布" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # 渠道隔离后的统一收口：任一渠道真实失败则运行失败；「已存在跳过」不算失败
+      # 渠道隔离后的统一收口：只认渠道步骤显式声明的 failed 旗标——
+      # continue-on-error 步骤的原始 outcome 会把「重跑竞争已存在」误报为失败
       - name: Release summary
         if: always()
         env:
-          NPM_OUTCOME: ${{ steps.npm.outcome }}
-          PYPI_OUTCOME: ${{ steps.pypi.outcome }}
+          NPM_FAILED: ${{ steps.npm.outputs.failed }}
+          PYPI_FAILED: ${{ steps.pypi.outputs.failed }}
           RENDER_OUTCOME: ${{ steps.docker-render.outcome }}
           EXPERIMENT_OUTCOME: ${{ steps.docker-experiment.outcome }}
         run: |
           fail=0
-          if [ "$NPM_OUTCOME" = "failure" ]; then echo "::error::npm 渠道失败"; fail=1; fi
-          if [ "$PYPI_OUTCOME" = "failure" ]; then echo "::error::PyPI 渠道失败"; fail=1; fi
+          if [ "$NPM_FAILED" = "true" ]; then echo "::error::npm 渠道失败"; fail=1; fi
+          if [ "$PYPI_FAILED" = "true" ]; then echo "::error::PyPI 渠道失败"; fail=1; fi
           if [ "$RENDER_OUTCOME" = "failure" ]; then echo "::error::Docker 渲染镜像推送失败"; fail=1; fi
           if [ "$EXPERIMENT_OUTCOME" = "failure" ]; then echo "::error::Docker 实验镜像推送失败"; fail=1; fi
           {
             echo "## Aurify v$VERSION 发布"
             echo ''
-            echo "- npm: $NPM_OUTCOME | PyPI: $PYPI_OUTCOME | 渲染镜像: $RENDER_OUTCOME | 实验镜像: $EXPERIMENT_OUTCOME"
+            echo "- npm 失败旗标: $NPM_FAILED | PyPI 失败旗标: $PYPI_FAILED | 渲染镜像: $RENDER_OUTCOME | 实验镜像: $EXPERIMENT_OUTCOME"
             echo '- 插件市场同步仍为手动步骤（不计入本工作流）'
             echo '- 各渠道「已在 / 已跳过」明细见上方步骤输出'
           } >> "$GITHUB_STEP_SUMMARY"
