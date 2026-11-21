@@ -24,6 +24,7 @@ PACKAGE_VERSIONS = [
     ROOT / 'packages/command-patent-review/package.json',
 ]
 PYPROJECT = ROOT / 'python/patent-services/pyproject.toml'
+UVLOCK = ROOT / 'python/patent-services/uv.lock'
 _SEMVER = re.compile(r'^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$')
 
 
@@ -55,6 +56,18 @@ def main() -> int:
         return 1
     PYPROJECT.write_text(new_text, encoding='utf-8')
     print(f'{PYPROJECT.relative_to(ROOT)}: version -> {version}')
+
+    # uv.lock 的根包版本必须随 pyproject 一起推进：CI 的 `uv run --locked`
+    # 会校验锁与 pyproject 一致（含项目自身版本），不同步则发版工作流测试步失败。
+    lock = UVLOCK.read_text(encoding='utf-8')
+    new_lock, lock_count = re.subn(
+        r'(\[\[\s*package\s*\]\]\s*\nname\s*=\s*"deepseek-harness-patent-services"\s*\nversion\s*=\s*)"[^"]+"',
+        rf'\g<1>"{version}"', lock, count=1)
+    if lock_count != 1:
+        print(f'未在 {UVLOCK.relative_to(ROOT)} 找到根包版本行')
+        return 1
+    UVLOCK.write_text(new_lock, encoding='utf-8', newline='')
+    print(f'{UVLOCK.relative_to(ROOT)}: 根包 version -> {version}')
 
     print('\n后续步骤：更新 CHANGELOG.md 未发布节 -> 提交 -> 合并进 main（release 工作流自动发布）')
     return 0
