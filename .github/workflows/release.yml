@@ -117,7 +117,11 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
 
       # ---- npm（三个包；缺 NPM_TOKEN 时跳过并在总结中登记）----
+      # 渠道隔离：单渠道失败不阻断其他渠道（continue-on-error + 总结步骤统一汇报）；
+      # publish 失败后复查注册表，版本已在即视为成功（重跑/竞争场景）。
       - name: Publish npm packages
+        id: npm
+        continue-on-error: true
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -131,12 +135,21 @@ jobs:
               echo "$pkg@$VERSION 已在 npm，跳过" | tee -a "$GITHUB_STEP_SUMMARY"
               continue
             fi
-            npm publish "dist/$pkg-$VERSION.tgz" --access public --tag "${{ steps.tag.outputs.npm_tag }}"
+            if ! npm publish "./dist/$pkg-$VERSION.tgz" --access public --tag "${{ steps.tag.outputs.npm_tag }}"; then
+              if npm view "$pkg@$VERSION" version --registry https://registry.npmjs.org >/dev/null 2>&1; then
+                echo "$pkg@$VERSION publish 报错但版本已在注册表（重跑/竞争），视为成功" | tee -a "$GITHUB_STEP_SUMMARY"
+                continue
+              fi
+              echo "::error::npm publish 失败且版本未在注册表：$pkg@$VERSION"
+              exit 1
+            fi
             echo "npm 已发布 $pkg@$VERSION (tag: ${{ steps.tag.outputs.npm_tag }})" | tee -a "$GITHUB_STEP_SUMMARY"
           done
 
       # ---- PyPI（wheel + sdist；缺 PYPI_API_TOKEN 时跳过）----
       - name: Publish to PyPI
+        id: pypi
+        continue-on-error: true
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: |
@@ -148,7 +161,14 @@ jobs:
             echo "deepseek-harness-patent-services@$VERSION 已在 PyPI，跳过" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          uv publish "dist/deepseek_harness_patent_services-$VERSION-py3-none-any.whl" "dist/deepseek_harness_patent_services-$VERSION.tar.gz"
+          if ! uv publish "dist/deepseek_harness_patent_services-$VERSION-py3-none-any.whl" "dist/deepseek_harness_patent_services-$VERSION.tar.gz"; then
+            if curl -fsSL "https://pypi.org/pypi/deepseek-harness-patent-services/$VERSION/json" >/dev/null 2>&1; then
+              echo "$VERSION publish 报错但版本已在 PyPI（重跑/竞争），视为成功" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "::error::PyPI publish 失败且版本未在注册表"
+            exit 1
+          fi
           echo "PyPI 已发布 $VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # ---- GitHub Release（dist 全量附件，与手动流程一致）----
@@ -177,6 +197,7 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
       - name: Build and push render image (dsh-patent)
+        id: docker-render
         if: env.DOCKERHUB_TOKEN != ''
         uses: docker/build-push-action@v6
         with:
@@ -187,6 +208,7 @@ jobs:
             q771103517/dsh-patent:v${{ env.VERSION }}
             q771103517/dsh-patent:latest
       - name: Build and push experiment image (dsh-patent-experiment)
+        id: docker-experiment
         if: env.DOCKERHUB_TOKEN != ''
         uses: docker/build-push-action@v6
         with:
@@ -200,11 +222,25 @@ jobs:
         if: env.DOCKERHUB_TOKEN == ''
         run: echo "::warning::未配置 DOCKERHUB_USERNAME/DOCKERHUB_TOKEN——跳过 Docker 镜像发布" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # 渠道隔离后的统一收口：任一渠道真实失败则运行失败；「已存在跳过」不算失败
       - name: Release summary
+        if: always()
+        env:
+          NPM_OUTCOME: ${{ steps.npm.outcome }}
+          PYPI_OUTCOME: ${{ steps.pypi.outcome }}
+          RENDER_OUTCOME: ${{ steps.docker-render.outcome }}
+          EXPERIMENT_OUTCOME: ${{ steps.docker-experiment.outcome }}
         run: |
+          fail=0
+          if [ "$NPM_OUTCOME" = "failure" ]; then echo "::error::npm 渠道失败"; fail=1; fi
+          if [ "$PYPI_OUTCOME" = "failure" ]; then echo "::error::PyPI 渠道失败"; fail=1; fi
+          if [ "$RENDER_OUTCOME" = "failure" ]; then echo "::error::Docker 渲染镜像推送失败"; fail=1; fi
+          if [ "$EXPERIMENT_OUTCOME" = "failure" ]; then echo "::error::Docker 实验镜像推送失败"; fail=1; fi
           {
             echo "## Aurify v$VERSION 发布"
             echo ''
+            echo "- npm: $NPM_OUTCOME | PyPI: $PYPI_OUTCOME | 渲染镜像: $RENDER_OUTCOME | 实验镜像: $EXPERIMENT_OUTCOME"
             echo '- 插件市场同步仍为手动步骤（不计入本工作流）'
             echo '- 各渠道「已在 / 已跳过」明细见上方步骤输出'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit $fail
