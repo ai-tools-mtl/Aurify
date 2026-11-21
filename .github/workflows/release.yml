@@ -126,7 +126,8 @@ jobs:
               echo "$pkg@$VERSION 已在 npm，跳过" | tee -a "$GITHUB_STEP_SUMMARY"
               continue
             fi
-            npm publish "dist/$pkg-$VERSION.tgz" --access public --tag "${{ steps.tag.outputs.npm_tag }}"
+            # 相对路径必须带 ./ 前缀：npm 会把 dist/... 误解析为包 spec 并回退到 git 地址
+            npm publish "./dist/$pkg-$VERSION.tgz" --access public --tag "${{ steps.tag.outputs.npm_tag }}"
             echo "npm 已发布 $pkg@$VERSION (tag: ${{ steps.tag.outputs.npm_tag }})" | tee -a "$GITHUB_STEP_SUMMARY"
           done
 
