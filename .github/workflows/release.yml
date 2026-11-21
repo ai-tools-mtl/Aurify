@@ -179,7 +179,14 @@ jobs:
           fi
           echo "PyPI 已发布 $VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # ---- GitHub Release（dist 全量附件，与手动流程一致）----
+      # ---- GitHub Release（dist 全量附件；notes 取自 CHANGELOG 对应版本节）----
+      - name: Prepare release notes
+        run: |
+          python3 scripts/extract-release-notes.py "$VERSION" > release-notes.md || true
+          # CHANGELOG 尚无该版本节时的兜底占位
+          if [ ! -s release-notes.md ]; then
+            printf 'Aurify %s\n\n发布说明见仓库 CHANGELOG.md。\n' "$TAG" > release-notes.md
+          fi
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -192,8 +199,8 @@ jobs:
           fi
           gh release create "$TAG" dist/* \
             --repo "$GITHUB_REPOSITORY" --verify-tag --title "Aurify $TAG" \
-            --generate-notes $PRERELEASE
-          echo "GitHub Release $TAG 已创建（dist 全量附件）" | tee -a "$GITHUB_STEP_SUMMARY"
+            --notes-file release-notes.md $PRERELEASE
+          echo "GitHub Release $TAG 已创建（dist 全量附件，notes 取自 CHANGELOG）" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # ---- Docker 双镜像（缺 DOCKERHUB 凭据时整段跳过）----
       - uses: docker/setup-buildx-action@v3
